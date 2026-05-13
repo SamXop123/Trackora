@@ -15,6 +15,21 @@ from collections.abc import Iterable, Sequence
 from trackora.backends import DEFAULT_BACKENDS
 
 
+def _is_shell_surface(app: str, title: str) -> bool:
+    """
+    Ignore compositor-owned shell surfaces such as GNOME's main stage.
+
+    Returning these as the "active app" is misleading for activity tracking and
+    also prevents later backends from supplying a real focused window.
+    """
+    normalized_app = app.strip().casefold()
+    normalized_title = title.strip().casefold()
+
+    if normalized_app in {"gnome-shell", "gnome shell"}:
+        return True
+    return normalized_title == "main stage"
+
+
 class FocusDetector:
     """Try each backend in order; first non-None result wins."""
 
@@ -40,5 +55,7 @@ class FocusDetector:
                 continue
             if result is not None:
                 app, title = result
+                if _is_shell_surface(str(app), str(title)):
+                    continue
                 return str(app), str(title)
         return "Unknown", ""
