@@ -36,6 +36,26 @@ def _pretty_app_name(wm_class_instance: str | None, wm_class: str | None) -> str
     return "Unknown"
 
 
+def _is_shell_internal_window(window: dict[str, Any]) -> bool:
+    """
+    Ignore GNOME Shell's own internal stage/overview surfaces.
+
+    Some Window Calls setups report the compositor itself as focused with
+    titles like "Main stage". Those are not real user app windows, so letting
+    them through prevents the detector from falling back to more useful
+    backends.
+    """
+    instance = str(window.get("wm_class_instance") or "").strip().casefold()
+    wm_class = str(window.get("wm_class") or "").strip().casefold()
+    title = str(window.get("title") or "").strip().casefold()
+
+    if instance == "gnome-shell":
+        return True
+    if wm_class.startswith("gnome-shell"):
+        return True
+    return title == "main stage"
+
+
 class GnomeShellWindowCallsBackend:
     """Query Window Calls-style ``List`` over the session D-Bus."""
 
@@ -71,7 +91,7 @@ class GnomeShellWindowCallsBackend:
 
         focused = None
         for w in windows:
-            if w.get("focus") is True:
+            if w.get("focus") is True and not _is_shell_internal_window(w):
                 focused = w
                 break
         if focused is None:
