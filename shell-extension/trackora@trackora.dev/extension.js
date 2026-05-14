@@ -1,87 +1,90 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import Gio from 'gi://Gio';
 
-import {readFocusedSnapshot} from './lib/focusReader.js';
+let timeout = null;
 
-const INTERVAL_SEC = 3;
-
-function getStateDir() {
-    return GLib.build_filenamev([GLib.get_user_data_dir(), 'trackora']);
-}
-
-function getStateFilePath() {
-    return GLib.build_filenamev([getStateDir(), 'current_window.json']);
-}
-
-function ensureStateDir() {
-    const dir = getStateDir();
-    const result = GLib.mkdir_with_parents(dir, 0o700);
-
-    if (result === 0) {
-        console.log(`[Trackora] state directory ready: ${dir}`);
-        return true;
-    }
-
-    console.log(`[Trackora] failed to create state directory: ${dir} (code=${result})`);
-    return false;
-}
-
-function writeWindowState(snapshot) {
-    if (!ensureStateDir())
-        return;
-
-    const timestamp =
-        GLib.DateTime.new_now_local()?.format('%Y-%m-%dT%H:%M:%S') ?? '';
-
-    const payload = {
-        app: snapshot.app ?? 'Unknown',
-        title: snapshot.title ?? '',
-        timestamp,
-    };
-
-    const path = getStateFilePath();
-    const file = Gio.File.new_for_path(path);
-    const contents = JSON.stringify(payload, null, 2);
-
+function writeWindowState() {
     try {
-        const bytes = new TextEncoder().encode(contents);
+        const window = global.display.get_focus_window();
+
+        if (!window) {
+            console.log('[Trackora] No focused window');
+            return true;
+        }
+
+        const app = window.get_wm_class() || 'Unknown';
+        const title = window.get_title() || '';
+
+        console.log(`[Trackora] Detected: ${app} - ${title}`);
+
+        const data = {
+            app: app,
+            title: title,
+            timestamp: new Date().toISOString()
+        };
+
+        const dirPath = GLib.build_filenamev([
+            GLib.get_home_dir(),
+            '.local',
+            'share',
+            'trackora'
+        ]);
+
+        console.log(`[Trackora] Directory path: ${dirPath}`);
+
+        GLib.mkdir_with_parents(dirPath, 0o755);
+
+        const filePath = GLib.build_filenamev([
+            dirPath,
+            'current_window.json'
+        ]);
+
+        console.log(`[Trackora] File path: ${filePath}`);
+
+        const file = Gio.File.new_for_path(filePath);
+
+        const json = JSON.stringify(data, null, 2);
+
+        const encoder = new TextEncoder();
+        const contents = encoder.encode(json);
+
         file.replace_contents(
-            bytes,
+            contents,
             null,
             false,
             Gio.FileCreateFlags.REPLACE_DESTINATION,
             null
         );
-        console.log(`[Trackora] wrote state file successfully: ${path}`);
+
+        console.log('[Trackora] JSON file written successfully');
+
     } catch (e) {
-        console.log(`[Trackora] failed to write state file: ${path} :: ${e}`);
+        console.log(`[Trackora] WRITE ERROR: ${e.message}`);
+        console.log(`${e.stack}`);
     }
+
+    return true;
 }
 
-export default class TrackoraExtension extends Extension {
+export default class TrackoraExtension {
     enable() {
-        this._sourceId = null;
+        console.log('[Trackora] Extension enabled');
 
-        const tick = () => {
-            const snapshot = readFocusedSnapshot();
-            writeWindowState(snapshot);
-            return GLib.SOURCE_CONTINUE;
-        };
+        writeWindowState();
 
-        tick();
-        this._sourceId = GLib.timeout_add_seconds(
+        timeout = GLib.timeout_add_seconds(
             GLib.PRIORITY_DEFAULT,
-            INTERVAL_SEC,
-            tick
+            3,
+            writeWindowState
         );
     }
 
     disable() {
-        if (this._sourceId !== null) {
-            GLib.source_remove(this._sourceId);
-            this._sourceId = null;
+        console.log('[Trackora] Extension disabled');
+
+        if (timeout) {
+            GLib.source_remove(timeout);
+            timeout = null;
         }
     }
 }
