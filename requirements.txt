@@ -1,4 +1,2 @@
-# Trackora — PyGObject provides gi.repository.Gio (D-Bus) and Atspi (AT-SPI2).
-# Fedora: `sudo dnf install python3-gobject python3-cairo-devel` (and typically
-# `at-spi2-core` is already installed with GNOME).
-PyGObject>=3.42.0
+# Trackora Python backend uses the standard library only (json, pathlib).
+# The GNOME Shell extension handles Mutter / Wayland focus detection.
