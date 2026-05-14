@@ -1,6 +1,28 @@
 # Trackora GNOME Shell extension — install and test
 
-This extension runs **inside gnome-shell** on Fedora GNOME **Wayland** (and X11). It uses **Mutter / Meta** APIs (`Meta.Display`, `Meta.Window`) that are not available to ordinary desktop processes, which is why a Shell extension is the reliable approach.
+This extension runs **inside gnome-shell** on Fedora GNOME **Wayland** (and X11). It uses **Mutter / Meta** APIs (`Meta.Display`, `Meta.Window`) that are not available to ordinary desktop processes.
+
+## Shared state file (Python backend)
+
+Every **3 seconds** (and once on enable), the extension writes:
+
+**`$XDG_DATA_HOME/trackora/current_window.json`**
+
+On a typical user session that is:
+
+**`~/.local/share/trackora/current_window.json`**
+
+Example contents:
+
+```json
+{
+  "app": "Firefox",
+  "title": "YouTube",
+  "timestamp": "2026-05-13T19:30:00"
+}
+```
+
+The **Python** package does not detect focus itself; run `python3 -m trackora` from the Trackora repo to **read this file** on the same interval and print lines to stdout. Install the extension first and enable it, or the backend will only report that no valid state file exists.
 
 ## Requirements
 
@@ -31,27 +53,29 @@ This extension runs **inside gnome-shell** on Fedora GNOME **Wayland** (and X11)
 
 ## Test
 
-1. **Watch logs.** Extension output uses `console.log`, which gnome-shell records to the journal. In a terminal:
+1. **Verify the JSON file** (after a few seconds with the extension enabled):
+
+   ```bash
+   cat ~/.local/share/trackora/current_window.json
+   ```
+
+   Switch focus between apps; after each 3s tick the file should update.
+
+2. **Run the Python backend** (from the Trackora git root):
+
+   ```bash
+   python3 -m trackora
+   ```
+
+   You should see lines like `[19:30:00] Firefox - YouTube`. If the file is missing or invalid, the process prints a short message to **stderr** and keeps polling.
+
+3. **Optional: journal.** On write errors the extension uses `console.warn`, which may appear in the journal:
 
    ```bash
    journalctl --user -f -o cat | grep --line-buffered Trackora
    ```
 
-   If nothing appears, try without `--user` (depending on how your distro tags gnome-shell):
-
-   ```bash
-   journalctl -f -o cat | grep --line-buffered Trackora
-   ```
-
-2. **Confirm it is loaded.** Open **Extensions** and ensure Trackora shows as **On** with no error badge. For deeper diagnostics, open Looking Glass (`Alt`+`F2`, run `lg`), open the **Errors** tab, and look for stack traces mentioning `trackora@trackora.dev`.
-
-3. **Exercise focus.** Switch between Firefox, Terminal, Settings, etc. Every **3 seconds** you should see a line like:
-
-   ```text
-   [Trackora] [14:02:10] Firefox - Example Page — Mozilla Firefox
-   ```
-
-   The bracketed time is local wall clock; the segment after it matches the earlier Trackora CLI format: `Application - Window title`.
+4. **Confirm it is loaded.** Open **Extensions** and ensure Trackora shows as **On** with no error badge. For deeper diagnostics, open Looking Glass (`Alt`+`F2`, run `lg`), open the **Errors** tab, and look for stack traces mentioning `trackora@trackora.dev`.
 
 ## Disable / remove
 
