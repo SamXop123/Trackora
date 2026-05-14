@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /**
- * GLib timer that samples focused window metadata and prints to the Shell log.
+ * Timer: sample Mutter focus every N seconds and write ``current_window.json``.
  *
- * console.log / log from extensions is captured by gnome-shell’s logging and
- * shows up in the system journal (see INSTALL.md).
+ * The Python backend reads that file only; no Wayland probing from Python.
  */
 import GLib from 'gi://GLib';
 
 import {readFocusedSnapshot} from './focusReader.js';
-import {formatFocusLogLine} from './logFormat.js';
+import {writeWindowStateFile} from './windowStateWriter.js';
 
 export class FocusLogPoller {
     /**
@@ -22,7 +21,6 @@ export class FocusLogPoller {
 
     start() {
         this.stop();
-        // Immediate sample so you see output right after enable.
         this._tick();
         this._sourceId = GLib.timeout_add_seconds(
             GLib.PRIORITY_DEFAULT,
@@ -43,6 +41,6 @@ export class FocusLogPoller {
 
     _tick() {
         const snap = readFocusedSnapshot();
-        console.log(`[Trackora] ${formatFocusLogLine(snap)}`);
+        writeWindowStateFile(snap);
     }
 }
