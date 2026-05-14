@@ -2,10 +2,10 @@
 /**
  * Trackora GNOME Shell extension entry.
  *
- * Shell runs this code in-process with Mutter, so we can read Meta.Display’s
- * focused window directly. Normal desktop apps cannot do this on Wayland.
+ * Shell runs this code in-process with Mutter, so we read Meta.Display’s
+ * focused window and write ``current_window.json`` under the user data directory
+ * for the Python backend. Normal desktop apps cannot do this on Wayland.
  */
-import GLib from 'gi://GLib';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {FocusLogPoller} from './lib/focusLogPoller.js';
