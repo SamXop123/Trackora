@@ -1,26 +1,35 @@
-"""CLI entry: poll interval and stdout formatting."""
+"""CLI: poll the extension-written JSON and print focused app lines."""
 
 from __future__ import annotations
 
 import argparse
 import signal
 import sys
-import time
+from pathlib import Path
 
-from trackora.detector import FocusDetector
-from trackora.format_output import format_focus_line
+from trackora.service import run_poll_loop
+from trackora.window_state import default_state_path
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="trackora",
-        description="Trackora: print the focused GNOME/Wayland application every few seconds.",
+        description=(
+            "Trackora backend: print focused app from the Shell extension's "
+            "JSON file (extension is the only focus detector)."
+        ),
     )
     parser.add_argument(
         "--interval",
         type=float,
         default=3.0,
-        help="Seconds between samples (default: 3).",
+        help="Seconds between reads (default: 3).",
+    )
+    parser.add_argument(
+        "--state-file",
+        type=Path,
+        default=None,
+        help="Path to current_window.json (default: XDG data dir / trackora / …).",
     )
     args = parser.parse_args(argv)
 
@@ -28,23 +37,22 @@ def main(argv: list[str] | None = None) -> int:
         print("interval must be positive", file=sys.stderr)
         return 2
 
-    detector = FocusDetector()
-    stop = False
+    path: Path | None = args.state_file
+    if path is None:
+        path = default_state_path()
+    else:
+        path = path.expanduser()
+
+    stop: list[bool] = [False]
 
     def _handle_sigint(_signum, _frame) -> None:
-        nonlocal stop
-        stop = True
+        stop[0] = True
 
     signal.signal(signal.SIGINT, _handle_sigint)
 
-    while not stop:
-        app, title = detector.snapshot()
-        print(format_focus_line(app, title), flush=True)
-        # Sleep in slices so Ctrl+C remains responsive for long intervals.
-        remaining = float(args.interval)
-        step = min(0.2, remaining)
-        while remaining > 0 and not stop:
-            time.sleep(step)
-            remaining -= step
-
+    run_poll_loop(
+        interval_sec=float(args.interval),
+        state_path=path,
+        stop_flag=stop,
+    )
     return 0
