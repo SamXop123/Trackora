@@ -1,3 +1,3 @@
-"""Trackora: focused application probe for GNOME on Wayland (D-Bus / AT-SPI2)."""
+"""Trackora: GNOME Shell extension writes focus JSON; Python backend reads it."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
