@@ -1,9 +1,7 @@
 """Format stdout lines from ``WindowState`` (JSON written by the extension)."""
 
 from __future__ import annotations
-
 from datetime import datetime
-
 from trackora.window_state import WindowState
 
 

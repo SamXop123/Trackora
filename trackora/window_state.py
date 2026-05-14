@@ -6,7 +6,6 @@ consumes ``~/.local/share/trackora/current_window.json`` (or ``$XDG_DATA_HOME``)
 """
 
 from __future__ import annotations
-
 import json
 import os
 from dataclasses import dataclass

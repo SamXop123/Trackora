@@ -6,11 +6,9 @@ single source of truth for focus.
 """
 
 from __future__ import annotations
-
 import sys
 import time
 from pathlib import Path
-
 from trackora.format_output import format_window_state_line
 from trackora.window_state import load_window_state
 
