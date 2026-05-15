@@ -6,26 +6,22 @@ consumes ``~/.local/share/trackora/current_window.json`` (or ``$XDG_DATA_HOME``)
 """
 
 from __future__ import annotations
+
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from trackora.models.window_state import WindowState
+from trackora.utils.paths import default_state_path
+
 
 @dataclass(frozen=True)
-class WindowState:
-    """Snapshot mirrored from the JSON file."""
+class WindowStateReadResult:
+    """Result of reading the extension-written window-state JSON."""
 
-    app: str
-    title: str
-    timestamp: str
-
-
-def default_state_path() -> Path:
-    """``$XDG_DATA_HOME/trackora/current_window.json`` or the XDG default."""
-    base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
-    return Path(base).expanduser() / "trackora" / "current_window.json"
+    state: WindowState | None
+    error: str | None = None
 
 
 def load_window_state(path: Path | None = None) -> WindowState | None:
@@ -35,26 +31,46 @@ def load_window_state(path: Path | None = None) -> WindowState | None:
     Returns ``None`` when the file is missing, unreadable, not valid JSON, or
     does not contain the expected string fields. Never raises to callers.
     """
+    return read_window_state(path).state
+
+
+def read_window_state(path: Path | None = None) -> WindowStateReadResult:
+    """Load window state and preserve the reason when the read is invalid."""
     p = path or default_state_path()
     try:
         raw = p.read_text(encoding="utf-8")
     except OSError:
-        return None
+        return WindowStateReadResult(
+            state=None,
+            error=f"Window state file not available: {p}",
+        )
 
     try:
         data: Any = json.loads(raw)
     except json.JSONDecodeError:
-        return None
+        return WindowStateReadResult(
+            state=None,
+            error=f"Window state file is not valid JSON: {p}",
+        )
 
     if not isinstance(data, dict):
-        return None
+        return WindowStateReadResult(
+            state=None,
+            error="Window state JSON must be an object",
+        )
 
     app = data.get("app")
     title = data.get("title")
     ts = data.get("timestamp")
     if not isinstance(app, str) or not isinstance(title, str):
-        return None
+        return WindowStateReadResult(
+            state=None,
+            error="Window state JSON must contain string app and title fields",
+        )
     if not isinstance(ts, str):
         ts = ""
 
-    return WindowState(app=app, title=title, timestamp=ts)
+    return WindowStateReadResult(
+        state=WindowState(app=app, title=title, timestamp=ts),
+        error=None,
+    )
