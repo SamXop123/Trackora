@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from trackora.services import run_tracking_service
+from trackora.utils.lock import TrackoraAlreadyRunningError
 from trackora.utils.paths import default_database_path, default_state_path
 
 
@@ -69,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
             database_path=database_path,
             stop_flag=stop,
         )
-    except RuntimeError as exc:
+    except TrackoraAlreadyRunningError as exc:
         print(f"[Trackora] {exc}", file=sys.stderr)
-        return 1
+        return 3
     return 0
