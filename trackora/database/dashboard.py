@@ -20,6 +20,8 @@ from trackora.utils.time import duration_seconds, now_utc, parse_timestamp
 class DashboardRepository:
     """Load dashboard-friendly summaries from the Trackora database."""
 
+    _MIN_MEANINGFUL_APP_SECONDS = 10
+
     def __init__(self, database_path: Path) -> None:
         self._database_path = database_path.expanduser()
 
@@ -109,6 +111,7 @@ class DashboardRepository:
             day_start_utc=day_start_utc,
             day_end_utc=day_end_utc,
         )
+        meaningful_apps = self._filter_meaningful_app_usage(top_apps)
         hourly_seconds = self._build_hourly_buckets(
             normalized_sessions=normalized_sessions,
             today_local=today_local,
@@ -124,8 +127,8 @@ class DashboardRepository:
             total_yesterday_seconds=total_yesterday_seconds,
             total_last7days_seconds=total_last7days_seconds,
             active_app=active_app,
-            top_apps=top_apps[:5],
-            all_apps=top_apps,
+            top_apps=meaningful_apps[:5],
+            all_apps=meaningful_apps,
             hourly_labels=[f"{hour:02d}" for hour in range(24)],
             hourly_values=[round(seconds / 3600, 2) for seconds in hourly_seconds],
             weekly_labels=[day.label for day in weekly_days],
@@ -188,6 +191,23 @@ class DashboardRepository:
             AppUsageSummary(app_name=app_name, duration_seconds=seconds)
             for app_name, seconds in sorted_usage
         ]
+
+    def _filter_meaningful_app_usage(
+        self,
+        app_usage: list[AppUsageSummary],
+    ) -> list[AppUsageSummary]:
+        """
+        Hide tiny app totals from the dashboard while keeping them in SQLite.
+
+        This keeps "Top Apps Today" focused on meaningful usage without altering
+        the underlying recorded session history.
+        """
+        meaningful = [
+            item
+            for item in app_usage
+            if item.duration_seconds >= self._MIN_MEANINGFUL_APP_SECONDS
+        ]
+        return meaningful
 
     def _build_hourly_buckets(
         self,
