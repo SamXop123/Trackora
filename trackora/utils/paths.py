@@ -27,3 +27,8 @@ def default_state_path() -> Path:
 def default_database_path() -> Path:
     """Return the SQLite database path."""
     return trackora_data_dir() / "trackora.db"
+
+
+def default_lock_path() -> Path:
+    """Return the singleton process lock path."""
+    return trackora_data_dir() / "trackora.lock"
