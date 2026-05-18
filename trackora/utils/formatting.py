@@ -18,6 +18,19 @@ def format_duration_compact(total_seconds: int) -> str:
     return f"{minutes}m"
 
 
+def format_duration_live(total_seconds: int) -> str:
+    """Format durations for a live activity timer."""
+    total_seconds = max(int(total_seconds), 0)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    if hours:
+        return f"{hours}h {minutes:02d}m"
+    if minutes:
+        return f"{minutes}m {seconds:02d}s"
+    return f"{seconds}s"
+
+
 def format_duration_long(total_seconds: int) -> str:
     """Format seconds into a more descriptive duration."""
     total_seconds = max(int(total_seconds), 0)
