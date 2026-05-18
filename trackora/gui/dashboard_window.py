@@ -147,3 +147,113 @@ class DashboardWindow(QMainWindow):
         label = QLabel(title)
         label.setObjectName("sectionTitle")
         layout.addWidget(label)
+        layout.addWidget(widget)
+        return container
+
+    def _apply_styles(self) -> None:
+        self.setStyleSheet(
+            """
+            QMainWindow, QWidget {
+                background: #0b0e12;
+                color: #f3f7ff;
+            }
+            QLabel#subtitleLabel {
+                color: #8ea1bd;
+                font-size: 13px;
+            }
+            QLabel#statusLabel {
+                background: #111821;
+                border: 1px solid #1d2a39;
+                border-radius: 10px;
+                color: #a9bdd8;
+                padding: 10px 14px;
+                font-size: 12px;
+            }
+            QWidget#metricCard, QWidget#sectionCard {
+                background: #111418;
+                border: 1px solid #1c2430;
+                border-radius: 18px;
+            }
+            QLabel#sectionTitle {
+                color: #f3f7ff;
+                font-size: 15px;
+                font-weight: 600;
+            }
+            QLabel#summaryLabel {
+                color: #d6ddea;
+                font-size: 14px;
+                line-height: 1.5;
+            }
+            QTableWidget {
+                background: transparent;
+                border: none;
+                gridline-color: #1c2430;
+                color: #f3f7ff;
+                selection-background-color: #1e395f;
+                selection-color: #f3f7ff;
+            }
+            QHeaderView::section {
+                background: #0f1620;
+                color: #8ea1bd;
+                border: none;
+                padding: 8px;
+                font-weight: 600;
+            }
+            QTableCornerButton::section {
+                background: #0f1620;
+                border: none;
+            }
+            """
+        )
+
+    def refresh_dashboard(self) -> None:
+        snapshot = self._repository.load_snapshot()
+        self._render_snapshot(snapshot)
+
+    def _render_snapshot(self, snapshot: DashboardSnapshot) -> None:
+        self._status_label.setText(snapshot.status_message)
+        self._total_today_card.set_content(
+            value=format_duration_compact(snapshot.total_today_seconds),
+            subtitle=f"{len(snapshot.all_apps)} apps tracked today",
+        )
+
+        if snapshot.top_apps:
+            leader = snapshot.top_apps[0]
+            self._top_app_card.set_content(
+                value=leader.app_name,
+                subtitle=format_duration_compact(leader.duration_seconds),
+            )
+        else:
+            self._top_app_card.set_content(
+                value="No data",
+                subtitle="Open a few apps to start seeing usage",
+            )
+
+        self._refresh_card.set_content(
+            value=format_last_refreshed(snapshot.last_refreshed),
+            subtitle=f"Auto-refresh every {self._refresh_seconds}s",
+        )
+        self._active_status_card.update_status(snapshot.active_app)
+        self._usage_table.set_rows(snapshot.all_apps)
+        self._chart.update_chart(snapshot.hourly_labels, snapshot.hourly_values)
+        self._top_apps_summary.setText(self._build_summary_text(snapshot))
+
+    def _build_summary_text(self, snapshot: DashboardSnapshot) -> str:
+        if not snapshot.top_apps:
+            return "No tracked app sessions yet today. Once the background tracker records activity, your leaders will appear here."
+
+        lines = []
+        for index, item in enumerate(snapshot.top_apps[:3], start=1):
+            lines.append(
+                f"{index}. {item.app_name}  •  {format_duration_compact(item.duration_seconds)}"
+            )
+
+        if snapshot.active_app is not None:
+            lines.append("")
+            lines.append(
+                "Active now: "
+                f"{snapshot.active_app.app_name}  •  "
+                f"{format_duration_compact(snapshot.active_app.elapsed_seconds)}"
+            )
+
+        return "\n".join(lines)
