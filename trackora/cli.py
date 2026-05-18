@@ -62,10 +62,14 @@ def main(argv: list[str] | None = None) -> int:
 
     signal.signal(signal.SIGINT, _handle_sigint)
 
-    run_tracking_service(
-        interval_sec=float(args.interval),
-        state_path=state_path,
-        database_path=database_path,
-        stop_flag=stop,
-    )
+    try:
+        run_tracking_service(
+            interval_sec=float(args.interval),
+            state_path=state_path,
+            database_path=database_path,
+            stop_flag=stop,
+        )
+    except RuntimeError as exc:
+        print(f"[Trackora] {exc}", file=sys.stderr)
+        return 1
     return 0
