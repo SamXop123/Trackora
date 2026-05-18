@@ -7,7 +7,7 @@ from pathlib import Path
 
 from trackora.database import SQLiteSessionStore
 from trackora.tracker import SessionTracker
-from trackora.utils.lock import TrackoraInstanceLock
+from trackora.utils.lock import TrackoraAlreadyRunningError, TrackoraInstanceLock
 from trackora.utils.logging import log_error, log_info, log_warning
 from trackora.utils.paths import default_lock_path
 from trackora.utils.time import now_utc
@@ -27,7 +27,9 @@ def run_tracking_service(
 
     lock = TrackoraInstanceLock(default_lock_path())
     if not lock.acquire():
-        raise RuntimeError("Trackora tracker is already running")
+        raise TrackoraAlreadyRunningError(
+            "Trackora tracker is already running. No second tracker instance was started."
+        )
 
     store = SQLiteSessionStore(database_path)
     store.initialize()
