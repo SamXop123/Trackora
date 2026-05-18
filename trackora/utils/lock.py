@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import fcntl
+import os
 from pathlib import Path
+
+
+class TrackoraAlreadyRunningError(RuntimeError):
+    """Raised when another Trackora tracker instance already holds the lock."""
 
 
 class TrackoraInstanceLock:
@@ -25,7 +30,7 @@ class TrackoraInstanceLock:
 
         handle.seek(0)
         handle.truncate()
-        handle.write(str(self._lock_path))
+        handle.write(str(os.getpid()))
         handle.flush()
         self._lock_file = handle
         return True
@@ -41,7 +46,9 @@ class TrackoraInstanceLock:
 
     def __enter__(self) -> "TrackoraInstanceLock":
         if not self.acquire():
-            raise RuntimeError("Trackora tracker is already running")
+            raise TrackoraAlreadyRunningError(
+                "Trackora tracker is already running. No second tracker instance was started."
+            )
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
