@@ -114,11 +114,15 @@ class DashboardWindow(QMainWindow):
         left_layout.setSpacing(18)
 
         self._chart = DailyUsageChart()
-        self._chart.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        left_layout.addWidget(self._wrap_section("Today's Usage Chart", self._chart))
+        self._chart_section = self._wrap_section("Today's Usage Chart", self._chart)
+        self._chart_section.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        left_layout.addWidget(self._chart_section, 3)
 
         self._usage_table = UsageTableWidget()
-        left_layout.addWidget(self._wrap_section("Top Apps Today", self._usage_table))
+        self._table_section = self._wrap_section("Top Apps Today", self._usage_table)
+        left_layout.addWidget(self._table_section, 2)
+        left_layout.setStretch(0, 3)
+        left_layout.setStretch(1, 2)
         content_layout.addWidget(left_panel, 3)
 
         right_panel = QWidget()
@@ -142,12 +146,12 @@ class DashboardWindow(QMainWindow):
         container.setObjectName("sectionCard")
         layout = QVBoxLayout(container)
         layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(14)
+        layout.setSpacing(16)
 
         label = QLabel(title)
         label.setObjectName("sectionTitle")
         layout.addWidget(label)
-        layout.addWidget(widget)
+        layout.addWidget(widget, 1)
         return container
 
     def _apply_styles(self) -> None:
