@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 
 @dataclass(frozen=True)
@@ -26,6 +26,15 @@ class AppUsageSummary:
 
 
 @dataclass(frozen=True)
+class DailyUsageSummary:
+    """One day's total usage."""
+
+    day: date
+    label: str
+    duration_seconds: int
+
+
+@dataclass(frozen=True)
 class ActiveAppStatus:
     """Current active app inferred from the open session row."""
 
@@ -40,11 +49,16 @@ class DashboardSnapshot:
     """All data needed to render one dashboard refresh."""
 
     total_today_seconds: int
+    total_yesterday_seconds: int
+    total_last7days_seconds: int
     active_app: ActiveAppStatus | None
     top_apps: list[AppUsageSummary]
     all_apps: list[AppUsageSummary]
     hourly_labels: list[str]
     hourly_values: list[float]
+    weekly_labels: list[str]
+    weekly_values: list[float]
+    weekly_days: list[DailyUsageSummary]
     last_refreshed: datetime
     status_message: str
 
@@ -52,11 +66,16 @@ class DashboardSnapshot:
     def empty(cls, *, status_message: str) -> "DashboardSnapshot":
         return cls(
             total_today_seconds=0,
+            total_yesterday_seconds=0,
+            total_last7days_seconds=0,
             active_app=None,
             top_apps=[],
             all_apps=[],
             hourly_labels=[f"{hour:02d}" for hour in range(24)],
             hourly_values=[0.0] * 24,
+            weekly_labels=[],
+            weekly_values=[],
+            weekly_days=[],
             last_refreshed=datetime.now().astimezone(),
             status_message=status_message,
         )
