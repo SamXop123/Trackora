@@ -1,0 +1,62 @@
+"""Dashboard-oriented data models."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+
+
+@dataclass(frozen=True)
+class SessionRecord:
+    """Raw session row loaded from SQLite."""
+
+    app_name: str
+    window_title: str
+    start_time: str
+    end_time: str | None
+    duration_seconds: int | None
+
+
+@dataclass(frozen=True)
+class AppUsageSummary:
+    """Aggregated app usage for the current day."""
+
+    app_name: str
+    duration_seconds: int
+
+
+@dataclass(frozen=True)
+class ActiveAppStatus:
+    """Current active app inferred from the open session row."""
+
+    app_name: str
+    window_title: str
+    started_at: datetime
+    elapsed_seconds: int
+
+
+@dataclass(frozen=True)
+class DashboardSnapshot:
+    """All data needed to render one dashboard refresh."""
+
+    total_today_seconds: int
+    active_app: ActiveAppStatus | None
+    top_apps: list[AppUsageSummary]
+    all_apps: list[AppUsageSummary]
+    hourly_labels: list[str]
+    hourly_values: list[float]
+    last_refreshed: datetime
+    status_message: str
+
+    @classmethod
+    def empty(cls, *, status_message: str) -> "DashboardSnapshot":
+        return cls(
+            total_today_seconds=0,
+            active_app=None,
+            top_apps=[],
+            all_apps=[],
+            hourly_labels=[f"{hour:02d}" for hour in range(24)],
+            hourly_values=[0.0] * 24,
+            last_refreshed=datetime.now().astimezone(),
+            status_message=status_message,
+        )
