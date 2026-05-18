@@ -16,10 +16,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from trackora.charts import DailyUsageChart
+from trackora.charts import DailyUsageChart, WeeklyUsageChart
 from trackora.database.dashboard import DashboardRepository
 from trackora.models.dashboard import DashboardSnapshot
-from trackora.utils.formatting import format_duration_compact, format_last_refreshed
+from trackora.utils.formatting import (
+    format_duration_caption,
+    format_duration_compact,
+    format_last_refreshed,
+)
 from trackora.widgets.active_status_card import ActiveStatusCard
 from trackora.widgets.metric_card import MetricCard
 from trackora.widgets.usage_table import UsageTableWidget
@@ -87,6 +91,16 @@ class DashboardWindow(QMainWindow):
             value="0m",
             subtitle="Across all tracked apps",
         )
+        self._yesterday_card = MetricCard(
+            title="Yesterday",
+            value="0m",
+            subtitle="Previous day total",
+        )
+        self._last7days_card = MetricCard(
+            title="Last 7 Days",
+            value="0m",
+            subtitle="Rolling total",
+        )
         self._top_app_card = MetricCard(
             title="Top App Today",
             value="No data",
@@ -100,9 +114,11 @@ class DashboardWindow(QMainWindow):
         self._active_status_card = ActiveStatusCard()
 
         metrics_layout.addWidget(self._total_today_card, 0, 0)
-        metrics_layout.addWidget(self._top_app_card, 0, 1)
-        metrics_layout.addWidget(self._refresh_card, 0, 2)
-        metrics_layout.addWidget(self._active_status_card, 1, 0, 1, 3)
+        metrics_layout.addWidget(self._yesterday_card, 0, 1)
+        metrics_layout.addWidget(self._last7days_card, 0, 2)
+        metrics_layout.addWidget(self._refresh_card, 0, 3)
+        metrics_layout.addWidget(self._active_status_card, 1, 0, 1, 2)
+        metrics_layout.addWidget(self._top_app_card, 1, 2, 1, 2)
         outer.addLayout(metrics_layout)
 
         content_layout = QHBoxLayout()
@@ -135,7 +151,11 @@ class DashboardWindow(QMainWindow):
         self._top_apps_summary.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         self._top_apps_summary.setWordWrap(True)
 
-        right_layout.addWidget(self._wrap_section("Today's Leaders", self._top_apps_summary))
+        self._weekly_chart = WeeklyUsageChart()
+        right_layout.addWidget(self._wrap_section("Weekly Screen Time", self._weekly_chart), 2)
+        right_layout.addWidget(self._wrap_section("Today's Leaders", self._top_apps_summary), 1)
+        right_layout.setStretch(0, 2)
+        right_layout.setStretch(1, 1)
         right_layout.addStretch(1)
         content_layout.addWidget(right_panel, 2)
 
@@ -220,12 +240,20 @@ class DashboardWindow(QMainWindow):
             value=format_duration_compact(snapshot.total_today_seconds),
             subtitle=f"{len(snapshot.all_apps)} apps tracked today",
         )
+        self._yesterday_card.set_content(
+            value=format_duration_compact(snapshot.total_yesterday_seconds),
+            subtitle=format_duration_caption(snapshot.total_yesterday_seconds),
+        )
+        self._last7days_card.set_content(
+            value=format_duration_compact(snapshot.total_last7days_seconds),
+            subtitle=format_duration_caption(snapshot.total_last7days_seconds),
+        )
 
         if snapshot.top_apps:
             leader = snapshot.top_apps[0]
             self._top_app_card.set_content(
                 value=leader.app_name,
-                subtitle=format_duration_compact(leader.duration_seconds),
+                subtitle=format_duration_caption(leader.duration_seconds),
             )
         else:
             self._top_app_card.set_content(
@@ -240,6 +268,7 @@ class DashboardWindow(QMainWindow):
         self._active_status_card.update_status(snapshot.active_app)
         self._usage_table.set_rows(snapshot.all_apps)
         self._chart.update_chart(snapshot.hourly_labels, snapshot.hourly_values)
+        self._weekly_chart.update_chart(snapshot.weekly_labels, snapshot.weekly_values)
         self._top_apps_summary.setText(self._build_summary_text(snapshot))
 
     def _build_summary_text(self, snapshot: DashboardSnapshot) -> str:
@@ -258,6 +287,15 @@ class DashboardWindow(QMainWindow):
                 "Active now: "
                 f"{snapshot.active_app.app_name}  •  "
                 f"{format_duration_compact(snapshot.active_app.elapsed_seconds)}"
+            )
+
+        if snapshot.weekly_days:
+            strongest_day = max(snapshot.weekly_days, key=lambda item: item.duration_seconds)
+            lines.append("")
+            lines.append(
+                "Strongest day: "
+                f"{strongest_day.day.strftime('%a %d %b')}  •  "
+                f"{format_duration_compact(strongest_day.duration_seconds)}"
             )
 
         return "\n".join(lines)
