@@ -10,6 +10,8 @@ Type=simple
 ExecStart=/usr/bin/python3 -m trackora
 Restart=on-failure
 RestartSec=5
+SuccessExitStatus=3
+RestartPreventExitStatus=3
 TimeoutStopSec=10
 KillMode=process
 Environment=PYTHONUNBUFFERED=1
