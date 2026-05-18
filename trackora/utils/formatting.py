@@ -44,3 +44,13 @@ def format_duration_long(total_seconds: int) -> str:
 def format_last_refreshed(value: datetime) -> str:
     """Format a datetime for dashboard refresh labels."""
     return value.strftime("%H:%M:%S")
+
+
+def format_duration_caption(total_seconds: int) -> str:
+    """Format a duration for short explanatory labels."""
+    total_seconds = max(int(total_seconds), 0)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+    if hours:
+        return f"{hours} hr {minutes} min"
+    return f"{minutes} min"
