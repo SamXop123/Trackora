@@ -4,6 +4,7 @@ from trackora.models.dashboard import (
     ActiveAppStatus,
     AppUsageSummary,
     DashboardSnapshot,
+    DailyUsageSummary,
     SessionRecord,
 )
 from trackora.models.session import ActiveSession
@@ -14,6 +15,7 @@ __all__ = [
     "ActiveSession",
     "AppUsageSummary",
     "DashboardSnapshot",
+    "DailyUsageSummary",
     "SessionRecord",
     "WindowState",
 ]
