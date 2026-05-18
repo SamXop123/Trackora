@@ -10,8 +10,10 @@ from trackora.models.dashboard import (
     ActiveAppStatus,
     AppUsageSummary,
     DashboardSnapshot,
+    DailyUsageSummary,
     SessionRecord,
 )
+from trackora.utils.app_names import normalize_app_name
 from trackora.utils.time import duration_seconds, now_utc, parse_timestamp
 
 
@@ -31,10 +33,14 @@ class DashboardRepository:
         now = now_utc()
         local_now = now.astimezone()
         today_local = local_now.date()
-        day_start_local = datetime.combine(today_local, time.min, tzinfo=local_now.tzinfo)
-        day_end_local = day_start_local + timedelta(days=1)
-        day_start_utc = day_start_local.astimezone(now.tzinfo)
-        day_end_utc = day_end_local.astimezone(now.tzinfo)
+        yesterday_local = today_local - timedelta(days=1)
+        week_start_local = today_local - timedelta(days=6)
+        day_start_utc, day_end_utc = self._local_day_bounds(today_local, local_now)
+        yesterday_start_utc, yesterday_end_utc = self._local_day_bounds(
+            yesterday_local,
+            local_now,
+        )
+        week_start_utc, _ = self._local_day_bounds(week_start_local, local_now)
 
         try:
             with sqlite3.connect(self._database_path, timeout=2.0) as conn:
@@ -43,8 +49,16 @@ class DashboardRepository:
                     """
                     SELECT app_name, window_title, start_time, end_time, duration_seconds
                     FROM app_sessions
+                    WHERE start_time < ?
+                      AND COALESCE(end_time, ?) > ?
                     ORDER BY start_time ASC
                     """
+                    ,
+                    (
+                        self._to_sql_timestamp(day_end_utc),
+                        self._to_sql_timestamp(now),
+                        self._to_sql_timestamp(week_start_utc),
+                    ),
                 ).fetchall()
                 active_row = conn.execute(
                     """
@@ -66,10 +80,27 @@ class DashboardRepository:
             for session in sessions
             if self._intersects_day(session, day_start_utc, day_end_utc, now)
         ]
+        yesterdays_sessions = [
+            session
+            for session in sessions
+            if self._intersects_day(session, yesterday_start_utc, yesterday_end_utc, now)
+        ]
         normalized_sessions = self._normalized_sessions(
             todays_sessions=todays_sessions,
             day_start_utc=day_start_utc,
             day_end_utc=day_end_utc,
+            now=now,
+        )
+        normalized_yesterday = self._normalized_sessions(
+            todays_sessions=yesterdays_sessions,
+            day_start_utc=yesterday_start_utc,
+            day_end_utc=yesterday_end_utc,
+            now=now,
+        )
+        weekly_days = self._build_weekly_daily_totals(
+            sessions=sessions,
+            start_day=week_start_local,
+            local_now=local_now,
             now=now,
         )
 
@@ -86,20 +117,30 @@ class DashboardRepository:
         )
         active_app = self._active_app_status(active_row, now)
         total_seconds = self._merged_total_seconds(normalized_sessions)
+        total_yesterday_seconds = self._merged_total_seconds(normalized_yesterday)
+        total_last7days_seconds = sum(day.duration_seconds for day in weekly_days)
         return DashboardSnapshot(
             total_today_seconds=total_seconds,
+            total_yesterday_seconds=total_yesterday_seconds,
+            total_last7days_seconds=total_last7days_seconds,
             active_app=active_app,
             top_apps=top_apps[:5],
             all_apps=top_apps,
             hourly_labels=[f"{hour:02d}" for hour in range(24)],
             hourly_values=[round(seconds / 3600, 2) for seconds in hourly_seconds],
+            weekly_labels=[day.label for day in weekly_days],
+            weekly_values=[round(day.duration_seconds / 3600, 2) for day in weekly_days],
+            weekly_days=weekly_days,
             last_refreshed=local_now,
             status_message="Connected to Trackora database",
         )
 
     def _to_session_record(self, row: sqlite3.Row) -> SessionRecord:
         return SessionRecord(
-            app_name=str(row["app_name"] or "Unknown"),
+            app_name=normalize_app_name(
+                str(row["app_name"] or "Unknown"),
+                str(row["window_title"] or ""),
+            ),
             window_title=str(row["window_title"] or ""),
             start_time=str(row["start_time"] or ""),
             end_time=str(row["end_time"] or "") or None,
@@ -185,11 +226,46 @@ class DashboardRepository:
             return None
 
         return ActiveAppStatus(
-            app_name=str(active_row["app_name"] or "Unknown"),
+            app_name=normalize_app_name(
+                str(active_row["app_name"] or "Unknown"),
+                str(active_row["window_title"] or ""),
+            ),
             window_title=str(active_row["window_title"] or ""),
             started_at=started_at,
             elapsed_seconds=duration_seconds(started_at, now),
         )
+
+    def _build_weekly_daily_totals(
+        self,
+        *,
+        sessions: list[SessionRecord],
+        start_day: date,
+        local_now: datetime,
+        now: datetime,
+    ) -> list[DailyUsageSummary]:
+        days: list[DailyUsageSummary] = []
+        for offset in range(7):
+            day = start_day + timedelta(days=offset)
+            day_start_utc, day_end_utc = self._local_day_bounds(day, local_now)
+            day_sessions = [
+                session
+                for session in sessions
+                if self._intersects_day(session, day_start_utc, day_end_utc, now)
+            ]
+            normalized = self._normalized_sessions(
+                todays_sessions=day_sessions,
+                day_start_utc=day_start_utc,
+                day_end_utc=day_end_utc,
+                now=now,
+            )
+            days.append(
+                DailyUsageSummary(
+                    day=day,
+                    label=day.strftime("%a\n%d"),
+                    duration_seconds=self._merged_total_seconds(normalized),
+                )
+            )
+        return days
 
     def _normalized_sessions(
         self,
@@ -250,3 +326,18 @@ class DashboardRepository:
 
         total += duration_seconds(current_start, current_end)
         return total
+
+    def _local_day_bounds(
+        self,
+        local_day: date,
+        local_now: datetime,
+    ) -> tuple[datetime, datetime]:
+        day_start_local = datetime.combine(local_day, time.min, tzinfo=local_now.tzinfo)
+        day_end_local = day_start_local + timedelta(days=1)
+        return (
+            day_start_local.astimezone(now_utc().tzinfo),
+            day_end_local.astimezone(now_utc().tzinfo),
+        )
+
+    def _to_sql_timestamp(self, value: datetime) -> str:
+        return value.astimezone(now_utc().tzinfo).isoformat().replace("+00:00", "Z")
