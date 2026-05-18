@@ -5,7 +5,7 @@ from __future__ import annotations
 from trackora.database import SQLiteSessionStore
 from trackora.models.session import ActiveSession
 from trackora.models.window_state import WindowState
-from trackora.utils.logging import log_info
+from trackora.utils.logging import log_info, log_warning
 from trackora.utils.time import duration_seconds, now_utc, parse_timestamp, to_storage_timestamp
 
 
@@ -20,7 +20,7 @@ class SessionTracker:
         """Open or rotate sessions when the focused window changes."""
         app_name = state.app.strip() or "Unknown"
         window_title = state.title.strip()
-        event_at = parse_timestamp(state.timestamp) or now_utc()
+        event_at = self._validated_event_time(state.timestamp)
         event_time_text = to_storage_timestamp(event_at)
 
         if self._active_session is None:
@@ -99,3 +99,19 @@ class SessionTracker:
         log_info(f"Session ended: {active.app_name} ({duration}s)")
         log_info("Database updated")
         self._active_session = None
+
+    def _validated_event_time(self, raw_timestamp: str):
+        """
+        Prefer extension timestamps, but never allow time to move backward.
+
+        This protects duration math if the JSON timestamp is missing, stale,
+        malformed, or older than the currently open session's start.
+        """
+        parsed = parse_timestamp(raw_timestamp) or now_utc()
+        active = self._active_session
+        if active is not None and parsed < active.start_at:
+            log_warning(
+                "Received out-of-order window timestamp; using current clock for safety"
+            )
+            return now_utc()
+        return parsed
