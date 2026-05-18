@@ -169,3 +169,84 @@ class DashboardRepository:
                 if overlap_end > overlap_start:
                     intervals.append((overlap_start, overlap_end))
             buckets[hour] = self._merged_intervals_seconds(intervals)
+        return buckets
+
+    def _active_app_status(
+        self,
+        active_row: sqlite3.Row | None,
+        now: datetime,
+    ) -> ActiveAppStatus | None:
+        if active_row is None:
+            return None
+
+        start_time_text = str(active_row["start_time"] or "")
+        started_at = parse_timestamp(start_time_text)
+        if started_at is None:
+            return None
+
+        return ActiveAppStatus(
+            app_name=str(active_row["app_name"] or "Unknown"),
+            window_title=str(active_row["window_title"] or ""),
+            started_at=started_at,
+            elapsed_seconds=duration_seconds(started_at, now),
+        )
+
+    def _normalized_sessions(
+        self,
+        *,
+        todays_sessions: list[SessionRecord],
+        day_start_utc: datetime,
+        day_end_utc: datetime,
+        now: datetime,
+    ) -> list[tuple[str, datetime, datetime]]:
+        """
+        Normalize session intervals for dashboard calculations.
+
+        Bad historical data can contain overlaps or reversed times. We clip
+        everything to today's bounds and discard invalid ranges so daily totals
+        stay realistic.
+        """
+        normalized: list[tuple[str, datetime, datetime]] = []
+        for session in todays_sessions:
+            start = parse_timestamp(session.start_time)
+            if start is None:
+                continue
+            end = parse_timestamp(session.end_time) if session.end_time else now
+            if end <= start:
+                continue
+            clipped_start = max(start, day_start_utc)
+            clipped_end = min(end, day_end_utc)
+            if clipped_end <= clipped_start:
+                continue
+            app_name = session.app_name.strip() or "Unknown"
+            normalized.append((app_name, clipped_start, clipped_end))
+        return normalized
+
+    def _merged_total_seconds(
+        self,
+        normalized_sessions: list[tuple[str, datetime, datetime]],
+    ) -> int:
+        intervals = [(start, end) for _app_name, start, end in normalized_sessions]
+        return self._merged_intervals_seconds(intervals)
+
+    def _merged_intervals_seconds(
+        self,
+        intervals: list[tuple[datetime, datetime]],
+    ) -> int:
+        if not intervals:
+            return 0
+
+        sorted_intervals = sorted(intervals, key=lambda item: item[0])
+        total = 0
+        current_start, current_end = sorted_intervals[0]
+
+        for start, end in sorted_intervals[1:]:
+            if start <= current_end:
+                if end > current_end:
+                    current_end = end
+                continue
+            total += duration_seconds(current_start, current_end)
+            current_start, current_end = start, end
+
+        total += duration_seconds(current_start, current_end)
+        return total
