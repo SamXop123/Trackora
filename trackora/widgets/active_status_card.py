@@ -5,7 +5,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from trackora.models.dashboard import ActiveAppStatus
-from trackora.utils.formatting import format_duration_compact
+from trackora.utils.formatting import format_duration_live
 
 
 class ActiveStatusCard(QWidget):
@@ -14,6 +14,7 @@ class ActiveStatusCard(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("metricCard")
+        self._active_status: ActiveAppStatus | None = None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(22, 20, 22, 20)
         layout.setSpacing(10)
@@ -64,6 +65,7 @@ class ActiveStatusCard(QWidget):
 
     def update_status(self, active: ActiveAppStatus | None) -> None:
         """Refresh the card content."""
+        self._active_status = active
         if active is None:
             self._app_label.setText("No active session")
             self._window_label.setText("The tracker is idle or no app has been recorded yet.")
@@ -73,5 +75,21 @@ class ActiveStatusCard(QWidget):
         self._app_label.setText(active.app_name)
         self._window_label.setText(active.window_title or "No window title")
         self._duration_label.setText(
-            f"Active for {format_duration_compact(active.elapsed_seconds)}"
+            f"Active for {format_duration_live(active.elapsed_seconds)}"
+        )
+
+    def tick(self) -> None:
+        """Advance the displayed timer locally between database refreshes."""
+        if self._active_status is None:
+            return
+
+        next_elapsed = self._active_status.elapsed_seconds + 1
+        self._active_status = ActiveAppStatus(
+            app_name=self._active_status.app_name,
+            window_title=self._active_status.window_title,
+            started_at=self._active_status.started_at,
+            elapsed_seconds=next_elapsed,
+        )
+        self._duration_label.setText(
+            f"Active for {format_duration_live(next_elapsed)}"
         )
