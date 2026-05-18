@@ -1,0 +1,171 @@
+"""Read-only dashboard queries over the Trackora SQLite database."""
+
+from __future__ import annotations
+
+import sqlite3
+from datetime import date, datetime, time, timedelta
+from pathlib import Path
+
+from trackora.models.dashboard import (
+    ActiveAppStatus,
+    AppUsageSummary,
+    DashboardSnapshot,
+    SessionRecord,
+)
+from trackora.utils.time import duration_seconds, now_utc, parse_timestamp
+
+
+class DashboardRepository:
+    """Load dashboard-friendly summaries from the Trackora database."""
+
+    def __init__(self, database_path: Path) -> None:
+        self._database_path = database_path.expanduser()
+
+    def load_snapshot(self) -> DashboardSnapshot:
+        """Build a full dashboard snapshot from persisted session rows."""
+        if not self._database_path.exists():
+            return DashboardSnapshot.empty(
+                status_message=f"Database not found: {self._database_path}"
+            )
+
+        now = now_utc()
+        local_now = now.astimezone()
+        today_local = local_now.date()
+        day_start_local = datetime.combine(today_local, time.min, tzinfo=local_now.tzinfo)
+        day_end_local = day_start_local + timedelta(days=1)
+        day_start_utc = day_start_local.astimezone(now.tzinfo)
+        day_end_utc = day_end_local.astimezone(now.tzinfo)
+
+        try:
+            with sqlite3.connect(self._database_path, timeout=2.0) as conn:
+                conn.row_factory = sqlite3.Row
+                session_rows = conn.execute(
+                    """
+                    SELECT app_name, window_title, start_time, end_time, duration_seconds
+                    FROM app_sessions
+                    ORDER BY start_time ASC
+                    """
+                ).fetchall()
+                active_row = conn.execute(
+                    """
+                    SELECT app_name, window_title, start_time
+                    FROM app_sessions
+                    WHERE end_time IS NULL
+                    ORDER BY start_time DESC
+                    LIMIT 1
+                    """
+                ).fetchone()
+        except sqlite3.Error as exc:
+            return DashboardSnapshot.empty(
+                status_message=f"Could not read database: {exc}"
+            )
+
+        sessions = [self._to_session_record(row) for row in session_rows]
+        todays_sessions = [
+            session
+            for session in sessions
+            if self._intersects_day(session, day_start_utc, day_end_utc, now)
+        ]
+        normalized_sessions = self._normalized_sessions(
+            todays_sessions=todays_sessions,
+            day_start_utc=day_start_utc,
+            day_end_utc=day_end_utc,
+            now=now,
+        )
+
+        top_apps = self._aggregate_app_usage(
+            normalized_sessions=normalized_sessions,
+            day_start_utc=day_start_utc,
+            day_end_utc=day_end_utc,
+        )
+        hourly_seconds = self._build_hourly_buckets(
+            normalized_sessions=normalized_sessions,
+            today_local=today_local,
+            tzinfo=local_now.tzinfo,
+            now=now,
+        )
+        active_app = self._active_app_status(active_row, now)
+        total_seconds = self._merged_total_seconds(normalized_sessions)
+        return DashboardSnapshot(
+            total_today_seconds=total_seconds,
+            active_app=active_app,
+            top_apps=top_apps[:5],
+            all_apps=top_apps,
+            hourly_labels=[f"{hour:02d}" for hour in range(24)],
+            hourly_values=[round(seconds / 3600, 2) for seconds in hourly_seconds],
+            last_refreshed=local_now,
+            status_message="Connected to Trackora database",
+        )
+
+    def _to_session_record(self, row: sqlite3.Row) -> SessionRecord:
+        return SessionRecord(
+            app_name=str(row["app_name"] or "Unknown"),
+            window_title=str(row["window_title"] or ""),
+            start_time=str(row["start_time"] or ""),
+            end_time=str(row["end_time"] or "") or None,
+            duration_seconds=int(row["duration_seconds"]) if row["duration_seconds"] is not None else None,
+        )
+
+    def _intersects_day(
+        self,
+        session: SessionRecord,
+        day_start_utc: datetime,
+        day_end_utc: datetime,
+        now: datetime,
+    ) -> bool:
+        start = parse_timestamp(session.start_time)
+        if start is None:
+            return False
+        end = parse_timestamp(session.end_time) if session.end_time else now
+        return end > day_start_utc and start < day_end_utc
+
+    def _aggregate_app_usage(
+        self,
+        *,
+        normalized_sessions: list[tuple[str, datetime, datetime]],
+        day_start_utc: datetime,
+        day_end_utc: datetime,
+    ) -> list[AppUsageSummary]:
+        intervals_by_app: dict[str, list[tuple[datetime, datetime]]] = {}
+        for app_name, start, end in normalized_sessions:
+            clipped_start = max(start, day_start_utc)
+            clipped_end = min(end, day_end_utc)
+            if clipped_end <= clipped_start:
+                continue
+            intervals_by_app.setdefault(app_name, []).append((clipped_start, clipped_end))
+
+        usage_by_app = {
+            app_name: self._merged_intervals_seconds(intervals)
+            for app_name, intervals in intervals_by_app.items()
+        }
+
+        sorted_usage = sorted(
+            usage_by_app.items(),
+            key=lambda item: (-item[1], item[0].lower()),
+        )
+        return [
+            AppUsageSummary(app_name=app_name, duration_seconds=seconds)
+            for app_name, seconds in sorted_usage
+        ]
+
+    def _build_hourly_buckets(
+        self,
+        *,
+        normalized_sessions: list[tuple[str, datetime, datetime]],
+        today_local: date,
+        tzinfo,
+        now: datetime,
+    ) -> list[int]:
+        buckets = [0] * 24
+        for hour in range(24):
+            bucket_start_local = datetime.combine(today_local, time(hour=hour), tzinfo=tzinfo)
+            bucket_end_local = bucket_start_local + timedelta(hours=1)
+            bucket_start_utc = bucket_start_local.astimezone(now.tzinfo)
+            bucket_end_utc = bucket_end_local.astimezone(now.tzinfo)
+            intervals = []
+            for _app_name, start, end in normalized_sessions:
+                overlap_start = max(start, bucket_start_utc)
+                overlap_end = min(end, bucket_end_utc)
+                if overlap_end > overlap_start:
+                    intervals.append((overlap_start, overlap_end))
+            buckets[hour] = self._merged_intervals_seconds(intervals)
