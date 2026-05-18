@@ -7,7 +7,9 @@ from pathlib import Path
 
 from trackora.database import SQLiteSessionStore
 from trackora.tracker import SessionTracker
+from trackora.utils.lock import TrackoraInstanceLock
 from trackora.utils.logging import log_error, log_info, log_warning
+from trackora.utils.paths import default_lock_path
 from trackora.utils.time import now_utc
 from trackora.window_state import read_window_state
 
@@ -22,6 +24,10 @@ def run_tracking_service(
     """Continuously convert focused-window snapshots into durable sessions."""
     if interval_sec <= 0:
         raise ValueError("interval_sec must be positive")
+
+    lock = TrackoraInstanceLock(default_lock_path())
+    if not lock.acquire():
+        raise RuntimeError("Trackora tracker is already running")
 
     store = SQLiteSessionStore(database_path)
     store.initialize()
@@ -54,9 +60,12 @@ def run_tracking_service(
             _sleep_in_slices(interval_sec, stop_flag)
     finally:
         try:
-            tracker.close_active_session()
+            try:
+                tracker.close_active_session()
+            finally:
+                store.close()
         finally:
-            store.close()
+            lock.release()
 
 
 def _sleep_in_slices(interval_sec: float, stop_flag: list[bool] | None) -> None:
