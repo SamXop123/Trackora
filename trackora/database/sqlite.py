@@ -33,26 +33,38 @@ class SQLiteSessionStore:
                     window_title TEXT,
                     start_time TEXT NOT NULL,
                     end_time TEXT,
-                    duration_seconds INTEGER
+                    duration_seconds INTEGER CHECK (duration_seconds IS NULL OR duration_seconds >= 0)
                 )
+                """
+            )
+            self._conn.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_app_sessions_single_open
+                ON app_sessions ((1))
+                WHERE end_time IS NULL
                 """
             )
 
     def start_session(self, *, app_name: str, window_title: str, start_time: str) -> int:
         """Insert a new active session and return its row id."""
-        with self._conn:
-            cursor = self._conn.execute(
-                """
-                INSERT INTO app_sessions (
-                    app_name,
-                    window_title,
-                    start_time,
-                    end_time,
-                    duration_seconds
-                ) VALUES (?, ?, ?, NULL, NULL)
-                """,
-                (app_name, window_title, start_time),
-            )
+        try:
+            with self._conn:
+                cursor = self._conn.execute(
+                    """
+                    INSERT INTO app_sessions (
+                        app_name,
+                        window_title,
+                        start_time,
+                        end_time,
+                        duration_seconds
+                    ) VALUES (?, ?, ?, NULL, NULL)
+                    """,
+                    (app_name, window_title, start_time),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise RuntimeError(
+                "A tracker session is already active in the database"
+            ) from exc
         return int(cursor.lastrowid)
 
     def end_session(self, *, session_id: int, end_time: str, duration: int) -> None:
@@ -102,6 +114,18 @@ class SQLiteSessionStore:
                     ),
                 )
         return len(rows)
+
+    def active_session_exists(self) -> bool:
+        """Return whether an open session row already exists."""
+        row = self._conn.execute(
+            """
+            SELECT 1
+            FROM app_sessions
+            WHERE end_time IS NULL
+            LIMIT 1
+            """
+        ).fetchone()
+        return row is not None
 
     def close(self) -> None:
         """Close the SQLite connection."""
