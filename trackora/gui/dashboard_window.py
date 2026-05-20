@@ -275,149 +275,16 @@ class MainWindow(QMainWindow):
         metrics_layout.setHorizontalSpacing(16)
         metrics_layout.setVerticalSpacing(16)
 
-        self._total_today_card = MetricCard(
-            title="Total Screen Time Today",
-            value="0m",
-            subtitle="Across all tracked apps",
-        )
-        self._yesterday_card = MetricCard(
-            title="Yesterday",
-            value="0m",
-            subtitle="Previous day total",
-        )
-        self._last7days_card = MetricCard(
-            title="Last 7 Days",
-            value="0m",
-            subtitle="Rolling total",
-        )
-        self._top_app_card = MetricCard(
-            title="Top App Today",
-            value="No data",
-            subtitle="No usage recorded yet",
-        )
-        self._refresh_card = MetricCard(
-            title="Last Refresh",
-            value="Waiting…",
-            subtitle="Dashboard auto-refresh",
-        )
-        self._active_status_card = ActiveStatusCard()
+    def _start_timers(self) -> None:
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.timeout.connect(self._refresh_dashboard)
+        self._refresh_timer.start(self._refresh_seconds * 1000)
 
-        metrics_layout.addWidget(self._total_today_card, 0, 0)
-        metrics_layout.addWidget(self._yesterday_card, 0, 1)
-        metrics_layout.addWidget(self._last7days_card, 0, 2)
-        metrics_layout.addWidget(self._refresh_card, 0, 3)
-        metrics_layout.addWidget(self._active_status_card, 1, 0, 1, 2)
-        metrics_layout.addWidget(self._top_app_card, 1, 2, 1, 2)
-        outer.addLayout(metrics_layout)
+        self._tick_timer = QTimer(self)
+        self._tick_timer.timeout.connect(self._dashboard_page.tick_active_session)
+        self._tick_timer.start(1000)
 
-        content_layout = QHBoxLayout()
-        content_layout.setSpacing(18)
-
-        left_panel = QWidget()
-        left_layout = QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(18)
-
-        self._chart = DailyUsageChart()
-        self._chart_section = self._wrap_section("Today's Usage Chart", self._chart)
-        self._chart_section.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        left_layout.addWidget(self._chart_section, 3)
-
-        self._usage_table = UsageTableWidget()
-        self._table_section = self._wrap_section("Top Apps Today", self._usage_table)
-        left_layout.addWidget(self._table_section, 2)
-        left_layout.setStretch(0, 3)
-        left_layout.setStretch(1, 2)
-        content_layout.addWidget(left_panel, 3)
-
-        right_panel = QWidget()
-        right_layout = QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(18)
-
-        self._top_apps_summary = QLabel("No tracked apps yet.")
-        self._top_apps_summary.setObjectName("summaryLabel")
-        self._top_apps_summary.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        self._top_apps_summary.setWordWrap(True)
-
-        self._weekly_chart = WeeklyUsageChart()
-        right_layout.addWidget(self._wrap_section("Weekly Screen Time", self._weekly_chart), 2)
-        right_layout.addWidget(self._wrap_section("Today's Leaders", self._top_apps_summary), 1)
-        right_layout.setStretch(0, 2)
-        right_layout.setStretch(1, 1)
-        right_layout.addStretch(1)
-        content_layout.addWidget(right_panel, 2)
-
-        outer.addLayout(content_layout)
-
-    def _wrap_section(self, title: str, widget: QWidget) -> QWidget:
-        container = QWidget()
-        container.setObjectName("sectionCard")
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(16)
-
-        label = QLabel(title)
-        label.setObjectName("sectionTitle")
-        layout.addWidget(label)
-        layout.addWidget(widget, 1)
-        return container
-
-    def _apply_styles(self) -> None:
-        self.setStyleSheet(
-            """
-            QMainWindow, QWidget {
-                background: #0b0e12;
-                color: #f3f7ff;
-            }
-            QLabel#subtitleLabel {
-                color: #8ea1bd;
-                font-size: 13px;
-            }
-            QLabel#statusLabel {
-                background: #111821;
-                border: 1px solid #1d2a39;
-                border-radius: 10px;
-                color: #a9bdd8;
-                padding: 10px 14px;
-                font-size: 12px;
-            }
-            QWidget#metricCard, QWidget#sectionCard {
-                background: #111418;
-                border: 1px solid #1c2430;
-                border-radius: 18px;
-            }
-            QLabel#sectionTitle {
-                color: #f3f7ff;
-                font-size: 15px;
-                font-weight: 600;
-            }
-            QLabel#summaryLabel {
-                color: #d6ddea;
-                font-size: 14px;
-                line-height: 1.5;
-            }
-            QTableWidget {
-                background: transparent;
-                border: none;
-                gridline-color: #1c2430;
-                color: #f3f7ff;
-                selection-background-color: #1e395f;
-                selection-color: #f3f7ff;
-            }
-            QHeaderView::section {
-                background: #0f1620;
-                color: #8ea1bd;
-                border: none;
-                padding: 8px;
-                font-weight: 600;
-            }
-            QTableCornerButton::section {
-                background: #0f1620;
-                border: none;
-            }
-            """
-        )
+    # ── Data refresh ─────────────────────────────────────────────────────
 
     def refresh_dashboard(self) -> None:
         snapshot = self._repository.load_snapshot()
