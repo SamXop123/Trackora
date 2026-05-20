@@ -1,36 +1,55 @@
-"""Main dashboard window for the Trackora desktop application."""
+"""Main application window for Trackora.
+
+Architecture
+------------
+MainWindow
+├── _Sidebar          — vertical navigation rail with icons
+└── QStackedWidget    — page container
+    ├── [0] DashboardPage
+    ├── [1] TimelinePage
+    ├── [2] ApplicationsPage
+    ├── [3] InsightsPage
+    ├── [4] GoalsPage
+    ├── [5] ReportsPage
+    └── [6] SettingsPage
+
+Backend wiring (preserved)
+--------------------------
+- DashboardRepository(database_path).load_snapshot()
+    → called every `refresh_seconds` via QTimer
+    → forwarded to DashboardPage.refresh(snapshot)
+- 1-second tick timer → DashboardPage.tick_active_session()
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath
 from PySide6.QtWidgets import (
-    QGridLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QMainWindow,
     QSizePolicy,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from trackora.charts import DailyUsageChart, WeeklyUsageChart
 from trackora.database.dashboard import DashboardRepository
-from trackora.models.dashboard import DashboardSnapshot
-from trackora.utils.formatting import (
-    format_duration_caption,
-    format_duration_compact,
-    format_last_refreshed,
+from trackora.gui.pages import (
+    ApplicationsPage,
+    DashboardPage,
+    GoalsPage,
+    InsightsPage,
+    ReportsPage,
+    SettingsPage,
+    TimelinePage,
 )
-from trackora.widgets.active_status_card import ActiveStatusCard
-from trackora.widgets.metric_card import MetricCard
-from trackora.widgets.usage_table import UsageTableWidget
 
 
-class DashboardWindow(QMainWindow):
-    """Main Trackora dashboard UI."""
 
     def __init__(self, *, database_path: Path, refresh_seconds: int) -> None:
         super().__init__()
