@@ -1,54 +1,25 @@
 """Main application window for Trackora.
 
-Architecture
-------------
-MainWindow
-├── _Sidebar          — vertical navigation rail with icons
-└── QStackedWidget    — page container
-    ├── [0] DashboardPage
-    ├── [1] TimelinePage
-    ├── [2] ApplicationsPage
-    ├── [3] InsightsPage
-    ├── [4] GoalsPage
-    ├── [5] ReportsPage
-    └── [6] SettingsPage
-
-Backend wiring (preserved)
---------------------------
-- DashboardRepository(database_path).load_snapshot()
-    → called every `refresh_seconds` via QTimer
-    → forwarded to DashboardPage.refresh(snapshot)
-- 1-second tick timer → DashboardPage.tick_active_session()
+Architecture: MainWindow → _Sidebar + QStackedWidget[pages]
+Backend wiring: DashboardRepository → QTimer → DashboardPage.refresh/tick
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath
+from PySide6.QtCore import Qt, QRectF, QTimer
+from PySide6.QtGui import QBrush, QColor, QPainter, QPen
 from PySide6.QtWidgets import (
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QMainWindow,
-    QSizePolicy,
-    QStackedWidget,
-    QVBoxLayout,
-    QWidget,
+    QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel,
+    QMainWindow, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget,
 )
 
 from trackora.database.dashboard import DashboardRepository
 from trackora.gui.pages import (
-    ApplicationsPage,
-    DashboardPage,
-    GoalsPage,
-    InsightsPage,
-    ReportsPage,
-    SettingsPage,
-    TimelinePage,
+    ApplicationsPage, DashboardPage, GoalsPage,
+    InsightsPage, ReportsPage, SettingsPage, TimelinePage,
 )
-
 
 # ── Color tokens ─────────────────────────────────────────────────────────────
 _BG = "#0d1117"
@@ -56,80 +27,79 @@ _SIDEBAR_BG = "#0f1419"
 _SIDEBAR_BORDER = "#1a2332"
 _TEXT_PRIMARY = "#e6edf5"
 _TEXT_SECONDARY = "#8b9bb4"
-_TEXT_MUTED = "#5a6a80"
+_TEXT_MUTED = "#566a82"
 _ACCENT = "#3b82f6"
-_NAV_ACTIVE_BG = "#172135"
-_NAV_HOVER_BG = "#141e2d"
+_NAV_ACTIVE_BG = "#152035"
+_NAV_HOVER_BG = "#121b28"
 
-
-# ── Navigation definitions (label, icon character) ──────────────────────────
-
+# ── Navigation definitions ──────────────────────────────────────────────────
 _NAV_ITEMS: list[tuple[str, str]] = [
-    ("Dashboard",     "⌂"),
-    ("Timeline",      "◔"),
-    ("Applications",  "⊞"),
-    ("Insights",      "◈"),
-    ("Goals",         "◎"),
-    ("Reports",       "◷"),
+    ("Dashboard",    "⌂"),
+    ("Timeline",     "◔"),
+    ("Applications", "⊞"),
+    ("Insights",     "◈"),
+    ("Goals",        "◎"),
+    ("Reports",      "◷"),
 ]
 
 
 class _NavButton(QWidget):
-    """Single sidebar navigation item with icon + label."""
+    """Sidebar navigation item with icon, label, active indicator, and hover."""
 
-    def __init__(
-        self,
-        text: str,
-        icon_char: str,
-        index: int,
-        callback,
-        parent: QWidget | None = None,
-    ) -> None:
+    def __init__(self, text: str, icon_char: str, index: int, callback, parent=None):
         super().__init__(parent)
         self._index = index
         self._callback = callback
         self._active = False
         self._hovered = False
-        self.setFixedHeight(40)
+        self.setFixedHeight(38)
         self.setCursor(Qt.PointingHandCursor)
         self.setAttribute(Qt.WA_Hover, True)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(16, 0, 16, 0)
-        layout.setSpacing(12)
+        layout.setContentsMargins(14, 0, 14, 0)
+        layout.setSpacing(11)
 
         self._icon = QLabel(icon_char)
-        self._icon.setFixedWidth(20)
+        self._icon.setFixedWidth(18)
         self._icon.setAlignment(Qt.AlignCenter)
         layout.addWidget(self._icon)
 
         self._label = QLabel(text)
         layout.addWidget(self._label)
         layout.addStretch(1)
-
         self._apply_style()
 
-    def set_active(self, active: bool) -> None:
+    def set_active(self, active: bool):
         self._active = active
         self._apply_style()
 
-    def _apply_style(self) -> None:
-        bg = "transparent"
-        text_color = _TEXT_SECONDARY
-        icon_color = _TEXT_MUTED
-
+    def _apply_style(self):
         if self._active:
-            bg = _NAV_ACTIVE_BG
-            text_color = _TEXT_PRIMARY
-            icon_color = _ACCENT
+            bg, text_c, icon_c = _NAV_ACTIVE_BG, _TEXT_PRIMARY, _ACCENT
         elif self._hovered:
-            bg = _NAV_HOVER_BG
-            text_color = _TEXT_PRIMARY
-            icon_color = _TEXT_SECONDARY
+            bg, text_c, icon_c = _NAV_HOVER_BG, _TEXT_PRIMARY, _TEXT_SECONDARY
+        else:
+            bg, text_c, icon_c = "transparent", _TEXT_SECONDARY, _TEXT_MUTED
 
-        self.setStyleSheet(f"background: {bg}; border-radius: 10px;")
-        self._icon.setStyleSheet(f"color: {icon_color}; font-size: 15px; background: transparent; border: none;")
-        self._label.setStyleSheet(f"color: {text_color}; font-size: 13px; font-weight: 500; background: transparent; border: none;")
+        self.setStyleSheet(f"background: {bg}; border-radius: 9px;")
+        self._icon.setStyleSheet(
+            f"color: {icon_c}; font-size: 14px; background: transparent; border: none;"
+        )
+        self._label.setStyleSheet(
+            f"color: {text_c}; font-size: 13px; font-weight: 500; "
+            f"background: transparent; border: none;"
+        )
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self._active:
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setBrush(QBrush(QColor(_ACCENT)))
+            painter.setPen(Qt.NoPen)
+            painter.drawRoundedRect(QRectF(2, 10, 3, self.height() - 20), 1.5, 1.5)
+            painter.end()
 
     def enterEvent(self, event):
         self._hovered = True
@@ -144,38 +114,42 @@ class _NavButton(QWidget):
 
 
 class _Sidebar(QWidget):
-    """Vertical navigation sidebar matching the reference design."""
+    """Vertical navigation sidebar."""
 
-    def __init__(self, navigate_callback, parent: QWidget | None = None) -> None:
+    def __init__(self, navigate_callback, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(190)
+        self.setFixedWidth(185)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
         self.setStyleSheet(
             f"background: {_SIDEBAR_BG}; border-right: 1px solid {_SIDEBAR_BORDER};"
         )
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 16, 12, 16)
-        layout.setSpacing(4)
+        layout.setContentsMargins(10, 18, 10, 14)
+        layout.setSpacing(3)
 
-        # ── Branding ─────────────────────────────────────────────────────
+        # Branding
         brand_row = QHBoxLayout()
         brand_row.setSpacing(8)
         brand_row.setContentsMargins(8, 0, 0, 0)
 
         brand_icon = QLabel("◉")
-        brand_icon.setStyleSheet(f"color: {_ACCENT}; font-size: 20px; background: transparent; border: none;")
+        brand_icon.setStyleSheet(
+            f"color: {_ACCENT}; font-size: 18px; background: transparent; border: none;"
+        )
         brand_row.addWidget(brand_icon)
 
         brand_text = QLabel("Trackora")
-        brand_text.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 16px; font-weight: 700; background: transparent; border: none;")
+        brand_text.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 15px; font-weight: 700; "
+            f"background: transparent; border: none;"
+        )
         brand_row.addWidget(brand_text)
         brand_row.addStretch(1)
-
         layout.addLayout(brand_row)
-        layout.addSpacing(20)
+        layout.addSpacing(22)
 
-        # ── Navigation items ─────────────────────────────────────────────
+        # Nav items
         self._buttons: list[_NavButton] = []
         for i, (label, icon) in enumerate(_NAV_ITEMS):
             btn = _NavButton(label, icon, i, navigate_callback)
@@ -184,36 +158,35 @@ class _Sidebar(QWidget):
 
         layout.addStretch(1)
 
-        # ── Quote section ────────────────────────────────────────────────
+        # Quote
         quote_frame = QWidget()
-        quote_frame.setStyleSheet(
-            f"background: transparent; border: none;"
+        quote_frame.setStyleSheet("background: transparent; border: none;")
+        ql = QVBoxLayout(quote_frame)
+        ql.setContentsMargins(10, 0, 10, 0)
+        ql.setSpacing(5)
+
+        qm = QLabel("❝")
+        qm.setStyleSheet(
+            f"color: {_ACCENT}; font-size: 20px; background: transparent; border: none;"
         )
-        quote_layout = QVBoxLayout(quote_frame)
-        quote_layout.setContentsMargins(12, 0, 12, 0)
-        quote_layout.setSpacing(6)
+        ql.addWidget(qm)
 
-        quote_mark = QLabel("❝")
-        quote_mark.setStyleSheet(f"color: {_ACCENT}; font-size: 24px; background: transparent; border: none;")
-        quote_layout.addWidget(quote_mark)
-
-        quote_text = QLabel("Focus is the\nfoundation of\nmeaningful progress.")
-        quote_text.setWordWrap(True)
-        quote_text.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 11px; line-height: 1.5; background: transparent; border: none;")
-        quote_layout.addWidget(quote_text)
-
+        qt = QLabel("Focus is the\nfoundation of\nmeaningful progress.")
+        qt.setWordWrap(True)
+        qt.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 10px; background: transparent; border: none;"
+        )
+        ql.addWidget(qt)
         layout.addWidget(quote_frame)
-        layout.addSpacing(12)
+        layout.addSpacing(10)
 
-        # ── Settings button ──────────────────────────────────────────────
+        # Settings
         settings_btn = _NavButton("Settings", "⚙", len(_NAV_ITEMS), navigate_callback)
         self._buttons.append(settings_btn)
         layout.addWidget(settings_btn)
-
-        # Set initial active
         self.set_active(0)
 
-    def set_active(self, index: int) -> None:
+    def set_active(self, index: int):
         for btn in self._buttons:
             btn.set_active(btn._index == index)
 
@@ -221,7 +194,7 @@ class _Sidebar(QWidget):
 class MainWindow(QMainWindow):
     """Top-level Trackora application window."""
 
-    def __init__(self, *, database_path: Path, refresh_seconds: int) -> None:
+    def __init__(self, *, database_path: Path, refresh_seconds: int):
         super().__init__()
         self._repository = DashboardRepository(database_path)
         self._refresh_seconds = refresh_seconds
@@ -235,46 +208,35 @@ class MainWindow(QMainWindow):
         self._start_timers()
         self._refresh_dashboard()
 
-    # ── Layout construction ───────────────────────────────────────────────
-
-    def _build_layout(self) -> None:
+    def _build_layout(self):
         root = QWidget(self)
         self.setCentralWidget(root)
-
         root_layout = QHBoxLayout(root)
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
 
-        # Sidebar
         self._sidebar = _Sidebar(self._on_nav_click)
         root_layout.addWidget(self._sidebar)
 
-        # Page stack
         self._stack = QStackedWidget()
         root_layout.addWidget(self._stack, 1)
 
-        # Pages (order matches _NAV_ITEMS + Settings)
         self._dashboard_page = DashboardPage()
-        self._stack.addWidget(self._dashboard_page)     # 0
-        self._stack.addWidget(TimelinePage())            # 1
-        self._stack.addWidget(ApplicationsPage())        # 2
-        self._stack.addWidget(InsightsPage())            # 3
-        self._stack.addWidget(GoalsPage())               # 4
-        self._stack.addWidget(ReportsPage())             # 5
-        self._stack.addWidget(SettingsPage())            # 6
-
+        self._stack.addWidget(self._dashboard_page)
+        self._stack.addWidget(TimelinePage())
+        self._stack.addWidget(ApplicationsPage())
+        self._stack.addWidget(InsightsPage())
+        self._stack.addWidget(GoalsPage())
+        self._stack.addWidget(ReportsPage())
+        self._stack.addWidget(SettingsPage())
         self._stack.setCurrentIndex(0)
 
-    # ── Navigation ────────────────────────────────────────────────────────
-
-    def _on_nav_click(self, index: int) -> None:
+    def _on_nav_click(self, index: int):
         if 0 <= index < self._stack.count():
             self._stack.setCurrentIndex(index)
             self._sidebar.set_active(index)
 
-    # ── Timers ────────────────────────────────────────────────────────────
-
-    def _start_timers(self) -> None:
+    def _start_timers(self):
         self._refresh_timer = QTimer(self)
         self._refresh_timer.timeout.connect(self._refresh_dashboard)
         self._refresh_timer.start(self._refresh_seconds * 1000)
@@ -283,21 +245,12 @@ class MainWindow(QMainWindow):
         self._tick_timer.timeout.connect(self._dashboard_page.tick_active_session)
         self._tick_timer.start(1000)
 
-    # ── Data refresh ─────────────────────────────────────────────────────
-
-    def _refresh_dashboard(self) -> None:
+    def _refresh_dashboard(self):
         snapshot = self._repository.load_snapshot()
         self._dashboard_page.refresh(snapshot)
 
-    # ── Base styling ─────────────────────────────────────────────────────
-
-    def _apply_base_style(self) -> None:
+    def _apply_base_style(self):
         self.setStyleSheet(
-            f"""
-            QMainWindow, QWidget {{
-                background: {_BG};
-                color: {_TEXT_PRIMARY};
-                font-family: 'Inter', 'Cantarell', 'Segoe UI', sans-serif;
-            }}
-            """
+            f"QMainWindow, QWidget {{ background: {_BG}; color: {_TEXT_PRIMARY}; "
+            f"font-family: 'Inter', 'Cantarell', 'Segoe UI', sans-serif; }}"
         )
