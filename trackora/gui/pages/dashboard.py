@@ -1,146 +1,214 @@
-"""Dashboard page — the main landing view of Trackora.
-
-Closely follows the reference design with:
-- Hero card (Today's Screen Time, large typography, comparison %)
-- Currently Active card (live app, elapsed time, window title)
-- Activity Timeline (pyqtgraph bar chart)
-- Top Applications (list with progress bars)
-- Bottom stats row (total screen time, total sessions, focused time)
-"""
+"""Dashboard page — polished premium landing view of Trackora."""
 
 from __future__ import annotations
 
+import math
 from datetime import datetime
 
-from PySide6.QtCore import Qt, QRectF
+from PySide6.QtCore import Qt, QRectF, QSize
 from PySide6.QtGui import (
-    QBrush,
-    QColor,
-    QFont,
-    QLinearGradient,
-    QPainter,
-    QPainterPath,
-    QPen,
-    QRadialGradient,
+    QBrush, QColor, QFont, QIcon, QLinearGradient,
+    QPainter, QPainterPath, QPen, QPixmap, QRadialGradient,
 )
 from PySide6.QtWidgets import (
-    QFrame,
-    QGridLayout,
-    QHBoxLayout,
-    QLabel,
-    QScrollArea,
-    QSizePolicy,
-    QVBoxLayout,
-    QWidget,
+    QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel,
+    QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
 )
 
 from trackora.charts import DailyUsageChart
 from trackora.models.dashboard import ActiveAppStatus, AppUsageSummary, DashboardSnapshot
-from trackora.utils.formatting import (
-    format_duration_compact,
-    format_duration_live,
-)
-
+from trackora.utils.formatting import format_duration_compact, format_duration_live
 
 # ─── Color tokens ────────────────────────────────────────────────────────────
 _BG = "#0d1117"
 _CARD = "#141a23"
-_CARD_BORDER = "#1e2a3a"
+_CARD_LIGHTER = "#171f2a"
+_CARD_BORDER = "#1c2735"
 _TEXT_PRIMARY = "#e6edf5"
 _TEXT_SECONDARY = "#8b9bb4"
-_TEXT_MUTED = "#5a6a80"
+_TEXT_MUTED = "#566a82"
 _ACCENT = "#3b82f6"
-_ACCENT_DIM = "#2563eb"
+_ACCENT_SOFT = "#2563eb"
 _GREEN = "#34d399"
-_SURFACE_HOVER = "#1a2332"
+_GREEN_DIM = "#065f46"
+
+# ─── Icon theme lookup ──────────────────────────────────────────────────────
+_ICON_THEME_MAP: dict[str, list[str]] = {
+    "VS Code": ["code", "visual-studio-code", "com.visualstudio.code"],
+    "Chrome": ["google-chrome", "chromium"],
+    "Chromium": ["chromium"],
+    "Brave": ["brave-browser"],
+    "Firefox": ["firefox"],
+    "Spotify": ["spotify"],
+    "Discord": ["discord"],
+    "Slack": ["slack"],
+    "Telegram": ["telegram-desktop", "telegram"],
+    "Files": ["org.gnome.Nautilus", "system-file-manager"],
+    "Console": ["org.gnome.Console", "utilities-terminal"],
+    "Settings": ["org.gnome.Settings", "preferences-system"],
+    "Kitty": ["kitty"],
+    "Terminal": ["org.gnome.Console", "utilities-terminal", "gnome-terminal"],
+    "GitHub Desktop": ["github-desktop"],
+    "Cursor": ["co.anysphere.cursor", "cursor"],
+}
+_FALLBACK_ICON = "application-x-executable"
 
 
-# ─── Reusable card frame ────────────────────────────────────────────────────
+def _get_app_icon(app_name: str, size: int = 24) -> QPixmap | None:
+    """Try to load a native Linux theme icon for the app."""
+    candidates = _ICON_THEME_MAP.get(app_name, [app_name.lower().replace(" ", "-")])
+    if isinstance(candidates, str):
+        candidates = [candidates]
+    for name in candidates:
+        icon = QIcon.fromTheme(name)
+        if not icon.isNull():
+            return icon.pixmap(QSize(size, size))
+    fallback = QIcon.fromTheme(_FALLBACK_ICON)
+    if not fallback.isNull():
+        return fallback.pixmap(QSize(size, size))
+    return None
+
+
+def _add_shadow(widget: QWidget, blur: int = 24, opacity: int = 40, dy: int = 4):
+    """Attach a soft drop shadow to a widget for depth layering."""
+    shadow = QGraphicsDropShadowEffect(widget)
+    shadow.setBlurRadius(blur)
+    shadow.setColor(QColor(0, 0, 0, opacity))
+    shadow.setOffset(0, dy)
+    widget.setGraphicsEffect(shadow)
+
+
+# ─── Base card ──────────────────────────────────────────────────────────────
 
 class _Card(QFrame):
-    """Dark rounded card matching the reference design."""
+    """Dark rounded card with subtle depth."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("dashCard")
         self.setFrameShape(QFrame.NoFrame)
-        self.setStyleSheet(
-            f"""
-            QFrame#dashCard {{
-                background: {_CARD};
-                border: 1px solid {_CARD_BORDER};
-                border-radius: 16px;
-            }}
-            """
+        self._base_bg = _CARD
+        self._hovered = False
+        self.setStyleSheet(self._card_css(_CARD))
+        _add_shadow(self, blur=20, opacity=35, dy=3)
+
+    def _card_css(self, bg: str) -> str:
+        return (
+            f"QFrame#dashCard {{ background: {bg}; "
+            f"border: 1px solid {_CARD_BORDER}; border-radius: 14px; }}"
         )
+
+    def enterEvent(self, event):
+        self._hovered = True
+        self.setStyleSheet(self._card_css(_CARD_LIGHTER))
+
+    def leaveEvent(self, event):
+        self._hovered = False
+        self.setStyleSheet(self._card_css(_CARD))
 
 
 # ─── Hero card ──────────────────────────────────────────────────────────────
 
 class _HeroCard(_Card):
-    """Large 'Today' screen-time card with decorative glow."""
+    """Large 'Today' screen-time card with concentric ring visualization."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setMinimumHeight(180)
+        self.setMinimumHeight(170)
+        self._today_secs = 0
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(6)
+        layout.setContentsMargins(30, 26, 30, 22)
+        layout.setSpacing(4)
 
-        # Section label
         section = QLabel("TODAY")
-        section.setStyleSheet(f"color: {_ACCENT}; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; background: transparent; border: none;")
+        section.setStyleSheet(
+            f"color: {_ACCENT}; font-size: 10px; font-weight: 700; "
+            f"letter-spacing: 0.12em; background: transparent; border: none;"
+        )
         layout.addWidget(section)
 
-        # Big time
         self._time_label = QLabel("0m")
-        self._time_label.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 42px; font-weight: 800; letter-spacing: -0.02em; background: transparent; border: none;")
+        self._time_label.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 44px; font-weight: 800; "
+            f"letter-spacing: -0.03em; background: transparent; border: none;"
+        )
         layout.addWidget(self._time_label)
 
-        # Subtitle
         subtitle = QLabel("Today's Screen Time")
-        subtitle.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 13px; background: transparent; border: none;")
+        subtitle.setStyleSheet(
+            f"color: {_TEXT_SECONDARY}; font-size: 12px; "
+            f"background: transparent; border: none;"
+        )
         layout.addWidget(subtitle)
+        layout.addSpacing(10)
 
-        layout.addSpacing(8)
-
-        # Comparison
         self._comparison_label = QLabel("")
-        self._comparison_label.setStyleSheet(f"color: {_GREEN}; font-size: 12px; background: transparent; border: none;")
+        self._comparison_label.setStyleSheet(
+            f"color: {_GREEN}; font-size: 11px; background: transparent; border: none;"
+        )
         layout.addWidget(self._comparison_label)
-
         layout.addStretch(1)
 
     def paintEvent(self, event):
-        """Draw subtle ambient blue glow in top-right corner."""
         super().paintEvent(event)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         w, h = self.width(), self.height()
-        cx, cy = w - 60, 70
-        gradient = QRadialGradient(cx, cy, 80)
-        gradient.setColorAt(0, QColor(59, 130, 246, 50))
-        gradient.setColorAt(0.5, QColor(59, 130, 246, 20))
-        gradient.setColorAt(1.0, QColor(59, 130, 246, 0))
-        painter.setBrush(QBrush(gradient))
+        cx, cy = w - 65, h // 2
+
+        # Ambient glow
+        for radius, alpha in [(70, 18), (50, 28), (35, 38)]:
+            grad = QRadialGradient(cx, cy, radius)
+            grad.setColorAt(0, QColor(59, 130, 246, alpha))
+            grad.setColorAt(1, QColor(59, 130, 246, 0))
+            painter.setBrush(QBrush(grad))
+            painter.setPen(Qt.NoPen)
+            painter.drawEllipse(QRectF(cx - radius, cy - radius, radius * 2, radius * 2))
+
+        # Concentric ring arcs — progress indicator feel
+        painter.setBrush(Qt.NoBrush)
+        # Outer ring (track)
+        painter.setPen(QPen(QColor(59, 130, 246, 25), 2.5))
+        painter.drawEllipse(QRectF(cx - 28, cy - 28, 56, 56))
+
+        # Progress arc — maps screen time to 0-360° (8h = full)
+        progress = min(self._today_secs / (8 * 3600), 1.0)
+        if progress > 0.005:
+            painter.setPen(QPen(QColor(59, 130, 246, 160), 2.5, Qt.SolidLine, Qt.RoundCap))
+            span = int(progress * 360 * 16)
+            painter.drawArc(QRectF(cx - 28, cy - 28, 56, 56), 90 * 16, -span)
+
+        # Inner ring
+        painter.setPen(QPen(QColor(59, 130, 246, 18), 1.5))
+        painter.drawEllipse(QRectF(cx - 18, cy - 18, 36, 36))
+
+        # Center dot
         painter.setPen(Qt.NoPen)
-        painter.drawEllipse(QRectF(cx - 80, cy - 80, 160, 160))
-        # Small clock circle
-        painter.setBrush(QBrush(QColor(59, 130, 246, 60)))
-        painter.drawEllipse(QRectF(cx - 24, cy - 24, 48, 48))
+        painter.setBrush(QBrush(QColor(59, 130, 246, 120)))
+        painter.drawEllipse(QRectF(cx - 3, cy - 3, 6, 6))
         painter.end()
 
     def update_data(self, today_secs: int, yesterday_secs: int) -> None:
+        self._today_secs = today_secs
         self._time_label.setText(format_duration_compact(today_secs))
         if yesterday_secs > 0:
             diff = ((today_secs - yesterday_secs) / yesterday_secs) * 100
             sign = "+" if diff >= 0 else ""
-            color = _GREEN if diff <= 0 else "#f59e0b"
-            self._comparison_label.setText(f"↗  {sign}{diff:.0f}% compared to yesterday")
-            self._comparison_label.setStyleSheet(f"color: {color}; font-size: 12px; background: transparent; border: none;")
+            if diff <= 0:
+                color, arrow = _GREEN, "↘"
+            else:
+                color, arrow = "#f59e0b", "↗"
+            self._comparison_label.setText(f"{arrow}  {sign}{diff:.0f}% compared to yesterday")
+            self._comparison_label.setStyleSheet(
+                f"color: {color}; font-size: 11px; background: transparent; border: none;"
+            )
         else:
-            self._comparison_label.setText("")
+            self._comparison_label.setText("First day of tracking")
+            self._comparison_label.setStyleSheet(
+                f"color: {_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;"
+            )
+        self.update()
 
 
 # ─── Currently Active card ──────────────────────────────────────────────────
@@ -150,52 +218,78 @@ class _ActiveCard(_Card):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setMinimumHeight(180)
+        self.setMinimumHeight(170)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(8)
+        layout.setContentsMargins(28, 24, 28, 22)
+        layout.setSpacing(6)
 
-        # Section label
         section = QLabel("CURRENTLY ACTIVE")
-        section.setStyleSheet(f"color: {_GREEN}; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; background: transparent; border: none;")
+        section.setStyleSheet(
+            f"color: {_GREEN}; font-size: 10px; font-weight: 700; "
+            f"letter-spacing: 0.12em; background: transparent; border: none;"
+        )
         layout.addWidget(section)
+        layout.addSpacing(6)
 
-        layout.addSpacing(4)
+        # Icon + app name row
+        name_row = QHBoxLayout()
+        name_row.setSpacing(10)
+        self._app_icon_label = QLabel()
+        self._app_icon_label.setFixedSize(28, 28)
+        self._app_icon_label.setStyleSheet("background: transparent; border: none;")
+        name_row.addWidget(self._app_icon_label)
 
-        # App name
         self._app_label = QLabel("No active session")
-        self._app_label.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 20px; font-weight: 700; background: transparent; border: none;")
-        layout.addWidget(self._app_label)
+        self._app_label.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 20px; font-weight: 700; "
+            f"background: transparent; border: none;"
+        )
+        name_row.addWidget(self._app_label)
+        name_row.addStretch(1)
+        layout.addLayout(name_row)
 
-        # Elapsed time
         self._elapsed_label = QLabel("")
-        self._elapsed_label.setStyleSheet(f"color: {_ACCENT}; font-size: 16px; font-weight: 600; background: transparent; border: none;")
+        self._elapsed_label.setStyleSheet(
+            f"color: {_ACCENT}; font-size: 15px; font-weight: 600; "
+            f"background: transparent; border: none;"
+        )
         layout.addWidget(self._elapsed_label)
-
         layout.addSpacing(4)
 
-        # Window title / category
         self._window_label = QLabel("Waiting for activity…")
         self._window_label.setWordWrap(True)
-        self._window_label.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 12px; background: transparent; border: none;")
+        self._window_label.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;"
+        )
         layout.addWidget(self._window_label)
-
         layout.addStretch(1)
+
+    def _set_icon(self, app_name: str) -> None:
+        pixmap = _get_app_icon(app_name, 28)
+        if pixmap:
+            self._app_icon_label.setPixmap(pixmap)
+        else:
+            self._app_icon_label.setText("●")
+            self._app_icon_label.setAlignment(Qt.AlignCenter)
+            self._app_icon_label.setStyleSheet(
+                f"color: {_ACCENT}; font-size: 16px; background: transparent; border: none;"
+            )
 
     def update_data(self, active: ActiveAppStatus | None) -> None:
         if active is None:
             self._app_label.setText("No active session")
             self._elapsed_label.setText("")
             self._window_label.setText("The tracker is idle")
+            self._app_icon_label.clear()
             return
         self._app_label.setText(active.app_name)
         self._elapsed_label.setText(format_duration_live(active.elapsed_seconds))
-        title = active.window_title or "No window title"
-        # Show a truncated title
-        if len(title) > 60:
-            title = title[:57] + "…"
-        self._window_label.setText(f"◇  {title}")
+        self._set_icon(active.app_name)
+        title = active.window_title or ""
+        if len(title) > 55:
+            title = title[:52] + "…"
+        self._window_label.setText(f"◇  {title}" if title else "")
 
 
 # ─── Activity Timeline card ────────────────────────────────────────────────
@@ -206,116 +300,138 @@ class _TimelineCard(_Card):
     def __init__(self, chart: DailyUsageChart, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(24, 20, 24, 14)
+        layout.setSpacing(8)
 
         header = QLabel("ACTIVITY TIMELINE")
-        header.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; background: transparent; border: none;")
+        header.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 700; "
+            f"letter-spacing: 0.12em; background: transparent; border: none;"
+        )
         layout.addWidget(header)
-
-        chart.setMinimumHeight(200)
+        chart.setMinimumHeight(190)
         layout.addWidget(chart, 1)
 
 
 # ─── Top Applications card ─────────────────────────────────────────────────
 
 class _AppRow(QWidget):
-    """Single application row: icon placeholder, name, bar, duration."""
+    """Single application row with native icon, name, progress bar, duration."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setFixedHeight(44)
+        self.setFixedHeight(46)
+        self.setCursor(Qt.PointingHandCursor)
+        self._hovered = False
+        self._bar_ratio = 0.0
 
         row = QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 0, 0)
+        row.setContentsMargins(8, 4, 8, 4)
         row.setSpacing(12)
 
-        # Icon placeholder (rounded square)
-        self._icon = QLabel("●")
-        self._icon.setFixedSize(32, 32)
-        self._icon.setAlignment(Qt.AlignCenter)
-        self._icon.setStyleSheet(
-            f"background: {_CARD_BORDER}; border-radius: 8px; color: {_ACCENT}; font-size: 14px; border: none;"
-        )
-        row.addWidget(self._icon)
+        self._icon_label = QLabel()
+        self._icon_label.setFixedSize(30, 30)
+        self._icon_label.setAlignment(Qt.AlignCenter)
+        self._icon_label.setStyleSheet("background: transparent; border: none;")
+        row.addWidget(self._icon_label)
 
-        # Name + bar
         mid = QVBoxLayout()
-        mid.setContentsMargins(0, 2, 0, 2)
+        mid.setContentsMargins(0, 3, 0, 3)
         mid.setSpacing(4)
 
         self._name = QLabel("")
-        self._name.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 500; background: transparent; border: none;")
+        self._name.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 500; "
+            f"background: transparent; border: none;"
+        )
         mid.addWidget(self._name)
 
-        # Progress bar (custom painted)
         self._bar_widget = QWidget()
-        self._bar_widget.setFixedHeight(4)
-        self._bar_ratio = 0.0
+        self._bar_widget.setFixedHeight(3)
         mid.addWidget(self._bar_widget)
-
         row.addLayout(mid, 1)
 
         self._duration = QLabel("")
         self._duration.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self._duration.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 12px; font-weight: 500; background: transparent; border: none;")
+        self._duration.setStyleSheet(
+            f"color: {_TEXT_SECONDARY}; font-size: 12px; font-weight: 500; "
+            f"background: transparent; border: none;"
+        )
         row.addWidget(self._duration)
 
     def set_data(self, name: str, seconds: int, ratio: float) -> None:
         self._name.setText(name)
         self._duration.setText(format_duration_compact(seconds))
         self._bar_ratio = max(0.0, min(ratio, 1.0))
-        self._bar_widget.update()
+        pixmap = _get_app_icon(name, 26)
+        if pixmap:
+            self._icon_label.setPixmap(pixmap)
+        else:
+            self._icon_label.setText("●")
+            self._icon_label.setStyleSheet(
+                f"color: {_ACCENT}; font-size: 14px; background: {_CARD_BORDER}; "
+                f"border-radius: 7px; border: none;"
+            )
+        self.update()
+
+    def enterEvent(self, event):
+        self._hovered = True
+        self.update()
+
+    def leaveEvent(self, event):
+        self._hovered = False
+        self.update()
 
     def paintEvent(self, event):
-        super().paintEvent(event)
-        # Draw the progress bar inside _bar_widget
-        bw = self._bar_widget
-        if bw.width() < 1:
-            return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        # Map bar widget geometry to this widget's coordinate space
-        pos = bw.mapTo(self, bw.rect().topLeft())
-        x, y = pos.x(), pos.y()
-        w, h = bw.width(), bw.height()
-        # Track background
-        painter.setBrush(QBrush(QColor(_CARD_BORDER)))
-        painter.setPen(Qt.NoPen)
-        painter.drawRoundedRect(QRectF(x, y, w, h), 2, 2)
-        # Filled portion
-        fill_w = w * self._bar_ratio
-        if fill_w > 0:
-            gradient = QLinearGradient(x, y, x + fill_w, y)
-            gradient.setColorAt(0, QColor("#3b82f6"))
-            gradient.setColorAt(1, QColor("#60a5fa"))
-            painter.setBrush(QBrush(gradient))
-            painter.drawRoundedRect(QRectF(x, y, fill_w, h), 2, 2)
+
+        # Hover background
+        if self._hovered:
+            painter.setBrush(QBrush(QColor(255, 255, 255, 6)))
+            painter.setPen(Qt.NoPen)
+            painter.drawRoundedRect(QRectF(0, 0, self.width(), self.height()), 8, 8)
+
+        # Progress bar
+        bw = self._bar_widget
+        if bw.width() > 1:
+            pos = bw.mapTo(self, bw.rect().topLeft())
+            x, y, w, h = pos.x(), pos.y(), bw.width(), bw.height()
+            painter.setBrush(QBrush(QColor(_CARD_BORDER)))
+            painter.setPen(Qt.NoPen)
+            painter.drawRoundedRect(QRectF(x, y, w, h), 1.5, 1.5)
+            fill_w = w * self._bar_ratio
+            if fill_w > 0:
+                grad = QLinearGradient(x, y, x + fill_w, y)
+                grad.setColorAt(0, QColor("#2563eb"))
+                grad.setColorAt(1, QColor("#60a5fa"))
+                painter.setBrush(QBrush(grad))
+                painter.drawRoundedRect(QRectF(x, y, fill_w, h), 1.5, 1.5)
         painter.end()
 
 
 class _TopAppsCard(_Card):
-    """Top applications usage list with mini progress bars."""
+    """Top applications usage list."""
 
     _MAX_VISIBLE = 5
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 16)
-        layout.setSpacing(6)
+        layout.setContentsMargins(20, 20, 20, 14)
+        layout.setSpacing(2)
 
-        # Header row
         header_row = QHBoxLayout()
         title = QLabel("TOP APPLICATIONS")
-        title.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; background: transparent; border: none;")
+        title.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 700; "
+            f"letter-spacing: 0.12em; background: transparent; border: none;"
+        )
         header_row.addWidget(title)
         header_row.addStretch(1)
         layout.addLayout(header_row)
+        layout.addSpacing(6)
 
-        layout.addSpacing(4)
-
-        # Pre-allocate rows
         self._rows: list[_AppRow] = []
         for _ in range(self._MAX_VISIBLE):
             row = _AppRow()
@@ -323,12 +439,13 @@ class _TopAppsCard(_Card):
             self._rows.append(row)
             layout.addWidget(row)
 
-        # "Show more" hint
         self._more_label = QLabel("")
         self._more_label.setAlignment(Qt.AlignCenter)
-        self._more_label.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 11px; padding: 4px; background: transparent; border: none;")
+        self._more_label.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 10px; padding: 6px; "
+            f"background: transparent; border: none;"
+        )
         layout.addWidget(self._more_label)
-
         layout.addStretch(1)
 
     def update_data(self, apps: list[AppUsageSummary]) -> None:
@@ -341,10 +458,7 @@ class _TopAppsCard(_Card):
             else:
                 row.setVisible(False)
         extra = len(apps) - self._MAX_VISIBLE
-        if extra > 0:
-            self._more_label.setText(f"+ {extra} more applications")
-        else:
-            self._more_label.setText("")
+        self._more_label.setText(f"+ {extra} more applications" if extra > 0 else "")
 
 
 # ─── Bottom stats row ───────────────────────────────────────────────────────
@@ -356,175 +470,135 @@ class _StatChip(QWidget):
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
+        layout.setSpacing(10)
 
         icon = QLabel(icon_char)
-        icon.setStyleSheet(f"color: {_ACCENT}; font-size: 14px; background: transparent; border: none;")
+        icon.setStyleSheet(
+            f"color: {_ACCENT}; font-size: 15px; background: transparent; border: none;"
+        )
         layout.addWidget(icon)
 
         text_col = QVBoxLayout()
         text_col.setContentsMargins(0, 0, 0, 0)
-        text_col.setSpacing(1)
+        text_col.setSpacing(2)
 
         self._value = QLabel("—")
-        self._value.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 15px; font-weight: 700; background: transparent; border: none;")
+        self._value.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 16px; font-weight: 700; "
+            f"background: transparent; border: none;"
+        )
         text_col.addWidget(self._value)
 
         cap = QLabel(caption)
-        cap.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 10px; background: transparent; border: none;")
+        cap.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 10px; background: transparent; border: none;"
+        )
         text_col.addWidget(cap)
-
         layout.addLayout(text_col)
 
     def set_value(self, text: str) -> None:
         self._value.setText(text)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════
 #  DASHBOARD PAGE
-# ═════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════
 
 class DashboardPage(QWidget):
-    """Main dashboard page matching the Trackora reference design."""
+    """Main dashboard page — premium polished version."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-
-        # ── Internal state ────────────────────────────────────────────────
         self._active_status: ActiveAppStatus | None = None
         self._last_snapshot: DashboardSnapshot | None = None
 
-        # ── Scrollable root ───────────────────────────────────────────────
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setStyleSheet(
-            f"""
-            QScrollArea {{ background: {_BG}; border: none; }}
-            QScrollBar:vertical {{
-                background: {_BG}; width: 6px; margin: 0;
-            }}
-            QScrollBar::handle:vertical {{
-                background: {_CARD_BORDER}; border-radius: 3px; min-height: 30px;
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                height: 0; background: none;
-            }}
-            """
+            f"QScrollArea {{ background: {_BG}; border: none; }}"
+            f"QScrollBar:vertical {{ background: {_BG}; width: 5px; margin: 0; }}"
+            f"QScrollBar::handle:vertical {{ background: {_CARD_BORDER}; border-radius: 2px; min-height: 30px; }}"
+            f"QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}"
         )
 
         container = QWidget()
         container.setStyleSheet(f"background: {_BG};")
         scroll.setWidget(container)
 
-        # Page-level wrapper to fill the DashboardPage
         page_layout = QVBoxLayout(self)
         page_layout.setContentsMargins(0, 0, 0, 0)
         page_layout.addWidget(scroll)
 
-        # ── Main content layout ───────────────────────────────────────────
         main = QVBoxLayout(container)
-        main.setContentsMargins(28, 16, 28, 28)
-        main.setSpacing(18)
+        main.setContentsMargins(28, 14, 28, 28)
+        main.setSpacing(16)
 
-        # ── Date header ──────────────────────────────────────────────────
+        # Date header
         self._date_label = QLabel("")
         self._date_label.setStyleSheet(
-            f"""
-            color: {_TEXT_PRIMARY};
-            font-size: 13px;
-            font-weight: 500;
-            background: {_CARD};
-            border: 1px solid {_CARD_BORDER};
-            border-radius: 8px;
-            padding: 8px 16px;
-            """
+            f"color: {_TEXT_PRIMARY}; font-size: 12px; font-weight: 500; "
+            f"background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
+            f"border-radius: 8px; padding: 7px 14px;"
         )
-        self._date_label.setFixedHeight(36)
-
+        self._date_label.setFixedHeight(34)
         date_row = QHBoxLayout()
         date_row.addWidget(self._date_label)
         date_row.addStretch(1)
         main.addLayout(date_row)
 
-        # ── Top row: Hero + Active ───────────────────────────────────────
+        # Top row: Hero + Active
         top_row = QHBoxLayout()
-        top_row.setSpacing(18)
-
+        top_row.setSpacing(16)
         self._hero_card = _HeroCard()
         top_row.addWidget(self._hero_card, 3)
-
         self._active_card = _ActiveCard()
         top_row.addWidget(self._active_card, 2)
-
         main.addLayout(top_row)
 
-        # ── Middle row: Timeline + Top Apps ──────────────────────────────
+        # Middle row: Timeline + Top Apps
         mid_row = QHBoxLayout()
-        mid_row.setSpacing(18)
-
+        mid_row.setSpacing(16)
         self._daily_chart = DailyUsageChart()
         self._timeline_card = _TimelineCard(self._daily_chart)
         mid_row.addWidget(self._timeline_card, 3)
-
         self._top_apps_card = _TopAppsCard()
         mid_row.addWidget(self._top_apps_card, 2)
-
         main.addLayout(mid_row)
 
-        # ── Bottom stats ─────────────────────────────────────────────────
+        # Bottom stats
         stats_card = _Card()
         stats_layout = QHBoxLayout(stats_card)
-        stats_layout.setContentsMargins(28, 16, 28, 16)
+        stats_layout.setContentsMargins(28, 14, 28, 14)
         stats_layout.setSpacing(48)
-
         self._stat_screen = _StatChip("◷", "Total Screen Time")
         self._stat_sessions = _StatChip("⊞", "Total Sessions")
         self._stat_focused = _StatChip("◎", "Focused Time")
-
         stats_layout.addWidget(self._stat_screen)
         stats_layout.addWidget(self._stat_sessions)
         stats_layout.addWidget(self._stat_focused)
         stats_layout.addStretch(1)
-
         main.addWidget(stats_card)
         main.addStretch(1)
 
-    # ── Public interface called by MainWindow ─────────────────────────────
-
     def refresh(self, snapshot: DashboardSnapshot) -> None:
-        """Apply a fresh DashboardSnapshot to every widget on this page."""
         self._last_snapshot = snapshot
         self._active_status = snapshot.active_app
-
-        # Date header
         now = snapshot.last_refreshed
         self._date_label.setText(f"  📅  {now.strftime('%B %d, %Y')}")
-
-        # Hero card
         self._hero_card.update_data(snapshot.total_today_seconds, snapshot.total_yesterday_seconds)
-
-        # Active card
         self._active_card.update_data(snapshot.active_app)
-
-        # Chart
         self._daily_chart.update_chart(snapshot.hourly_labels, snapshot.hourly_values)
-
-        # Top apps
         self._top_apps_card.update_data(snapshot.all_apps)
-
-        # Bottom stats
         self._stat_screen.set_value(format_duration_compact(snapshot.total_today_seconds))
         self._stat_sessions.set_value(str(len(snapshot.all_apps)))
-        # "Focused time" = top app's time (largest single-app block)
         if snapshot.top_apps:
             self._stat_focused.set_value(format_duration_compact(snapshot.top_apps[0].duration_seconds))
         else:
             self._stat_focused.set_value("0m")
 
     def tick_active_session(self) -> None:
-        """Advance the live elapsed-time counter by one second."""
         if self._active_status is None:
             return
         self._active_status = ActiveAppStatus(
