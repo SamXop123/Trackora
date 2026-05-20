@@ -225,49 +225,47 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._repository = DashboardRepository(database_path)
         self._refresh_seconds = refresh_seconds
-        self.setWindowTitle("Trackora Dashboard")
-        self.resize(1220, 820)
-        self.setMinimumSize(1040, 700)
-        self._build_ui()
-        self._apply_styles()
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self.refresh_dashboard)
-        self._timer.start(self._refresh_seconds * 1000)
-        self._active_tick_timer = QTimer(self)
-        self._active_tick_timer.timeout.connect(self._active_status_card.tick)
-        self._active_tick_timer.start(1000)
-        self.refresh_dashboard()
 
-    def _build_ui(self) -> None:
+        self.setWindowTitle("Trackora")
+        self.resize(1280, 820)
+        self.setMinimumSize(1024, 680)
+
+        self._build_layout()
+        self._apply_base_style()
+        self._start_timers()
+        self._refresh_dashboard()
+
+    # ── Layout construction ───────────────────────────────────────────────
+
+    def _build_layout(self) -> None:
         root = QWidget(self)
         self.setCentralWidget(root)
 
-        outer = QVBoxLayout(root)
-        outer.setContentsMargins(28, 24, 28, 24)
-        outer.setSpacing(18)
+        root_layout = QHBoxLayout(root)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
-        header_layout = QHBoxLayout()
-        header_layout.setSpacing(14)
-        title_block = QVBoxLayout()
-        title_block.setSpacing(4)
+        # Sidebar
+        self._sidebar = _Sidebar(self._on_nav_click)
+        root_layout.addWidget(self._sidebar)
 
-        title = QLabel("Trackora")
-        title_font = QFont()
-        title_font.setPointSize(24)
-        title_font.setBold(True)
-        title.setFont(title_font)
+        # Page stack
+        self._stack = QStackedWidget()
+        root_layout.addWidget(self._stack, 1)
 
-        subtitle = QLabel("Wayland-native activity dashboard for your current day")
-        subtitle.setObjectName("subtitleLabel")
+        # Pages (order matches _NAV_ITEMS + Settings)
+        self._dashboard_page = DashboardPage()
+        self._stack.addWidget(self._dashboard_page)     # 0
+        self._stack.addWidget(TimelinePage())            # 1
+        self._stack.addWidget(ApplicationsPage())        # 2
+        self._stack.addWidget(InsightsPage())            # 3
+        self._stack.addWidget(GoalsPage())               # 4
+        self._stack.addWidget(ReportsPage())             # 5
+        self._stack.addWidget(SettingsPage())            # 6
 
-        title_block.addWidget(title)
-        title_block.addWidget(subtitle)
-        header_layout.addLayout(title_block)
-        header_layout.addStretch(1)
+        self._stack.setCurrentIndex(0)
 
-        self._status_label = QLabel("Waiting for data…")
-        self._status_label.setObjectName("statusLabel")
-        header_layout.addWidget(self._status_label)
+    # ── Navigation ────────────────────────────────────────────────────────
 
         outer.addLayout(header_layout)
 
