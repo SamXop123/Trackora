@@ -37,7 +37,8 @@ def run_tracking_service(
     recovered = store.recover_open_sessions(now_utc())
     if recovered:
         noun = "session" if recovered == 1 else "sessions"
-        log_info(f"Recovered {recovered} stale {noun}")
+        log_warning("Detected stale session gap from previous run")
+        log_info(f"Recovered {recovered} stale {noun} safely")
         log_info("Database updated")
 
     tracker = SessionTracker(store)
