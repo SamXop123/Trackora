@@ -267,11 +267,12 @@ class MainWindow(QMainWindow):
 
     # ── Navigation ────────────────────────────────────────────────────────
 
-        outer.addLayout(header_layout)
+    def _on_nav_click(self, index: int) -> None:
+        if 0 <= index < self._stack.count():
+            self._stack.setCurrentIndex(index)
+            self._sidebar.set_active(index)
 
-        metrics_layout = QGridLayout()
-        metrics_layout.setHorizontalSpacing(16)
-        metrics_layout.setVerticalSpacing(16)
+    # ── Timers ────────────────────────────────────────────────────────────
 
     def _start_timers(self) -> None:
         self._refresh_timer = QTimer(self)
@@ -284,72 +285,19 @@ class MainWindow(QMainWindow):
 
     # ── Data refresh ─────────────────────────────────────────────────────
 
-    def refresh_dashboard(self) -> None:
+    def _refresh_dashboard(self) -> None:
         snapshot = self._repository.load_snapshot()
-        self._render_snapshot(snapshot)
+        self._dashboard_page.refresh(snapshot)
 
-    def _render_snapshot(self, snapshot: DashboardSnapshot) -> None:
-        self._status_label.setText(snapshot.status_message)
-        self._total_today_card.set_content(
-            value=format_duration_compact(snapshot.total_today_seconds),
-            subtitle=f"{len(snapshot.all_apps)} apps tracked today",
+    # ── Base styling ─────────────────────────────────────────────────────
+
+    def _apply_base_style(self) -> None:
+        self.setStyleSheet(
+            f"""
+            QMainWindow, QWidget {{
+                background: {_BG};
+                color: {_TEXT_PRIMARY};
+                font-family: 'Inter', 'Cantarell', 'Segoe UI', sans-serif;
+            }}
+            """
         )
-        self._yesterday_card.set_content(
-            value=format_duration_compact(snapshot.total_yesterday_seconds),
-            subtitle=format_duration_caption(snapshot.total_yesterday_seconds),
-        )
-        self._last7days_card.set_content(
-            value=format_duration_compact(snapshot.total_last7days_seconds),
-            subtitle=format_duration_caption(snapshot.total_last7days_seconds),
-        )
-
-        if snapshot.top_apps:
-            leader = snapshot.top_apps[0]
-            self._top_app_card.set_content(
-                value=leader.app_name,
-                subtitle=format_duration_caption(leader.duration_seconds),
-            )
-        else:
-            self._top_app_card.set_content(
-                value="No data",
-                subtitle="Open a few apps to start seeing usage",
-            )
-
-        self._refresh_card.set_content(
-            value=format_last_refreshed(snapshot.last_refreshed),
-            subtitle=f"Auto-refresh every {self._refresh_seconds}s",
-        )
-        self._active_status_card.update_status(snapshot.active_app)
-        self._usage_table.set_rows(snapshot.all_apps)
-        self._chart.update_chart(snapshot.hourly_labels, snapshot.hourly_values)
-        self._weekly_chart.update_chart(snapshot.weekly_labels, snapshot.weekly_values)
-        self._top_apps_summary.setText(self._build_summary_text(snapshot))
-
-    def _build_summary_text(self, snapshot: DashboardSnapshot) -> str:
-        if not snapshot.top_apps:
-            return "No tracked app sessions yet today. Once the background tracker records activity, your leaders will appear here."
-
-        lines = []
-        for index, item in enumerate(snapshot.top_apps[:3], start=1):
-            lines.append(
-                f"{index}. {item.app_name}  •  {format_duration_compact(item.duration_seconds)}"
-            )
-
-        if snapshot.active_app is not None:
-            lines.append("")
-            lines.append(
-                "Active now: "
-                f"{snapshot.active_app.app_name}  •  "
-                f"{format_duration_compact(snapshot.active_app.elapsed_seconds)}"
-            )
-
-        if snapshot.weekly_days:
-            strongest_day = max(snapshot.weekly_days, key=lambda item: item.duration_seconds)
-            lines.append("")
-            lines.append(
-                "Strongest day: "
-                f"{strongest_day.day.strftime('%a %d %b')}  •  "
-                f"{format_duration_compact(strongest_day.duration_seconds)}"
-            )
-
-        return "\n".join(lines)
