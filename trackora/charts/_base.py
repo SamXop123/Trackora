@@ -10,6 +10,9 @@ import pyqtgraph as pg
 
 pg.setConfigOptions(antialias=True)
 
+# ── Dashboard card background ────────────────────────────────────────────────
+_CARD_BG = "#141a23"
+
 
 class BaseUsageChart(pg.PlotWidget):
     """Common styling and behavior for Trackora bar charts."""
@@ -24,7 +27,7 @@ class BaseUsageChart(pg.PlotWidget):
         self._plot_item = self.getPlotItem()
         self._view_box = self._plot_item.getViewBox()
 
-        self.setBackground("#111418")
+        self.setBackground(_CARD_BG)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setMinimumHeight(min_height)
 
@@ -34,7 +37,7 @@ class BaseUsageChart(pg.PlotWidget):
         self._view_box.setMouseEnabled(x=False, y=False)
         self._view_box.setDefaultPadding(0.0)
         self._view_box.enableAutoRange(x=False, y=False)
-        self._plot_item.showGrid(x=False, y=True, alpha=0.18)
+        self._plot_item.showGrid(x=False, y=True, alpha=0.10)
         self._plot_item.layout.setContentsMargins(10, 8, 6, 8)
         self._plot_item.layout.setHorizontalSpacing(8)
         self._plot_item.layout.setVerticalSpacing(6)
@@ -44,8 +47,8 @@ class BaseUsageChart(pg.PlotWidget):
 
         for axis_name in ("left", "bottom"):
             axis = self._plot_item.getAxis(axis_name)
-            axis.setPen(pg.mkPen("#243042", width=1))
-            axis.setTextPen(pg.mkPen("#b6c2d9"))
+            axis.setPen(pg.mkPen("#1e2a3a", width=1))
+            axis.setTextPen(pg.mkPen("#6b7d95"))
             axis.setTickFont(axis_font)
             axis.setStyle(
                 autoExpandTextSpace=True,
