@@ -12,6 +12,8 @@ from trackora.utils.time import duration_seconds, now_utc, parse_timestamp, to_s
 class SessionTracker:
     """Turn sequential window snapshots into app session records."""
 
+    _HEARTBEAT_GAP_THRESHOLD_SECONDS = 20
+
     def __init__(self, store: SQLiteSessionStore) -> None:
         self._store = store
         self._active_session: ActiveSession | None = None
@@ -32,7 +34,19 @@ class SessionTracker:
             )
             return
 
+        gap_seconds = duration_seconds(self._active_session.last_heartbeat_at, event_at)
+        if gap_seconds > self._HEARTBEAT_GAP_THRESHOLD_SECONDS:
+            self._handle_inactive_gap(
+                app_name=app_name,
+                window_title=window_title,
+                event_at=event_at,
+                event_time_text=event_time_text,
+                gap_seconds=gap_seconds,
+            )
+            return
+
         if self._matches_active(app_name, window_title):
+            self._record_heartbeat(event_at=event_at, event_time_text=event_time_text)
             return
 
         self._end_session(event_at=event_at, event_time_text=event_time_text)
@@ -44,11 +58,18 @@ class SessionTracker:
         )
 
     def close_active_session(self) -> None:
-        """Close the current active session using the current clock time."""
+        """Close the current active session without inflating post-heartbeat time."""
         if self._active_session is None:
             return
 
         closed_at = now_utc()
+        active = self._active_session
+        if active is None:
+            return
+        if closed_at < active.last_heartbeat_at:
+            closed_at = active.last_heartbeat_at
+        if duration_seconds(active.last_heartbeat_at, closed_at) > self._HEARTBEAT_GAP_THRESHOLD_SECONDS:
+            closed_at = active.last_heartbeat_at
         self._end_session(
             event_at=closed_at,
             event_time_text=to_storage_timestamp(closed_at),
@@ -81,6 +102,7 @@ class SessionTracker:
             window_title=window_title,
             start_at=event_at,
             start_time_text=event_time_text,
+            last_heartbeat_at=event_at,
         )
         log_info(f"Session started: {app_name}")
         log_info("Database updated")
@@ -100,6 +122,47 @@ class SessionTracker:
         log_info("Database updated")
         self._active_session = None
 
+    def _record_heartbeat(self, *, event_at, event_time_text: str) -> None:
+        active = self._active_session
+        if active is None:
+            return
+        self._store.record_heartbeat(
+            session_id=active.session_id,
+            heartbeat_time=event_time_text,
+        )
+        active.last_heartbeat_at = event_at
+
+    def _handle_inactive_gap(
+        self,
+        *,
+        app_name: str,
+        window_title: str,
+        event_at,
+        event_time_text: str,
+        gap_seconds: int,
+    ) -> None:
+        active = self._active_session
+        if active is None:
+            return
+        last_heartbeat_text = to_storage_timestamp(active.last_heartbeat_at)
+        log_warning(
+            f"Detected stale session gap of {gap_seconds}s since last heartbeat"
+        )
+        log_info(
+            f"Closing inactive session: {active.app_name} at last heartbeat"
+        )
+        self._end_session(
+            event_at=active.last_heartbeat_at,
+            event_time_text=last_heartbeat_text,
+        )
+        log_info("Recovered session safely after inactive gap")
+        self._start_session(
+            app_name=app_name,
+            window_title=window_title,
+            event_at=event_at,
+            event_time_text=event_time_text,
+        )
+
     def _validated_event_time(self, raw_timestamp: str):
         """
         Prefer extension timestamps, but never allow time to move backward.
@@ -109,9 +172,9 @@ class SessionTracker:
         """
         parsed = parse_timestamp(raw_timestamp) or now_utc()
         active = self._active_session
-        if active is not None and parsed < active.start_at:
+        if active is not None and parsed < active.last_heartbeat_at:
             log_warning(
                 "Received out-of-order window timestamp; using current clock for safety"
             )
-            return now_utc()
+            return max(now_utc(), active.last_heartbeat_at)
         return parsed
