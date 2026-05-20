@@ -12,6 +12,16 @@ from trackora.utils.time import duration_seconds, parse_timestamp, to_storage_ti
 class SQLiteSessionStore:
     """Persist active and completed app sessions in SQLite."""
 
+    _SESSION_COLUMNS = {
+        "id",
+        "app_name",
+        "window_title",
+        "start_time",
+        "end_time",
+        "duration_seconds",
+        "last_heartbeat_time",
+    }
+
     def __init__(self, database_path: Path) -> None:
         self._database_path = database_path.expanduser()
         self._database_path.parent.mkdir(parents=True, exist_ok=True)
@@ -33,10 +43,12 @@ class SQLiteSessionStore:
                     window_title TEXT,
                     start_time TEXT NOT NULL,
                     end_time TEXT,
-                    duration_seconds INTEGER CHECK (duration_seconds IS NULL OR duration_seconds >= 0)
+                    duration_seconds INTEGER CHECK (duration_seconds IS NULL OR duration_seconds >= 0),
+                    last_heartbeat_time TEXT
                 )
                 """
             )
+            self._ensure_session_schema()
             self._conn.execute(
                 """
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_app_sessions_single_open
@@ -56,10 +68,11 @@ class SQLiteSessionStore:
                         window_title,
                         start_time,
                         end_time,
-                        duration_seconds
-                    ) VALUES (?, ?, ?, NULL, NULL)
+                        duration_seconds,
+                        last_heartbeat_time
+                    ) VALUES (?, ?, ?, NULL, NULL, ?)
                     """,
-                    (app_name, window_title, start_time),
+                    (app_name, window_title, start_time, start_time),
                 )
         except sqlite3.IntegrityError as exc:
             raise RuntimeError(
@@ -67,16 +80,28 @@ class SQLiteSessionStore:
             ) from exc
         return int(cursor.lastrowid)
 
+    def record_heartbeat(self, *, session_id: int, heartbeat_time: str) -> None:
+        """Persist the last successful tracking heartbeat for the active session."""
+        with self._conn:
+            self._conn.execute(
+                """
+                UPDATE app_sessions
+                SET last_heartbeat_time = ?
+                WHERE id = ?
+                """,
+                (heartbeat_time, session_id),
+            )
+
     def end_session(self, *, session_id: int, end_time: str, duration: int) -> None:
         """Close an active session row."""
         with self._conn:
             self._conn.execute(
                 """
                 UPDATE app_sessions
-                SET end_time = ?, duration_seconds = ?
+                SET end_time = ?, duration_seconds = ?, last_heartbeat_time = ?
                 WHERE id = ?
                 """,
-                (end_time, duration, session_id),
+                (end_time, duration, end_time, session_id),
             )
 
     def recover_open_sessions(self, closed_at: datetime) -> int:
@@ -88,7 +113,7 @@ class SQLiteSessionStore:
         """
         rows = self._conn.execute(
             """
-            SELECT id, start_time
+            SELECT id, app_name, start_time, last_heartbeat_time
             FROM app_sessions
             WHERE end_time IS NULL
             """
@@ -97,19 +122,26 @@ class SQLiteSessionStore:
         if not rows:
             return 0
 
-        end_time = to_storage_timestamp(closed_at)
         with self._conn:
             for row in rows:
                 start_dt = parse_timestamp(str(row["start_time"])) or closed_at
+                last_heartbeat_raw = str(row["last_heartbeat_time"] or "") or str(
+                    row["start_time"]
+                )
+                recovered_end_dt = parse_timestamp(last_heartbeat_raw) or start_dt
+                if recovered_end_dt < start_dt:
+                    recovered_end_dt = start_dt
+                end_time = to_storage_timestamp(recovered_end_dt)
                 self._conn.execute(
                     """
                     UPDATE app_sessions
-                    SET end_time = ?, duration_seconds = ?
+                    SET end_time = ?, duration_seconds = ?, last_heartbeat_time = ?
                     WHERE id = ?
                     """,
                     (
                         end_time,
-                        duration_seconds(start_dt, closed_at),
+                        duration_seconds(start_dt, recovered_end_dt),
+                        end_time,
                         int(row["id"]),
                     ),
                 )
@@ -130,3 +162,15 @@ class SQLiteSessionStore:
     def close(self) -> None:
         """Close the SQLite connection."""
         self._conn.close()
+
+    def _ensure_session_schema(self) -> None:
+        """Perform lightweight schema migration for older local databases."""
+        existing_columns = {
+            str(row["name"])
+            for row in self._conn.execute("PRAGMA table_info(app_sessions)").fetchall()
+        }
+        missing_columns = self._SESSION_COLUMNS - existing_columns
+        if "last_heartbeat_time" in missing_columns:
+            self._conn.execute(
+                "ALTER TABLE app_sessions ADD COLUMN last_heartbeat_time TEXT"
+            )
