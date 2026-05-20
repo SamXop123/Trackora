@@ -380,3 +380,157 @@ class _StatChip(QWidget):
         self._value.setText(text)
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+#  DASHBOARD PAGE
+# ═════════════════════════════════════════════════════════════════════════════
+
+class DashboardPage(QWidget):
+    """Main dashboard page matching the Trackora reference design."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        # ── Internal state ────────────────────────────────────────────────
+        self._active_status: ActiveAppStatus | None = None
+        self._last_snapshot: DashboardSnapshot | None = None
+
+        # ── Scrollable root ───────────────────────────────────────────────
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setStyleSheet(
+            f"""
+            QScrollArea {{ background: {_BG}; border: none; }}
+            QScrollBar:vertical {{
+                background: {_BG}; width: 6px; margin: 0;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {_CARD_BORDER}; border-radius: 3px; min-height: 30px;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0; background: none;
+            }}
+            """
+        )
+
+        container = QWidget()
+        container.setStyleSheet(f"background: {_BG};")
+        scroll.setWidget(container)
+
+        # Page-level wrapper to fill the DashboardPage
+        page_layout = QVBoxLayout(self)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.addWidget(scroll)
+
+        # ── Main content layout ───────────────────────────────────────────
+        main = QVBoxLayout(container)
+        main.setContentsMargins(28, 16, 28, 28)
+        main.setSpacing(18)
+
+        # ── Date header ──────────────────────────────────────────────────
+        self._date_label = QLabel("")
+        self._date_label.setStyleSheet(
+            f"""
+            color: {_TEXT_PRIMARY};
+            font-size: 13px;
+            font-weight: 500;
+            background: {_CARD};
+            border: 1px solid {_CARD_BORDER};
+            border-radius: 8px;
+            padding: 8px 16px;
+            """
+        )
+        self._date_label.setFixedHeight(36)
+
+        date_row = QHBoxLayout()
+        date_row.addWidget(self._date_label)
+        date_row.addStretch(1)
+        main.addLayout(date_row)
+
+        # ── Top row: Hero + Active ───────────────────────────────────────
+        top_row = QHBoxLayout()
+        top_row.setSpacing(18)
+
+        self._hero_card = _HeroCard()
+        top_row.addWidget(self._hero_card, 3)
+
+        self._active_card = _ActiveCard()
+        top_row.addWidget(self._active_card, 2)
+
+        main.addLayout(top_row)
+
+        # ── Middle row: Timeline + Top Apps ──────────────────────────────
+        mid_row = QHBoxLayout()
+        mid_row.setSpacing(18)
+
+        self._daily_chart = DailyUsageChart()
+        self._timeline_card = _TimelineCard(self._daily_chart)
+        mid_row.addWidget(self._timeline_card, 3)
+
+        self._top_apps_card = _TopAppsCard()
+        mid_row.addWidget(self._top_apps_card, 2)
+
+        main.addLayout(mid_row)
+
+        # ── Bottom stats ─────────────────────────────────────────────────
+        stats_card = _Card()
+        stats_layout = QHBoxLayout(stats_card)
+        stats_layout.setContentsMargins(28, 16, 28, 16)
+        stats_layout.setSpacing(48)
+
+        self._stat_screen = _StatChip("◷", "Total Screen Time")
+        self._stat_sessions = _StatChip("⊞", "Total Sessions")
+        self._stat_focused = _StatChip("◎", "Focused Time")
+
+        stats_layout.addWidget(self._stat_screen)
+        stats_layout.addWidget(self._stat_sessions)
+        stats_layout.addWidget(self._stat_focused)
+        stats_layout.addStretch(1)
+
+        main.addWidget(stats_card)
+        main.addStretch(1)
+
+    # ── Public interface called by MainWindow ─────────────────────────────
+
+    def refresh(self, snapshot: DashboardSnapshot) -> None:
+        """Apply a fresh DashboardSnapshot to every widget on this page."""
+        self._last_snapshot = snapshot
+        self._active_status = snapshot.active_app
+
+        # Date header
+        now = snapshot.last_refreshed
+        self._date_label.setText(f"  📅  {now.strftime('%B %d, %Y')}")
+
+        # Hero card
+        self._hero_card.update_data(snapshot.total_today_seconds, snapshot.total_yesterday_seconds)
+
+        # Active card
+        self._active_card.update_data(snapshot.active_app)
+
+        # Chart
+        self._daily_chart.update_chart(snapshot.hourly_labels, snapshot.hourly_values)
+
+        # Top apps
+        self._top_apps_card.update_data(snapshot.all_apps)
+
+        # Bottom stats
+        self._stat_screen.set_value(format_duration_compact(snapshot.total_today_seconds))
+        self._stat_sessions.set_value(str(len(snapshot.all_apps)))
+        # "Focused time" = top app's time (largest single-app block)
+        if snapshot.top_apps:
+            self._stat_focused.set_value(format_duration_compact(snapshot.top_apps[0].duration_seconds))
+        else:
+            self._stat_focused.set_value("0m")
+
+    def tick_active_session(self) -> None:
+        """Advance the live elapsed-time counter by one second."""
+        if self._active_status is None:
+            return
+        self._active_status = ActiveAppStatus(
+            app_name=self._active_status.app_name,
+            window_title=self._active_status.window_title,
+            started_at=self._active_status.started_at,
+            elapsed_seconds=self._active_status.elapsed_seconds + 1,
+        )
+        self._active_card.update_data(self._active_status)
