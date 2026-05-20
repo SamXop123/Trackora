@@ -8,7 +8,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
-from trackora.gui.dashboard_window import DashboardWindow
+from trackora.gui.dashboard_window import MainWindow
 from trackora.utils.paths import default_database_path
 
 
@@ -36,7 +36,7 @@ def main(argv: list[str] | None = None) -> int:
     app.setOrganizationName("Trackora")
 
     database_path = args.database.expanduser() if args.database else default_database_path()
-    window = DashboardWindow(
+    window = MainWindow(
         database_path=database_path,
         refresh_seconds=max(args.refresh_seconds, 2),
     )
