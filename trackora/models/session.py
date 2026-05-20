@@ -15,3 +15,4 @@ class ActiveSession:
     window_title: str
     start_at: datetime
     start_time_text: str
+    last_heartbeat_at: datetime
