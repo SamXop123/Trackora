@@ -8,6 +8,7 @@ from pathlib import Path
 
 from trackora.models.dashboard import (
     ActiveAppStatus,
+    AppDetailedStats,
     AppUsageSummary,
     DashboardSnapshot,
     DailyUsageSummary,
@@ -137,6 +138,77 @@ class DashboardRepository:
             last_refreshed=local_now,
             status_message="Connected to Trackora database",
         )
+
+    def load_app_details(self, *, days: int = 1) -> list[AppDetailedStats]:
+        """Per-app stats for the Applications page over a given day range."""
+        if not self._database_path.exists():
+            return []
+
+        now = now_utc()
+        local_now = now.astimezone()
+        today_local = local_now.date()
+        range_start_local = today_local - timedelta(days=max(days - 1, 0))
+        range_start_utc, _ = self._local_day_bounds(range_start_local, local_now)
+        _, range_end_utc = self._local_day_bounds(today_local, local_now)
+
+        try:
+            with sqlite3.connect(self._database_path, timeout=2.0) as conn:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    """
+                    SELECT app_name, window_title, start_time, end_time, duration_seconds
+                    FROM app_sessions
+                    WHERE start_time < ?
+                      AND COALESCE(end_time, ?) > ?
+                    ORDER BY start_time ASC
+                    """,
+                    (
+                        self._to_sql_timestamp(range_end_utc),
+                        self._to_sql_timestamp(now),
+                        self._to_sql_timestamp(range_start_utc),
+                    ),
+                ).fetchall()
+        except sqlite3.Error:
+            return []
+
+        sessions = [self._to_session_record(row) for row in rows]
+        relevant = [
+            s for s in sessions
+            if self._intersects_day(s, range_start_utc, range_end_utc, now)
+        ]
+        normalized = self._normalized_sessions(
+            todays_sessions=relevant,
+            day_start_utc=range_start_utc,
+            day_end_utc=range_end_utc,
+            now=now,
+        )
+
+        # Group by app: intervals and session count
+        app_intervals: dict[str, list[tuple[datetime, datetime]]] = {}
+        app_session_counts: dict[str, int] = {}
+        app_last_active: dict[str, datetime] = {}
+        for app_name, start, end in normalized:
+            app_intervals.setdefault(app_name, []).append((start, end))
+            app_session_counts[app_name] = app_session_counts.get(app_name, 0) + 1
+            prev = app_last_active.get(app_name)
+            if prev is None or end > prev:
+                app_last_active[app_name] = end
+
+        results: list[AppDetailedStats] = []
+        for app_name, intervals in app_intervals.items():
+            total = self._merged_intervals_seconds(intervals)
+            if total < self._MIN_MEANINGFUL_APP_SECONDS:
+                continue
+            count = app_session_counts[app_name]
+            results.append(AppDetailedStats(
+                app_name=app_name,
+                duration_seconds=total,
+                session_count=count,
+                avg_session_seconds=total // max(count, 1),
+                last_active=app_last_active.get(app_name),
+            ))
+        results.sort(key=lambda x: (-x.duration_seconds, x.app_name.lower()))
+        return results
 
     def _to_session_record(self, row: sqlite3.Row) -> SessionRecord:
         return SessionRecord(
