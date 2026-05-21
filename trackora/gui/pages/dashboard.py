@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime
+from datetime import date, datetime
 
 from PySide6.QtCore import Qt, QRectF, QSize
 from PySide6.QtGui import (
@@ -16,7 +16,9 @@ from PySide6.QtWidgets import (
 )
 
 from trackora.charts import DailyUsageChart
-from trackora.models.dashboard import ActiveAppStatus, AppUsageSummary, DashboardSnapshot
+from trackora.models.dashboard import (
+    ActiveAppStatus, AppUsageSummary, DailyUsageSummary, DashboardSnapshot,
+)
 from trackora.utils.formatting import format_duration_compact, format_duration_live
 
 # ─── Color tokens ────────────────────────────────────────────────────────────
@@ -461,6 +463,198 @@ class _TopAppsCard(_Card):
         self._more_label.setText(f"+ {extra} more applications" if extra > 0 else "")
 
 
+# ─── Weekly Activity chart (custom-painted) ────────────────────────────────
+
+def _format_bar_label(seconds: int) -> str:
+    """Compact label for bar tops: 42m, 2.4h, etc."""
+    if seconds < 60:
+        return ""
+    if seconds < 3600:
+        return f"{seconds // 60}m"
+    hours = seconds / 3600
+    if hours == int(hours):
+        return f"{int(hours)}h"
+    return f"{hours:.1f}h"
+
+
+class _WeeklyChart(QWidget):
+    """Custom-painted 7-day bar chart with rounded tops and today highlight."""
+
+    _BAR_RADIUS = 5
+    _PAD_TOP = 28       # space for value labels above bars
+    _PAD_BOTTOM = 24    # space for weekday labels below bars
+    _PAD_SIDE = 16
+    _BAR_GAP_RATIO = 0.35  # gap between bars as fraction of slot width
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._days: list[DailyUsageSummary] = []
+        self._today: date | None = None
+        self._hovered_index: int = -1
+        self.setMinimumHeight(170)
+        self.setMouseTracking(True)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+    def set_data(self, days: list[DailyUsageSummary], today: date):
+        self._days = days
+        self._today = today
+        self.update()
+
+    def _bar_rects(self) -> list[QRectF]:
+        """Compute bar rectangles for current widget size."""
+        if not self._days:
+            return []
+        n = len(self._days)
+        usable_w = self.width() - 2 * self._PAD_SIDE
+        usable_h = self.height() - self._PAD_TOP - self._PAD_BOTTOM
+        slot_w = usable_w / n
+        gap = slot_w * self._BAR_GAP_RATIO
+        bar_w = slot_w - gap
+        max_secs = max((d.duration_seconds for d in self._days), default=1) or 1
+
+        rects = []
+        for i, day in enumerate(self._days):
+            ratio = min(day.duration_seconds / max_secs, 1.0)
+            bar_h = max(ratio * usable_h, 3)  # minimum 3px for empty days
+            x = self._PAD_SIDE + i * slot_w + gap / 2
+            y = self._PAD_TOP + usable_h - bar_h
+            rects.append(QRectF(x, y, bar_w, bar_h))
+        return rects
+
+    def mouseMoveEvent(self, event):
+        rects = self._bar_rects()
+        new_idx = -1
+        for i, r in enumerate(rects):
+            if r.adjusted(-4, -self._PAD_TOP, 4, self._PAD_BOTTOM).contains(event.position()):
+                new_idx = i
+                break
+        if new_idx != self._hovered_index:
+            self._hovered_index = new_idx
+            self.update()
+
+    def leaveEvent(self, event):
+        self._hovered_index = -1
+        self.update()
+
+    def paintEvent(self, event):
+        if not self._days:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rects = self._bar_rects()
+        n = len(self._days)
+        usable_w = self.width() - 2 * self._PAD_SIDE
+        slot_w = usable_w / n
+
+        label_font = QFont()
+        label_font.setPixelSize(10)
+        label_font.setWeight(QFont.Medium)
+        value_font = QFont()
+        value_font.setPixelSize(10)
+        value_font.setWeight(QFont.DemiBold)
+
+        for i, (day, rect) in enumerate(zip(self._days, rects)):
+            is_today = (self._today is not None and day.day == self._today)
+            is_hovered = (i == self._hovered_index)
+
+            # ── Ambient glow for today ──────────────────────────────────
+            if is_today:
+                glow_cx = rect.center().x()
+                glow_cy = rect.top()
+                grad = QRadialGradient(glow_cx, glow_cy, rect.height() * 0.7)
+                grad.setColorAt(0, QColor(59, 130, 246, 30))
+                grad.setColorAt(1, QColor(59, 130, 246, 0))
+                painter.setBrush(QBrush(grad))
+                painter.setPen(Qt.NoPen)
+                r = rect.height() * 0.7
+                painter.drawEllipse(QRectF(glow_cx - r, glow_cy - r * 0.3, r * 2, r * 2))
+
+            # ── Bar gradient ────────────────────────────────────────────
+            bar_grad = QLinearGradient(rect.topLeft(), rect.bottomLeft())
+            if is_today:
+                bar_grad.setColorAt(0, QColor("#60a5fa"))
+                bar_grad.setColorAt(1, QColor("#3b82f6"))
+            elif is_hovered:
+                bar_grad.setColorAt(0, QColor(59, 130, 246, 180))
+                bar_grad.setColorAt(1, QColor(59, 130, 246, 120))
+            else:
+                bar_grad.setColorAt(0, QColor(59, 130, 246, 130))
+                bar_grad.setColorAt(1, QColor(59, 130, 246, 80))
+
+            # Draw rounded-top bar via clipped path
+            path = QPainterPath()
+            path.addRoundedRect(rect, self._BAR_RADIUS, self._BAR_RADIUS)
+            painter.setBrush(QBrush(bar_grad))
+            painter.setPen(Qt.NoPen)
+            painter.drawPath(path)
+
+            # ── Value label above bar ───────────────────────────────────
+            label_text = _format_bar_label(day.duration_seconds)
+            if label_text:
+                painter.setFont(value_font)
+                text_color = QColor(_TEXT_PRIMARY) if (is_today or is_hovered) else QColor(_TEXT_MUTED)
+                painter.setPen(QPen(text_color))
+                label_rect = QRectF(rect.x() - 8, rect.y() - 18, rect.width() + 16, 16)
+                painter.drawText(label_rect, Qt.AlignCenter, label_text)
+
+            # ── Weekday label below bar ─────────────────────────────────
+            painter.setFont(label_font)
+            day_label = day.day.strftime("%a")
+            text_color = QColor(_TEXT_PRIMARY) if is_today else QColor(_TEXT_MUTED)
+            painter.setPen(QPen(text_color))
+            lbl_rect = QRectF(
+                self._PAD_SIDE + i * slot_w,
+                self.height() - self._PAD_BOTTOM + 4,
+                slot_w, 16,
+            )
+            painter.drawText(lbl_rect, Qt.AlignCenter, day_label)
+
+        painter.end()
+
+
+class _WeeklyCard(_Card):
+    """Weekly Activity card wrapping the custom bar chart."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 14)
+        layout.setSpacing(4)
+
+        header_row = QHBoxLayout()
+        title = QLabel("WEEKLY ACTIVITY")
+        title.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 700; "
+            f"letter-spacing: 0.12em; background: transparent; border: none;"
+        )
+        header_row.addWidget(title)
+        header_row.addStretch(1)
+
+        self._total_label = QLabel("")
+        self._total_label.setStyleSheet(
+            f"color: {_TEXT_SECONDARY}; font-size: 11px; "
+            f"background: transparent; border: none;"
+        )
+        header_row.addWidget(self._total_label)
+        layout.addLayout(header_row)
+
+        subtitle = QLabel("Compare your usage across the last 7 days")
+        subtitle.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 11px; "
+            f"background: transparent; border: none;"
+        )
+        layout.addWidget(subtitle)
+        layout.addSpacing(4)
+
+        self._chart = _WeeklyChart()
+        layout.addWidget(self._chart, 1)
+
+    def update_data(self, days: list[DailyUsageSummary], today: date):
+        self._chart.set_data(days, today)
+        total = sum(d.duration_seconds for d in days)
+        self._total_label.setText(f"{format_duration_compact(total)} total")
+
+
 # ─── Bottom stats row ───────────────────────────────────────────────────────
 
 class _StatChip(QWidget):
@@ -498,6 +692,43 @@ class _StatChip(QWidget):
 
     def set_value(self, text: str) -> None:
         self._value.setText(text)
+
+
+class _MetricsCard(_Card):
+    """Vertical metrics panel on the right side of Weekly Activity."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(12)
+
+        header = QLabel("METRICS SUMMARY")
+        header.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 700; "
+            f"letter-spacing: 0.12em; background: transparent; border: none;"
+        )
+        layout.addWidget(header)
+        layout.addSpacing(4)
+
+        self._stat_screen = _StatChip("◷", "Total Screen Time")
+        self._stat_sessions = _StatChip("⊞", "Total Apps")
+        self._stat_focused = _StatChip("◎", "Focused Time")
+
+        layout.addWidget(self._stat_screen)
+        layout.addWidget(self._make_separator())
+        layout.addWidget(self._stat_sessions)
+        layout.addWidget(self._make_separator())
+        layout.addWidget(self._stat_focused)
+        layout.addStretch(1)
+
+    def _make_separator(self):
+        sep = QFrame()
+        sep.setFrameShape(QFrame.HLine)
+        sep.setFrameShadow(QFrame.Plain)
+        sep.setFixedHeight(1)
+        sep.setStyleSheet(f"background-color: {_CARD_BORDER}; border: none;")
+        return sep
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -567,19 +798,14 @@ class DashboardPage(QWidget):
         mid_row.addWidget(self._top_apps_card, 2)
         main.addLayout(mid_row)
 
-        # Bottom stats
-        stats_card = _Card()
-        stats_layout = QHBoxLayout(stats_card)
-        stats_layout.setContentsMargins(28, 14, 28, 14)
-        stats_layout.setSpacing(48)
-        self._stat_screen = _StatChip("◷", "Total Screen Time")
-        self._stat_sessions = _StatChip("⊞", "Total Sessions")
-        self._stat_focused = _StatChip("◎", "Focused Time")
-        stats_layout.addWidget(self._stat_screen)
-        stats_layout.addWidget(self._stat_sessions)
-        stats_layout.addWidget(self._stat_focused)
-        stats_layout.addStretch(1)
-        main.addWidget(stats_card)
+        # Bottom row: Weekly Activity + Metrics Card
+        bottom_row = QHBoxLayout()
+        bottom_row.setSpacing(16)
+        self._weekly_card = _WeeklyCard()
+        bottom_row.addWidget(self._weekly_card, 3)
+        self._metrics_card = _MetricsCard()
+        bottom_row.addWidget(self._metrics_card, 2)
+        main.addLayout(bottom_row)
         main.addStretch(1)
 
     def refresh(self, snapshot: DashboardSnapshot) -> None:
@@ -591,12 +817,14 @@ class DashboardPage(QWidget):
         self._active_card.update_data(snapshot.active_app)
         self._daily_chart.update_chart(snapshot.hourly_labels, snapshot.hourly_values)
         self._top_apps_card.update_data(snapshot.all_apps)
-        self._stat_screen.set_value(format_duration_compact(snapshot.total_today_seconds))
-        self._stat_sessions.set_value(str(len(snapshot.all_apps)))
+        self._weekly_card.update_data(snapshot.weekly_days, snapshot.last_refreshed.date())
+        
+        self._metrics_card._stat_screen.set_value(format_duration_compact(snapshot.total_today_seconds))
+        self._metrics_card._stat_sessions.set_value(str(len(snapshot.all_apps)))
         if snapshot.top_apps:
-            self._stat_focused.set_value(format_duration_compact(snapshot.top_apps[0].duration_seconds))
+            self._metrics_card._stat_focused.set_value(format_duration_compact(snapshot.top_apps[0].duration_seconds))
         else:
-            self._stat_focused.set_value("0m")
+            self._metrics_card._stat_focused.set_value("0m")
 
     def tick_active_session(self) -> None:
         if self._active_status is None:
