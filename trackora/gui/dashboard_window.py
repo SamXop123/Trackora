@@ -222,19 +222,24 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self._stack, 1)
 
         self._dashboard_page = DashboardPage()
-        self._stack.addWidget(self._dashboard_page)
-        self._stack.addWidget(TimelinePage())
-        self._stack.addWidget(ApplicationsPage())
-        self._stack.addWidget(InsightsPage())
-        self._stack.addWidget(GoalsPage())
-        self._stack.addWidget(ReportsPage())
-        self._stack.addWidget(SettingsPage())
+        self._stack.addWidget(self._dashboard_page)      # 0
+        self._stack.addWidget(TimelinePage())             # 1
+        self._apps_page = ApplicationsPage()
+        self._apps_page.set_repository(self._repository)
+        self._stack.addWidget(self._apps_page)            # 2
+        self._stack.addWidget(InsightsPage())             # 3
+        self._stack.addWidget(GoalsPage())                # 4
+        self._stack.addWidget(ReportsPage())              # 5
+        self._stack.addWidget(SettingsPage())             # 6
         self._stack.setCurrentIndex(0)
 
     def _on_nav_click(self, index: int):
         if 0 <= index < self._stack.count():
             self._stack.setCurrentIndex(index)
             self._sidebar.set_active(index)
+            # Refresh Applications page data when navigating to it
+            if index == 2:
+                self._apps_page.refresh_data()
 
     def _start_timers(self):
         self._refresh_timer = QTimer(self)
@@ -248,6 +253,9 @@ class MainWindow(QMainWindow):
     def _refresh_dashboard(self):
         snapshot = self._repository.load_snapshot()
         self._dashboard_page.refresh(snapshot)
+        # Also refresh apps page if it's currently visible
+        if self._stack.currentIndex() == 2:
+            self._apps_page.refresh_data()
 
     def _apply_base_style(self):
         self.setStyleSheet(
