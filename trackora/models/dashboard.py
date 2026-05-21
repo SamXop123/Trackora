@@ -26,6 +26,17 @@ class AppUsageSummary:
 
 
 @dataclass(frozen=True)
+class AppDetailedStats:
+    """Per-application statistics for the Applications page."""
+
+    app_name: str
+    duration_seconds: int
+    session_count: int
+    avg_session_seconds: int
+    last_active: datetime | None
+
+
+@dataclass(frozen=True)
 class DailyUsageSummary:
     """One day's total usage."""
 
