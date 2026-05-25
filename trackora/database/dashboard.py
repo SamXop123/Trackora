@@ -13,6 +13,7 @@ from trackora.models.dashboard import (
     DashboardSnapshot,
     DailyUsageSummary,
     SessionRecord,
+    TimelineSession,
 )
 from trackora.utils.app_names import normalize_app_name
 from trackora.utils.time import duration_seconds, now_utc, parse_timestamp
@@ -161,6 +162,64 @@ class DashboardRepository:
             return None
 
         return self._active_app_status(active_row, now)
+
+    def load_timeline_sessions(self) -> list[TimelineSession]:
+        """Load today's sessions for the timeline page, newest first."""
+        if not self._database_path.exists():
+            return []
+
+        now = now_utc()
+        local_now = now.astimezone()
+        today_local = local_now.date()
+        day_start_utc, day_end_utc = self._local_day_bounds(today_local, local_now)
+
+        try:
+            with sqlite3.connect(self._database_path, timeout=2.0) as conn:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    """
+                    SELECT app_name, window_title, start_time, end_time, duration_seconds
+                    FROM app_sessions
+                    WHERE start_time < ?
+                      AND COALESCE(end_time, ?) > ?
+                    ORDER BY start_time DESC
+                    """,
+                    (
+                        self._to_sql_timestamp(day_end_utc),
+                        self._to_sql_timestamp(now),
+                        self._to_sql_timestamp(day_start_utc),
+                    ),
+                ).fetchall()
+        except sqlite3.Error:
+            return []
+
+        sessions: list[TimelineSession] = []
+        for row in rows:
+            start = parse_timestamp(str(row["start_time"] or ""))
+            if start is None:
+                continue
+            end_raw = str(row["end_time"] or "") if row["end_time"] else None
+            end = parse_timestamp(end_raw) if end_raw else now
+            if end <= start:
+                continue
+            # Clip to today's bounds
+            clipped_start = max(start, day_start_utc)
+            clipped_end = min(end, day_end_utc)
+            if clipped_end <= clipped_start:
+                continue
+            dur = duration_seconds(clipped_start, clipped_end)
+            app_name = normalize_app_name(
+                str(row["app_name"] or "Unknown"),
+                str(row["window_title"] or ""),
+            )
+            sessions.append(TimelineSession(
+                app_name=app_name,
+                window_title=str(row["window_title"] or ""),
+                start_time=clipped_start,
+                end_time=clipped_end,
+                duration_seconds=dur,
+            ))
+        return sessions
 
     def load_app_details(self, *, days: int = 1) -> list[AppDetailedStats]:
         """Per-app stats for the Applications page over a given day range."""
