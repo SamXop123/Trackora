@@ -27,6 +27,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Seconds between reads (default: 3).",
     )
     parser.add_argument(
+        "--timeout",
+        type=float,
+        default=10.0,
+        help="Timeout in seconds to detect idle/stale sessions (default: 10).",
+    )
+    parser.add_argument(
         "--state-file",
         type=Path,
         default=None,
@@ -42,6 +48,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.interval <= 0:
         print("interval must be positive", file=sys.stderr)
+        return 2
+
+    if args.timeout <= 0:
+        print("timeout must be positive", file=sys.stderr)
         return 2
 
     state_path: Path | None = args.state_file
@@ -69,6 +79,7 @@ def main(argv: list[str] | None = None) -> int:
             state_path=state_path,
             database_path=database_path,
             stop_flag=stop,
+            timeout_sec=float(args.timeout),
         )
     except TrackoraAlreadyRunningError as exc:
         print(f"[Trackora] {exc}", file=sys.stderr)
