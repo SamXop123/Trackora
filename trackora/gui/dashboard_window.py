@@ -224,7 +224,9 @@ class MainWindow(QMainWindow):
         self._dashboard_page = DashboardPage()
         self._dashboard_page.set_repository(self._repository)
         self._stack.addWidget(self._dashboard_page)      # 0
-        self._stack.addWidget(TimelinePage())             # 1
+        self._timeline_page = TimelinePage()
+        self._timeline_page.set_repository(self._repository)
+        self._stack.addWidget(self._timeline_page)            # 1
         self._apps_page = ApplicationsPage()
         self._apps_page.set_repository(self._repository)
         self._stack.addWidget(self._apps_page)            # 2
@@ -238,8 +240,10 @@ class MainWindow(QMainWindow):
         if 0 <= index < self._stack.count():
             self._stack.setCurrentIndex(index)
             self._sidebar.set_active(index)
-            # Refresh Applications page data when navigating to it
-            if index == 2:
+            # Refresh page data when navigating
+            if index == 1:
+                self._timeline_page.refresh_data()
+            elif index == 2:
                 self._apps_page.refresh_data()
 
     def _start_timers(self):
@@ -257,8 +261,10 @@ class MainWindow(QMainWindow):
         try:
             snapshot = self._repository.load_snapshot()
             self._dashboard_page.refresh(snapshot)
-            # Also refresh apps page if it's currently visible
-            if self._stack.currentIndex() == 2:
+            # Also refresh timeline/apps page if currently visible
+            if self._stack.currentIndex() == 1:
+                self._timeline_page.refresh_data()
+            elif self._stack.currentIndex() == 2:
                 self._apps_page.refresh_data()
             log_info("dashboard refresh success")
         except Exception as exc:
