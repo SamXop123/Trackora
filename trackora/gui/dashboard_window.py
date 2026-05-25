@@ -222,6 +222,7 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self._stack, 1)
 
         self._dashboard_page = DashboardPage()
+        self._dashboard_page.set_repository(self._repository)
         self._stack.addWidget(self._dashboard_page)      # 0
         self._stack.addWidget(TimelinePage())             # 1
         self._apps_page = ApplicationsPage()
@@ -251,11 +252,17 @@ class MainWindow(QMainWindow):
         self._tick_timer.start(1000)
 
     def _refresh_dashboard(self):
-        snapshot = self._repository.load_snapshot()
-        self._dashboard_page.refresh(snapshot)
-        # Also refresh apps page if it's currently visible
-        if self._stack.currentIndex() == 2:
-            self._apps_page.refresh_data()
+        from trackora.utils.logging import log_info, log_error
+        log_info("dashboard refresh started")
+        try:
+            snapshot = self._repository.load_snapshot()
+            self._dashboard_page.refresh(snapshot)
+            # Also refresh apps page if it's currently visible
+            if self._stack.currentIndex() == 2:
+                self._apps_page.refresh_data()
+            log_info("dashboard refresh success")
+        except Exception as exc:
+            log_error(f"refresh exception if any: {exc}")
 
     def _apply_base_style(self):
         self.setStyleSheet(
