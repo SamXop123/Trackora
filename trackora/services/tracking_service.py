@@ -20,6 +20,7 @@ def run_tracking_service(
     state_path: Path,
     database_path: Path,
     stop_flag: list[bool] | None = None,
+    timeout_sec: float = 10.0,
 ) -> None:
     """Continuously convert focused-window snapshots into durable sessions."""
     if interval_sec <= 0:
@@ -41,12 +42,21 @@ def run_tracking_service(
         log_info(f"Recovered {recovered} stale {noun} safely")
         log_info("Database updated")
 
-    tracker = SessionTracker(store)
+    tracker = SessionTracker(store, timeout_seconds=timeout_sec)
     last_error: str | None = None
 
     try:
         while stop_flag is None or not stop_flag[0]:
             result = read_window_state(state_path)
+            
+            try:
+                if result.state is not None:
+                    tracker.process_window_state(result.state)
+                else:
+                    tracker.process_idle_tick()
+            except Exception as exc:
+                log_error(f"Tracking error: {exc}")
+
             if result.state is None:
                 if result.error != last_error:
                     log_warning(result.error or "No valid window state available")
@@ -55,10 +65,6 @@ def run_tracking_service(
                 if last_error is not None:
                     log_info("Window state input recovered")
                     last_error = None
-                try:
-                    tracker.process_window_state(result.state)
-                except Exception as exc:
-                    log_error(f"Tracking error: {exc}")
 
             _sleep_in_slices(interval_sec, stop_flag)
     finally:
