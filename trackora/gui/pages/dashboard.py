@@ -21,6 +21,10 @@ from trackora.models.dashboard import (
 )
 from trackora.utils.formatting import format_duration_compact, format_duration_live
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from trackora.database.dashboard import DashboardRepository
+
 # ─── Color tokens ────────────────────────────────────────────────────────────
 _BG = "#0d1117"
 _CARD = "#141a23"
@@ -808,7 +812,16 @@ class DashboardPage(QWidget):
         main.addLayout(bottom_row)
         main.addStretch(1)
 
+    def set_repository(self, repository: DashboardRepository) -> None:
+        self._repository = repository
+
     def refresh(self, snapshot: DashboardSnapshot) -> None:
+        old_app = self._active_status.app_name if self._active_status else None
+        new_app = snapshot.active_app.app_name if snapshot.active_app else None
+        if old_app != new_app:
+            from trackora.utils.logging import log_info
+            log_info(f"Active app updated: {new_app or 'None'}")
+
         self._last_snapshot = snapshot
         self._active_status = snapshot.active_app
         now = snapshot.last_refreshed
@@ -827,12 +840,18 @@ class DashboardPage(QWidget):
             self._metrics_card._stat_focused.set_value("0m")
 
     def tick_active_session(self) -> None:
-        if self._active_status is None:
+        if not hasattr(self, "_repository") or self._repository is None:
             return
-        self._active_status = ActiveAppStatus(
-            app_name=self._active_status.app_name,
-            window_title=self._active_status.window_title,
-            started_at=self._active_status.started_at,
-            elapsed_seconds=self._active_status.elapsed_seconds + 1,
-        )
-        self._active_card.update_data(self._active_status)
+
+        from trackora.utils.logging import log_info
+        
+        active = self._repository.load_active_app()
+        
+        old_app = self._active_status.app_name if self._active_status else None
+        new_app = active.app_name if active else None
+        
+        if old_app != new_app:
+            log_info(f"Active app updated: {new_app or 'None'}")
+            
+        self._active_status = active
+        self._active_card.update_data(active)
