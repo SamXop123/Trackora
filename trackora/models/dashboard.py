@@ -56,6 +56,17 @@ class ActiveAppStatus:
 
 
 @dataclass(frozen=True)
+class TimelineSession:
+    """A single session for the timeline view, with parsed datetimes."""
+
+    app_name: str
+    window_title: str
+    start_time: datetime
+    end_time: datetime
+    duration_seconds: int
+
+
+@dataclass(frozen=True)
 class DashboardSnapshot:
     """All data needed to render one dashboard refresh."""
 
