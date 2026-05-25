@@ -65,7 +65,7 @@ class DashboardRepository:
                 ).fetchall()
                 active_row = conn.execute(
                     """
-                    SELECT app_name, window_title, start_time
+                    SELECT app_name, window_title, start_time, last_heartbeat_time
                     FROM app_sessions
                     WHERE end_time IS NULL
                     ORDER BY start_time DESC
@@ -138,6 +138,29 @@ class DashboardRepository:
             last_refreshed=local_now,
             status_message="Connected to Trackora database",
         )
+
+    def load_active_app(self) -> ActiveAppStatus | None:
+        """Fetch the current active app status, checking for staleness."""
+        if not self._database_path.exists():
+            return None
+
+        now = now_utc()
+        try:
+            with sqlite3.connect(self._database_path, timeout=1.0) as conn:
+                conn.row_factory = sqlite3.Row
+                active_row = conn.execute(
+                    """
+                    SELECT app_name, window_title, start_time, last_heartbeat_time
+                    FROM app_sessions
+                    WHERE end_time IS NULL
+                    ORDER BY start_time DESC
+                    LIMIT 1
+                    """
+                ).fetchone()
+        except sqlite3.Error:
+            return None
+
+        return self._active_app_status(active_row, now)
 
     def load_app_details(self, *, days: int = 1) -> list[AppDetailedStats]:
         """Per-app stats for the Applications page over a given day range."""
@@ -316,6 +339,19 @@ class DashboardRepository:
         started_at = parse_timestamp(start_time_text)
         if started_at is None:
             return None
+
+        # Check for staleness using the last_heartbeat_time if available
+        last_hb_text = ""
+        try:
+            if "last_heartbeat_time" in active_row.keys():
+                last_hb_text = str(active_row["last_heartbeat_time"] or "")
+        except Exception:
+            pass
+
+        last_hb = parse_timestamp(last_hb_text) if last_hb_text else started_at
+        if last_hb is not None:
+            if duration_seconds(last_hb, now) > 20:
+                return None
 
         return ActiveAppStatus(
             app_name=normalize_app_name(
