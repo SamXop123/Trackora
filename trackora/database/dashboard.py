@@ -22,6 +22,36 @@ from trackora.utils.time import duration_seconds, now_utc, parse_timestamp
 from trackora.utils.grouping import merge_consecutive_sessions
 
 
+def _get_app_category(name: str) -> str:
+    name_lower = name.lower()
+    
+    # 1. Browsers
+    if any(kw in name_lower for kw in ["chrome", "brave", "firefox", "edge", "chromium", "safari", "opera", "vivaldi", "browser"]):
+        return "Browsers"
+        
+    # 2. Development
+    if any(kw in name_lower for kw in ["vs code", "vscode", "cursor", "github desktop", "terminal", "antigravity", "kitty", "console", "sublime", "pycharm", "webstorm", "intellij", "git", "github", "neovim", "vim", "emacs", "bash", "sh"]):
+        return "Development"
+        
+    # 3. Music
+    if any(kw in name_lower for kw in ["spotify", "music", "rhythmbox", "vlc", "audacious", "clementine", "itunes", "deezer"]):
+        return "Music"
+        
+    # 4. Communication
+    if any(kw in name_lower for kw in ["discord", "slack", "telegram", "whatsapp", "teams", "zoom", "skype", "signal", "messenger", "wechat", "mail", "outlook", "thunderbird"]):
+        return "Communication"
+        
+    # 5. System
+    if any(kw in name_lower for kw in ["gnome software", "gnome-software", "settings", "system settings", "gnome-control-center", "task manager", "monitor", "finder", "explorer", "dbus", "xorg", "system tools"]):
+        return "System"
+        
+    # 6. Utilities
+    if any(kw in name_lower for kw in ["files", "nautilus", "archive manager", "archive", "file roller", "text editor", "gedit", "kwrite", "calculator", "notes", "obsidian", "notion", "keep", "manager"]):
+        return "Utilities"
+        
+    return "Other"
+
+
 class DashboardRepository:
     """Load dashboard-friendly summaries from the Trackora database."""
 
@@ -713,21 +743,7 @@ class DashboardRepository:
             "Other": 0,
         }
         for name, dur in app_durations.items():
-            name_lower = name.lower()
-            if any(keyword in name_lower for keyword in ["vs code", "vscode", "cursor", "kitty", "terminal", "console", "sublime", "pycharm", "webstorm", "intellij", "git", "github", "neovim", "vim", "emacs", "bash", "sh", "antigravity"]):
-                cat = "Development"
-            elif any(keyword in name_lower for keyword in ["chrome", "chromium", "firefox", "brave", "safari", "edge", "opera", "vivaldi", "browser"]):
-                cat = "Browsers"
-            elif any(keyword in name_lower for keyword in ["discord", "slack", "telegram", "teams", "zoom", "skype", "whatsapp", "signal", "messenger", "wechat", "mail", "outlook", "thunderbird"]):
-                cat = "Communication"
-            elif any(keyword in name_lower for keyword in ["spotify", "rhythmbox", "vlc", "audacious", "clementine", "itunes", "music", "youtube music", "deezer"]):
-                cat = "Music"
-            elif any(keyword in name_lower for keyword in ["settings", "system settings", "gnome-control-center", "task manager", "monitor", "finder", "nautilus", "files", "explorer", "dbus", "xorg", "software", "gnome-software"]):
-                cat = "System"
-            elif any(keyword in name_lower for keyword in ["calculator", "text editor", "notes", "obsidian", "notion", "keep", "gedit", "kwrite", "archive", "file roller", "manager"]):
-                cat = "Utilities"
-            else:
-                cat = "Other"
+            cat = _get_app_category(name)
             category_durations[cat] += dur
 
         category_breakdown = []
@@ -884,21 +900,7 @@ class DashboardRepository:
             "Music": 0, "System": 0, "Utilities": 0, "Other": 0,
         }
         for name, dur in app_durations.items():
-            name_lower = name.lower()
-            if any(kw in name_lower for kw in ["vs code", "vscode", "cursor", "kitty", "terminal", "console", "sublime", "pycharm", "webstorm", "intellij", "git", "github", "neovim", "vim", "emacs", "bash", "sh", "antigravity"]):
-                cat = "Development"
-            elif any(kw in name_lower for kw in ["chrome", "chromium", "firefox", "brave", "safari", "edge", "opera", "vivaldi", "browser"]):
-                cat = "Browsers"
-            elif any(kw in name_lower for kw in ["discord", "slack", "telegram", "teams", "zoom", "skype", "whatsapp", "signal", "messenger", "wechat", "mail", "outlook", "thunderbird"]):
-                cat = "Communication"
-            elif any(kw in name_lower for kw in ["spotify", "rhythmbox", "vlc", "audacious", "clementine", "itunes", "music", "youtube music", "deezer"]):
-                cat = "Music"
-            elif any(kw in name_lower for kw in ["settings", "system settings", "gnome-control-center", "task manager", "monitor", "finder", "nautilus", "files", "explorer", "dbus", "xorg", "software", "gnome-software"]):
-                cat = "System"
-            elif any(kw in name_lower for kw in ["calculator", "text editor", "notes", "obsidian", "notion", "keep", "gedit", "kwrite", "archive", "file roller", "manager"]):
-                cat = "Utilities"
-            else:
-                cat = "Other"
+            cat = _get_app_category(name)
             category_durations[cat] += dur
 
         category_breakdown = []

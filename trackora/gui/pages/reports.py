@@ -2,10 +2,10 @@
 from __future__ import annotations
 import csv, json, io
 from datetime import date, timedelta
-from PySide6.QtCore import Qt, QRectF, QSize
+from PySide6.QtCore import Qt, QRectF, QSize, QDate
 from PySide6.QtGui import (QBrush, QColor, QIcon, QLinearGradient, QPainter,
                             QPainterPath, QPen, QPixmap)
-from PySide6.QtWidgets import (QFileDialog, QFrame, QGraphicsDropShadowEffect,
+from PySide6.QtWidgets import (QDateEdit, QFileDialog, QFrame, QGraphicsDropShadowEffect,
                                 QHBoxLayout, QLabel, QScrollArea, QSizePolicy,
                                 QVBoxLayout, QWidget)
 from trackora.database.dashboard import DashboardRepository
@@ -235,11 +235,53 @@ class ReportsPage(QWidget):
         # Filters
         filt = QHBoxLayout(); filt.setSpacing(8)
         self._filter_btns = {}
-        for name in ["Today","Yesterday","Last 7 Days","Last 30 Days"]:
+        for name in ["Today","Yesterday","Last 7 Days","Last 30 Days","Custom Range"]:
             btn = _FilterBtn(name, self._on_filter)
             self._filter_btns[name] = btn; filt.addWidget(btn)
         filt.addStretch(1); main.addLayout(filt)
         self._filter_btns["Last 7 Days"].set_active(True)
+
+        # Date Pickers directly below the filter row
+        self._custom_range_widget = QWidget()
+        self._custom_range_widget.setVisible(False)
+        self._custom_range_widget.setStyleSheet("background:transparent;border:none;")
+        cw_lo = QHBoxLayout(self._custom_range_widget)
+        cw_lo.setContentsMargins(0, 4, 0, 8)
+        cw_lo.setSpacing(12)
+
+        start_lbl = QLabel("Start Date:")
+        start_lbl.setStyleSheet(f"color:{_TEXT_SECONDARY};font-size:12px;font-weight:600;background:transparent;")
+        cw_lo.addWidget(start_lbl)
+
+        self._start_date_edit = QDateEdit()
+        self._start_date_edit.setCalendarPopup(True)
+        self._start_date_edit.setDisplayFormat("yyyy-MM-dd")
+        self._start_date_edit.setStyleSheet(self._get_date_picker_qss())
+        cw_lo.addWidget(self._start_date_edit)
+
+        end_lbl = QLabel("End Date:")
+        end_lbl.setStyleSheet(f"color:{_TEXT_SECONDARY};font-size:12px;font-weight:600;background:transparent;")
+        cw_lo.addWidget(end_lbl)
+
+        self._end_date_edit = QDateEdit()
+        self._end_date_edit.setCalendarPopup(True)
+        self._end_date_edit.setDisplayFormat("yyyy-MM-dd")
+        self._end_date_edit.setStyleSheet(self._get_date_picker_qss())
+        cw_lo.addWidget(self._end_date_edit)
+
+        # Setup default date values (start = today - 7 days, end = today)
+        today = date.today()
+        end_q = QDate(today.year, today.month, today.day)
+        start_dt = today - timedelta(days=7)
+        start_q = QDate(start_dt.year, start_dt.month, start_dt.day)
+        self._start_date_edit.setDate(start_q)
+        self._end_date_edit.setDate(end_q)
+
+        self._start_date_edit.dateChanged.connect(self._on_custom_date_changed)
+        self._end_date_edit.dateChanged.connect(self._on_custom_date_changed)
+
+        cw_lo.addStretch(1)
+        main.addWidget(self._custom_range_widget)
 
         # Summary cards
         r1 = QHBoxLayout(); r1.setSpacing(16)
@@ -372,8 +414,16 @@ class ReportsPage(QWidget):
             data = self._repository.load_reports_data(start_date=y, end_date=y)
         elif rng == "Last 7 Days":
             data = self._repository.load_reports_data(days=7)
-        else:
+        elif rng == "Last 30 Days":
             data = self._repository.load_reports_data(days=30)
+        elif rng == "Custom Range":
+            sq = self._start_date_edit.date()
+            eq = self._end_date_edit.date()
+            start_dt = date(sq.year(), sq.month(), sq.day())
+            end_dt = date(eq.year(), eq.month(), eq.day())
+            data = self._repository.load_reports_data(start_date=start_dt, end_date=end_dt)
+        else:
+            data = self._repository.load_reports_data(days=7)
         self._last_data = data
         if not data or data.total_screen_time_seconds == 0:
             for w in self._content_widgets: w.setVisible(False)
@@ -414,7 +464,68 @@ class ReportsPage(QWidget):
     def _on_filter(self, name):
         self._active_range = name
         for k, b in self._filter_btns.items(): b.set_active(k == name)
+        self._custom_range_widget.setVisible(name == "Custom Range")
         self.refresh_data()
+
+    def _on_custom_date_changed(self):
+        if self._active_range == "Custom Range":
+            start = self._start_date_edit.date()
+            end = self._end_date_edit.date()
+            if start > end:
+                # Dynamic auto-adjust bounds for seamless UX
+                self._end_date_edit.setDate(start)
+            self.refresh_data()
+
+    def _get_date_picker_qss(self) -> str:
+        return f"""
+            QDateEdit {{
+                background: {_CARD};
+                border: 1px solid {_CARD_BORDER};
+                border-radius: 8px;
+                color: {_TEXT_PRIMARY};
+                font-size: 12px;
+                font-weight: 600;
+                padding: 6px 12px;
+                min-width: 110px;
+            }}
+            QDateEdit::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
+                width: 26px;
+                border-left: 1px solid {_CARD_BORDER};
+                background: {_CARD_LIGHTER};
+                border-top-right-radius: 7px;
+                border-bottom-right-radius: 7px;
+            }}
+            QCalendarWidget QWidget {{
+                background-color: {_CARD};
+                color: {_TEXT_PRIMARY};
+                font-family: 'Inter', sans-serif;
+            }}
+            QCalendarWidget QAbstractItemView:enabled {{
+                background-color: {_CARD};
+                color: {_TEXT_PRIMARY};
+                selection-background-color: {_ACCENT};
+                selection-color: #ffffff;
+            }}
+            QCalendarWidget QNavigationBar {{
+                background-color: {_CARD_LIGHTER};
+                color: {_TEXT_PRIMARY};
+            }}
+            QCalendarWidget QMenu {{
+                background-color: {_CARD};
+                color: {_TEXT_PRIMARY};
+            }}
+            QCalendarWidget QToolButton {{
+                color: {_TEXT_PRIMARY};
+                background-color: transparent;
+                border: none;
+            }}
+            QCalendarWidget QToolButton:hover {{
+                background-color: {_CARD_LIGHTER};
+                border-radius: 4px;
+            }}
+        """
 
     def _export_csv(self):
         if not self._last_data: return
@@ -422,6 +533,9 @@ class ReportsPage(QWidget):
         if not path: return
         with open(path, "w", newline="") as f:
             w = csv.writer(f)
+            rng_header = f"Custom Range ({self._start_date_edit.date().toString('yyyy-MM-dd')} to {self._end_date_edit.date().toString('yyyy-MM-dd')})" if self._active_range == "Custom Range" else self._active_range
+            w.writerow([f"Trackora Telemetry Report - {rng_header}"])
+            w.writerow([])
             w.writerow(["App","Duration (seconds)","Duration"])
             for a in self._last_data.app_usage:
                 w.writerow([a.app_name, a.duration_seconds, _fmt(a.duration_seconds)])
@@ -433,7 +547,8 @@ class ReportsPage(QWidget):
         if not self._last_data: return
         path, _ = QFileDialog.getSaveFileName(self, "Export JSON", "trackora_report.json", "JSON (*.json)")
         if not path: return
-        obj = {"range": self._active_range,
+        rng_name = f"Custom Range ({self._start_date_edit.date().toString('yyyy-MM-dd')} to {self._end_date_edit.date().toString('yyyy-MM-dd')})" if self._active_range == "Custom Range" else self._active_range
+        obj = {"range": rng_name,
             "total_screen_time_seconds": self._last_data.total_screen_time_seconds,
             "total_sessions": self._last_data.total_sessions,
             "apps": [{"name":a.app_name,"seconds":a.duration_seconds}
