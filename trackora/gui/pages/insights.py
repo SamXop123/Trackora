@@ -149,7 +149,7 @@ class _StatCard(_Card):
     def __init__(self, title: str, parent=None):
         super().__init__(parent)
         self.setFixedHeight(120)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 16, 20, 16)
@@ -221,11 +221,11 @@ class _HorizontalProgress(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Background track
         painter.setBrush(QBrush(QColor("#1c2735")))
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(0, 0, self.width(), self.height(), 4, 4)
 
         # Filled portion
@@ -263,7 +263,7 @@ class _AppRow(QWidget):
 
         self._duration_label = QLabel()
         self._duration_label.setFixedWidth(90)
-        self._duration_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self._duration_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self._duration_label.setStyleSheet(
             f"color: {_TEXT_SECONDARY}; font-size: 12px; font-weight: 600; "
             f"background: transparent; border: none;"
@@ -318,7 +318,7 @@ class _HourlyChart(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         pad_side = 20
         pad_bottom = 22
@@ -336,7 +336,7 @@ class _HourlyChart(QWidget):
         bar_w = (chart_w / 24)
         
         # Guidelines
-        guideline_pen = QPen(QColor("#1c2735"), 1, Qt.DashLine)
+        guideline_pen = QPen(QColor("#1c2735"), 1, Qt.PenStyle.DashLine)
         painter.setPen(guideline_pen)
         painter.drawLine(pad_side, pad_top, w - pad_side, pad_top)
         painter.drawLine(pad_side, pad_top + chart_h // 2, w - pad_side, pad_top + chart_h // 2)
@@ -364,7 +364,7 @@ class _HourlyChart(QWidget):
                 grad.setColorAt(0, QColor(59, 130, 246, 30))
                 grad.setColorAt(1, QColor(59, 130, 246, 0))
                 painter.setBrush(QBrush(grad))
-                painter.setPen(Qt.NoPen)
+                painter.setPen(Qt.PenStyle.NoPen)
                 r = rect.height() * 0.8 if rect.height() > 0 else 10
                 painter.drawEllipse(QRectF(glow_cx - r, glow_cy - r * 0.3, r * 2, r * 2))
 
@@ -383,7 +383,7 @@ class _HourlyChart(QWidget):
             path = QPainterPath()
             path.addRoundedRect(rect, 2, 2)
             painter.setBrush(QBrush(bar_grad))
-            painter.setPen(Qt.NoPen)
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.drawPath(path)
 
             # Hour markers on x-axis
@@ -397,7 +397,7 @@ class _HourlyChart(QWidget):
                 
                 painter.setPen(QPen(QColor("#8b9bb4" if is_peak else "#566a82")))
                 lbl_rect = QRectF(bx - 12, h - pad_bottom + 4, 30, 14)
-                painter.drawText(lbl_rect, Qt.AlignCenter, label_text)
+                painter.drawText(lbl_rect, Qt.AlignmentFlag.AlignCenter, label_text)
 
         painter.end()
 
@@ -412,10 +412,10 @@ class _MetricBlock(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 10, 0, 10)
         layout.setSpacing(4)
-        layout.setAlignment(Qt.AlignCenter)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._value = QLabel("—")
-        self._value.setAlignment(Qt.AlignCenter)
+        self._value.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._value.setStyleSheet(
             f"color: {_TEXT_PRIMARY}; font-size: 20px; font-weight: 700; "
             f"background: transparent;"
@@ -423,7 +423,7 @@ class _MetricBlock(QWidget):
         layout.addWidget(self._value)
 
         self._caption = QLabel("")
-        self._caption.setAlignment(Qt.AlignCenter)
+        self._caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._caption.setStyleSheet(
             f"color: {_TEXT_MUTED}; font-size: 9px; font-weight: 700; "
             f"letter-spacing: 0.08em; background: transparent;"
@@ -501,7 +501,7 @@ class InsightsPage(QWidget):
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setStyleSheet(
             f"QScrollArea {{ background: {_BG}; border: none; }}"
             f"QScrollBar:vertical {{ background: {_BG}; width: 5px; margin: 0; }}"
@@ -671,19 +671,19 @@ class InsightsPage(QWidget):
         # ── Empty state (shown when insufficient data) ──────────────────
         self._empty_state = QWidget()
         empty_layout = QVBoxLayout(self._empty_state)
-        empty_layout.setAlignment(Qt.AlignCenter)
+        empty_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.setSpacing(10)
         empty_layout.setContentsMargins(0, 60, 0, 60)
 
         empty_icon = QLabel("◈")
-        empty_icon.setAlignment(Qt.AlignCenter)
+        empty_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_icon.setStyleSheet(
             f"color: {_TEXT_MUTED}; font-size: 40px; background: transparent; border: none;"
         )
         empty_layout.addWidget(empty_icon)
 
         empty_title = QLabel("Use Trackora a little longer to unlock insights")
-        empty_title.setAlignment(Qt.AlignCenter)
+        empty_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_title.setStyleSheet(
             f"color: {_TEXT_SECONDARY}; font-size: 15px; font-weight: 500; "
             f"background: transparent; border: none;"
@@ -691,7 +691,7 @@ class InsightsPage(QWidget):
         empty_layout.addWidget(empty_title)
 
         empty_sub = QLabel("Analytics will appear here once active application usage is tracked today.")
-        empty_sub.setAlignment(Qt.AlignCenter)
+        empty_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_sub.setStyleSheet(
             f"color: {_TEXT_MUTED}; font-size: 12px; background: transparent; border: none;"
         )
@@ -762,9 +762,10 @@ class InsightsPage(QWidget):
         # Clear previous progress rows
         while self._app_rows_container.count():
             item = self._app_rows_container.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+            if item is not None:
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
 
         # Add top 5 apps
         top_apps = data.usage_distribution[:5]
@@ -789,9 +790,10 @@ class InsightsPage(QWidget):
         # Clear category grid layout
         while self._category_grid.count():
             item = self._category_grid.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+            if item is not None:
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
 
         # Add category cards dynamically
         for cat, dur, pct in data.category_breakdown:

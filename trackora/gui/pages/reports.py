@@ -58,7 +58,7 @@ class _Card(QFrame):
 class _StatCard(_Card):
     def __init__(self, title, parent=None):
         super().__init__(parent)
-        self.setFixedHeight(110); self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setFixedHeight(110); self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         lo = QVBoxLayout(self); lo.setContentsMargins(20,16,20,16); lo.setSpacing(4)
         h = QLabel(title.upper()); h.setStyleSheet(
             f"color:{_TEXT_MUTED};font-size:9px;font-weight:700;"
@@ -78,7 +78,7 @@ class _StatCard(_Card):
 class _FilterBtn(QWidget):
     def __init__(self, text, cb, parent=None):
         super().__init__(parent); self._active = False; self._text = text; self._cb = cb
-        self.setCursor(Qt.PointingHandCursor); self.setFixedHeight(32)
+        self.setCursor(Qt.CursorShape.PointingHandCursor); self.setFixedHeight(32)
         lo = QHBoxLayout(self); lo.setContentsMargins(14,0,14,0)
         self._lbl = QLabel(text); lo.addWidget(self._lbl); self._apply_style()
     def _apply_style(self):
@@ -117,12 +117,12 @@ class _TrendChart(QWidget):
             else:
                 g.setColorAt(0, QColor(59,130,246,120)); g.setColorAt(1, QColor(59,130,246,70))
             path = QPainterPath(); path.addRoundedRect(r, 3, 3)
-            p.setBrush(QBrush(g)); p.setPen(Qt.NoPen); p.drawPath(path)
+            p.setBrush(QBrush(g)); p.setPen(Qt.PenStyle.NoPen); p.drawPath(path)
             # Label
             lbl = d.label.replace("\n"," ")
             if n <= 14 or i % max(n//10,1) == 0:
                 p.setPen(QPen(QColor(_TEXT_MUTED)))
-                p.drawText(QRectF(bx-6, h-pad_b+4, bw+12, 16), Qt.AlignCenter, lbl)
+                p.drawText(QRectF(bx-6, h-pad_b+4, bw+12, 16), Qt.AlignmentFlag.AlignCenter, lbl)
         p.end()
 
 
@@ -138,10 +138,10 @@ class _AppTableRow(QWidget):
         lo.addWidget(self._name, 1)
         self._dur = QLabel(); self._dur.setStyleSheet(
             f"color:{_TEXT_SECONDARY};font-size:12px;font-weight:600;background:transparent;border:none;")
-        self._dur.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+        self._dur.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         lo.addWidget(self._dur)
         self._pct = QLabel(); self._pct.setFixedWidth(55)
-        self._pct.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+        self._pct.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         self._pct.setStyleSheet(
             f"color:{_ACCENT};font-size:12px;font-weight:700;background:transparent;border:none;")
         lo.addWidget(self._pct)
@@ -168,9 +168,9 @@ class _CategoryRow(QWidget):
         lo.addWidget(self._name, 1)
         self._dur = QLabel(); self._dur.setStyleSheet(
             f"color:{_TEXT_SECONDARY};font-size:12px;font-weight:600;background:transparent;border:none;")
-        self._dur.setAlignment(Qt.AlignRight|Qt.AlignVCenter); lo.addWidget(self._dur)
+        self._dur.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter); lo.addWidget(self._dur)
         self._pct = QLabel(); self._pct.setFixedWidth(55)
-        self._pct.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+        self._pct.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         self._pct.setStyleSheet(
             f"color:{_ACCENT};font-size:12px;font-weight:700;background:transparent;border:none;")
         lo.addWidget(self._pct)
@@ -185,10 +185,10 @@ class _CategoryRow(QWidget):
 
 class _ExportBtn(QWidget):
     def __init__(self, text, cb, parent=None):
-        super().__init__(parent); self._cb = cb; self.setCursor(Qt.PointingHandCursor)
+        super().__init__(parent); self._cb = cb; self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFixedSize(130, 36)
         lo = QHBoxLayout(self); lo.setContentsMargins(0,0,0,0)
-        lbl = QLabel(text); lbl.setAlignment(Qt.AlignCenter)
+        lbl = QLabel(text); lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl.setStyleSheet(f"color:#fff;font-size:12px;font-weight:600;"
             f"background:transparent;border:none;")
         lo.addWidget(lbl)
@@ -212,7 +212,7 @@ class ReportsPage(QWidget):
 
         scroll = QScrollArea(self); scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setStyleSheet(
             f"QScrollArea{{background:{_BG};border:none;}}"
             f"QScrollBar:vertical{{background:{_BG};width:5px;}}"
@@ -297,7 +297,7 @@ class ReportsPage(QWidget):
             )
             if w:
                 l.setFixedWidth(w)
-                l.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+                l.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
             th_lo.addWidget(l, stretch)
         ac_lo.addWidget(th)
         sep = QFrame(); sep.setFrameShape(QFrame.Shape.HLine)
@@ -342,15 +342,15 @@ class ReportsPage(QWidget):
 
         # Empty state
         self._empty = QWidget(); el = QVBoxLayout(self._empty)
-        el.setAlignment(Qt.AlignCenter); el.setContentsMargins(0,60,0,60); el.setSpacing(10)
-        ei = QLabel("◷"); ei.setAlignment(Qt.AlignCenter)
+        el.setAlignment(Qt.AlignmentFlag.AlignCenter); el.setContentsMargins(0,60,0,60); el.setSpacing(10)
+        ei = QLabel("◷"); ei.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ei.setStyleSheet(f"color:{_TEXT_MUTED};font-size:40px;background:transparent;border:none;")
         el.addWidget(ei)
-        et = QLabel("No activity data for this period"); et.setAlignment(Qt.AlignCenter)
+        et = QLabel("No activity data for this period"); et.setAlignment(Qt.AlignmentFlag.AlignCenter)
         et.setStyleSheet(f"color:{_TEXT_SECONDARY};font-size:15px;font-weight:500;"
             f"background:transparent;border:none;")
         el.addWidget(et)
-        es = QLabel("Try selecting a different date range"); es.setAlignment(Qt.AlignCenter)
+        es = QLabel("Try selecting a different date range"); es.setAlignment(Qt.AlignmentFlag.AlignCenter)
         es.setStyleSheet(f"color:{_TEXT_MUTED};font-size:12px;background:transparent;border:none;")
         el.addWidget(es)
         self._empty.setVisible(False); main.addWidget(self._empty)
@@ -392,8 +392,10 @@ class ReportsPage(QWidget):
         self._trend_chart.set_data(data.daily_usage)
         # Apps
         while self._app_rows_lo.count():
-            it = self._app_rows_lo.takeAt(0); w = it.widget()
-            if w: w.deleteLater()
+            it = self._app_rows_lo.takeAt(0)
+            if it is not None:
+                w = it.widget()
+                if w: w.deleteLater()
         total = sum(a.duration_seconds for a in data.app_usage) or 1
         for app in data.app_usage[:10]:
             pct = int((app.duration_seconds / total) * 100)
@@ -401,8 +403,10 @@ class ReportsPage(QWidget):
             self._app_rows_lo.addWidget(row)
         # Categories
         while self._cat_rows_lo.count():
-            it = self._cat_rows_lo.takeAt(0); w = it.widget()
-            if w: w.deleteLater()
+            it = self._cat_rows_lo.takeAt(0)
+            if it is not None:
+                w = it.widget()
+                if w: w.deleteLater()
         for cat, dur, pct in data.category_breakdown:
             row = _CategoryRow(); row.set_data(cat, dur, pct)
             self._cat_rows_lo.addWidget(row)
