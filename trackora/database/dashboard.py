@@ -14,9 +14,11 @@ from trackora.models.dashboard import (
     DailyUsageSummary,
     SessionRecord,
     TimelineSession,
+    InsightsData,
 )
 from trackora.utils.app_names import normalize_app_name
 from trackora.utils.time import duration_seconds, now_utc, parse_timestamp
+from trackora.utils.grouping import merge_consecutive_sessions
 
 
 class DashboardRepository:
@@ -528,3 +530,229 @@ class DashboardRepository:
 
     def _to_sql_timestamp(self, value: datetime) -> str:
         return value.astimezone(now_utc().tzinfo).isoformat().replace("+00:00", "Z")
+
+    def load_insights_data(self) -> InsightsData | None:
+        """Calculate productivity insights based on today's and yesterday's telemetry."""
+        if not self._database_path.exists():
+            return None
+
+        now = now_utc()
+        local_now = now.astimezone()
+        today_local = local_now.date()
+        yesterday_local = today_local - timedelta(days=1)
+        day_start_utc, day_end_utc = self._local_day_bounds(today_local, local_now)
+        yesterday_start_utc, yesterday_end_utc = self._local_day_bounds(yesterday_local, local_now)
+
+        try:
+            with sqlite3.connect(self._database_path, timeout=2.0) as conn:
+                conn.row_factory = sqlite3.Row
+                
+                # Today's sessions
+                today_rows = conn.execute(
+                    """
+                    SELECT app_name, window_title, start_time, end_time, duration_seconds
+                    FROM app_sessions
+                    WHERE start_time < ?
+                      AND COALESCE(end_time, ?) > ?
+                    ORDER BY start_time ASC
+                    """,
+                    (
+                        self._to_sql_timestamp(day_end_utc),
+                        self._to_sql_timestamp(now),
+                        self._to_sql_timestamp(day_start_utc),
+                    ),
+                ).fetchall()
+
+                # Yesterday's sessions (to calculate accurate grouped switches yesterday)
+                yesterday_rows = conn.execute(
+                    """
+                    SELECT app_name, window_title, start_time, end_time, duration_seconds
+                    FROM app_sessions
+                    WHERE start_time < ?
+                      AND COALESCE(end_time, ?) > ?
+                    ORDER BY start_time ASC
+                    """,
+                    (
+                        self._to_sql_timestamp(yesterday_end_utc),
+                        self._to_sql_timestamp(now),
+                        self._to_sql_timestamp(yesterday_start_utc),
+                    ),
+                ).fetchall()
+        except sqlite3.Error:
+            return None
+
+        # Process today's raw sessions
+        sessions: list[TimelineSession] = []
+        for row in today_rows:
+            start = parse_timestamp(str(row["start_time"] or ""))
+            if start is None:
+                continue
+            end_raw = str(row["end_time"] or "") if row["end_time"] else None
+            end = parse_timestamp(end_raw) if end_raw else now
+            if end <= start:
+                continue
+            
+            # Clip to today's bounds
+            clipped_start = max(start, day_start_utc)
+            clipped_end = min(end, day_end_utc)
+            if clipped_end <= clipped_start:
+                continue
+            
+            dur = duration_seconds(clipped_start, clipped_end)
+            app_name = normalize_app_name(
+                str(row["app_name"] or "Unknown"),
+                str(row["window_title"] or ""),
+            )
+            sessions.append(TimelineSession(
+                app_name=app_name,
+                window_title=str(row["window_title"] or ""),
+                start_time=clipped_start,
+                end_time=clipped_end,
+                duration_seconds=dur,
+            ))
+
+        if not sessions:
+            return None
+
+        # Apply Central Grouping Engine for Today
+        grouped_sessions = merge_consecutive_sessions(sessions)
+        if not grouped_sessions:
+            return None
+
+        # 1. Total sessions today (actual app switches)
+        total_sessions_today = len(grouped_sessions)
+
+        # 2. Avg session length on grouped sessions
+        avg_session_length_seconds = int(sum(s.duration_seconds for s in grouped_sessions) / len(grouped_sessions))
+
+        # 3. App usage durations
+        app_durations: dict[str, int] = {}
+        for s in grouped_sessions:
+            app_durations[s.app_name] = app_durations.get(s.app_name, 0) + s.duration_seconds
+
+        total_duration_today = sum(app_durations.values())
+
+        # 4. Most Used App
+        most_used_app_name = max(app_durations, key=app_durations.get) if app_durations else ""
+        most_used_app_duration = app_durations[most_used_app_name] if most_used_app_name else 0
+        most_used_app_percentage = int((most_used_app_duration / total_duration_today) * 100) if total_duration_today > 0 else 0
+
+        # 5. Peak hour range and duration (using raw sessions to maintain high-fidelity timing)
+        hourly_activity = [0] * 24
+        for s in sessions:
+            local_start = s.start_time.astimezone()
+            local_end = s.end_time.astimezone()
+            curr = local_start
+            while curr < local_end:
+                next_hour = (curr + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+                chunk_end = min(local_end, next_hour)
+                bucket_idx = curr.hour
+                hourly_activity[bucket_idx] += int((chunk_end - curr).total_seconds())
+                curr = chunk_end
+
+        peak_hour_start = hourly_activity.index(max(hourly_activity)) if any(hourly_activity) else 0
+        peak_hour_duration = hourly_activity[peak_hour_start]
+
+        # 6. Longest session on grouped sessions
+        longest_s = max(grouped_sessions, key=lambda s: s.duration_seconds)
+        longest_session_app = longest_s.app_name
+        longest_session_duration = longest_s.duration_seconds
+
+        # 7. App switches comparisons (using grouped sessions for yesterday)
+        yesterday_sessions: list[TimelineSession] = []
+        for row in yesterday_rows:
+            start = parse_timestamp(str(row["start_time"] or ""))
+            if start is None:
+                continue
+            end_raw = str(row["end_time"] or "") if row["end_time"] else None
+            end = parse_timestamp(end_raw) if end_raw else now
+            if end <= start:
+                continue
+            clipped_start = max(start, yesterday_start_utc)
+            clipped_end = min(end, yesterday_end_utc)
+            if clipped_end <= clipped_start:
+                continue
+            dur = duration_seconds(clipped_start, clipped_end)
+            app_name = normalize_app_name(
+                str(row["app_name"] or "Unknown"),
+                str(row["window_title"] or ""),
+            )
+            yesterday_sessions.append(TimelineSession(
+                app_name=app_name,
+                window_title=str(row["window_title"] or ""),
+                start_time=clipped_start,
+                end_time=clipped_end,
+                duration_seconds=dur,
+            ))
+        grouped_yesterday = merge_consecutive_sessions(yesterday_sessions)
+
+        switches_today = total_sessions_today
+        switches_yesterday = len(grouped_yesterday) if grouped_yesterday else None
+
+        # 8. Usage distribution
+        usage_distribution = [
+            AppUsageSummary(app_name=name, duration_seconds=dur)
+            for name, dur in sorted(app_durations.items(), key=lambda x: -x[1])
+        ]
+
+        # 9. Total active hours
+        total_active_hours = round(total_duration_today / 3600.0, 1)
+
+        # 10. Longest focus period is precisely the longest session from grouped sessions
+        longest_focus_period_seconds = longest_session_duration
+
+        # 11. Category Breakdown
+        category_durations: dict[str, int] = {
+            "Development": 0,
+            "Browsers": 0,
+            "Communication": 0,
+            "Music": 0,
+            "System": 0,
+            "Utilities": 0,
+            "Other": 0,
+        }
+        for name, dur in app_durations.items():
+            name_lower = name.lower()
+            if any(keyword in name_lower for keyword in ["vs code", "vscode", "cursor", "kitty", "terminal", "console", "sublime", "pycharm", "webstorm", "intellij", "git", "github", "neovim", "vim", "emacs", "bash", "sh", "antigravity"]):
+                cat = "Development"
+            elif any(keyword in name_lower for keyword in ["chrome", "chromium", "firefox", "brave", "safari", "edge", "opera", "vivaldi", "browser"]):
+                cat = "Browsers"
+            elif any(keyword in name_lower for keyword in ["discord", "slack", "telegram", "teams", "zoom", "skype", "whatsapp", "signal", "messenger", "wechat", "mail", "outlook", "thunderbird"]):
+                cat = "Communication"
+            elif any(keyword in name_lower for keyword in ["spotify", "rhythmbox", "vlc", "audacious", "clementine", "itunes", "music", "youtube music", "deezer"]):
+                cat = "Music"
+            elif any(keyword in name_lower for keyword in ["settings", "system settings", "gnome-control-center", "task manager", "monitor", "finder", "nautilus", "files", "explorer", "dbus", "xorg", "software", "gnome-software"]):
+                cat = "System"
+            elif any(keyword in name_lower for keyword in ["calculator", "text editor", "notes", "obsidian", "notion", "keep", "gedit", "kwrite", "archive", "file roller", "manager"]):
+                cat = "Utilities"
+            else:
+                cat = "Other"
+            category_durations[cat] += dur
+
+        category_breakdown = []
+        for cat, dur in category_durations.items():
+            if dur > 0:
+                pct = int((dur / total_duration_today) * 100) if total_duration_today > 0 else 0
+                category_breakdown.append((cat, dur, pct))
+        category_breakdown.sort(key=lambda x: -x[1])
+
+        return InsightsData(
+            most_used_app_name=most_used_app_name,
+            most_used_app_duration=most_used_app_duration,
+            most_used_app_percentage=most_used_app_percentage,
+            peak_hour_start=peak_hour_start,
+            peak_hour_duration=peak_hour_duration,
+            longest_session_app=longest_session_app,
+            longest_session_duration=longest_session_duration,
+            switches_today=switches_today,
+            switches_yesterday=switches_yesterday,
+            usage_distribution=usage_distribution,
+            hourly_activity=hourly_activity,
+            total_sessions_today=total_sessions_today,
+            avg_session_length_seconds=avg_session_length_seconds,
+            most_active_app=most_used_app_name,
+            total_active_hours=total_active_hours,
+            longest_focus_period_seconds=longest_focus_period_seconds,
+            category_breakdown=category_breakdown,
+        )
+
