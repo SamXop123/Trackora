@@ -17,9 +17,9 @@ from PySide6.QtWidgets import (
     QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
 )
 
-from trackora.database.dashboard import DashboardRepository
-from trackora.models.dashboard import AppDetailedStats
-from trackora.utils.formatting import format_duration_compact
+from ...database.dashboard import DashboardRepository
+from ...models.dashboard import AppDetailedStats
+from ...utils.formatting import format_duration_compact
 
 # ─── Shared color tokens (identical to dashboard.py) ────────────────────────
 _BG = "#0d1117"
