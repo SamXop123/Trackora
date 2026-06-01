@@ -234,7 +234,9 @@ class MainWindow(QMainWindow):
         self._insights_page.set_repository(self._repository)
         self._stack.addWidget(self._insights_page)        # 3
         self._stack.addWidget(GoalsPage())                # 4
-        self._stack.addWidget(ReportsPage())              # 5
+        self._reports_page = ReportsPage()
+        self._reports_page.set_repository(self._repository)
+        self._stack.addWidget(self._reports_page)          # 5
         self._stack.addWidget(SettingsPage())             # 6
         self._stack.setCurrentIndex(0)
 
@@ -249,6 +251,8 @@ class MainWindow(QMainWindow):
                 self._apps_page.refresh_data()
             elif index == 3:
                 self._insights_page.refresh_data()
+            elif index == 5:
+                self._reports_page.refresh_data()
 
     def _start_timers(self):
         self._refresh_timer = QTimer(self)
@@ -272,6 +276,8 @@ class MainWindow(QMainWindow):
                 self._apps_page.refresh_data()
             elif self._stack.currentIndex() == 3:
                 self._insights_page.refresh_data()
+            elif self._stack.currentIndex() == 5:
+                self._reports_page.refresh_data()
             log_info("dashboard refresh success")
         except Exception as exc:
             log_error(f"refresh exception if any: {exc}")
