@@ -149,10 +149,55 @@ class _TrendChart(QWidget):
         if not self._data: return
         p = QPainter(self); p.setRenderHint(QPainter.RenderHint.Antialiasing)
         w, h = self.width(), self.height()
-        pad_l, pad_r, pad_t, pad_b = 32, 32, 12, 32
+        pad_l, pad_r, pad_t, pad_b = 54, 32, 16, 32
         cw = w - pad_l - pad_r; ch = h - pad_t - pad_b
         n = len(self._data); mx = max((d.duration_seconds for d in self._data), default=1) or 1
         peak_i = max(range(n), key=lambda i: self._data[i].duration_seconds)
+        
+        # Dynamic Y-axis Calculation
+        mx_hours = mx / 3600.0
+        if mx_hours <= 0.2:
+            max_val = max(int(mx / 60) + 1, 1)
+            if max_val <= 5: step_val = 1
+            elif max_val <= 10: step_val = 2
+            else: step_val = 5
+            max_scale_seconds = max_val * 60
+            ticks = list(range(0, max_val + step_val, step_val))
+            tick_labels = [f"{m}m" for m in ticks]
+            tick_seconds = [m * 60 for m in ticks]
+        else:
+            if mx_hours <= 1.5:
+                tick_hours = [0.0, 0.5, 1.0, 1.5]
+                if mx_hours <= 1.0:
+                    tick_hours = [0.0, 0.5, 1.0]
+            elif mx_hours <= 3.0:
+                tick_hours = [0.0, 1.0, 2.0, 3.0]
+            elif mx_hours <= 6.0:
+                tick_hours = [0.0, 2.0, 4.0, 6.0]
+            elif mx_hours <= 12.0:
+                tick_hours = [0.0, 4.0, 8.0, 12.0]
+            else:
+                max_h = int(mx_hours) + (6 - int(mx_hours) % 6)
+                tick_hours = list(range(0, max_h + 6, 6))
+            tick_labels = [f"{int(hv)}h" if hv.is_integer() else f"{hv}h" for hv in tick_hours]
+            tick_seconds = [int(hv * 3600) for hv in tick_hours]
+            max_scale_seconds = tick_seconds[-1]
+
+        # Draw Gridlines and Y-axis Labels
+        grid_pen = QPen(QColor(_CARD_BORDER), 1, Qt.PenStyle.DashLine)
+        p.setPen(grid_pen)
+        for t_sec, t_lbl in zip(tick_seconds, tick_labels):
+            tick_y = pad_t + ch - int((t_sec / max_scale_seconds) * ch)
+            # Dotted horizontal line
+            p.drawLine(pad_l, tick_y, w - pad_r, tick_y)
+            # Label
+            p.setPen(QPen(QColor(_TEXT_MUTED)))
+            p.drawText(QRectF(pad_l - 46, tick_y - 8, 38, 16), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, t_lbl)
+            p.setPen(grid_pen)
+
+        # Draw vertical Y-axis line
+        p.setPen(QPen(QColor(_CARD_BORDER), 1))
+        p.drawLine(pad_l, pad_t, pad_l, pad_t + ch)
         
         # 1. Responsive Bar Width Calculation
         if n <= 7:
@@ -195,7 +240,7 @@ class _TrendChart(QWidget):
 
         for i, d in enumerate(self._data):
             bx = pad_l + int(i * (bw + gap) + gap / 2)
-            bh = max(int((d.duration_seconds / mx) * ch), 2)
+            bh = max(int((d.duration_seconds / max_scale_seconds) * ch), 2)
             by = pad_t + ch - bh; r = QRectF(bx, by, bw, bh)
             g = QLinearGradient(r.topLeft(), r.bottomLeft())
             if i == peak_i:
@@ -278,7 +323,7 @@ class _CategoryRow(QWidget):
 class _ExportBtn(QWidget):
     def __init__(self, text, cb, parent=None):
         super().__init__(parent); self._cb = cb; self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedSize(130, 36)
+        self.setFixedHeight(36); self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         lo = QHBoxLayout(self); lo.setContentsMargins(0,0,0,0)
         lbl = QLabel(text); lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl.setStyleSheet(f"color:#fff;font-size:12px;font-weight:600;"
@@ -375,21 +420,16 @@ class ReportsPage(QWidget):
         cw_lo.addStretch(1)
         main.addWidget(self._custom_range_widget)
 
-        # Summary cards
-        r1 = QHBoxLayout(); r1.setSpacing(16)
-        self._s_time = _StatCard("Total Screen Time")
-        self._s_sess = _StatCard("Total Sessions")
-        self._s_app = _StatCard("Most Used App")
-        self._s_day = _StatCard("Most Active Day")
-        r1.addWidget(self._s_time); r1.addWidget(self._s_sess)
-        r1.addWidget(self._s_app); r1.addWidget(self._s_day)
-        main.addLayout(r1)
+        # Top Row Split Layout: Trend Chart (Left) + Sidebar (Right)
+        top_split = QHBoxLayout()
+        top_split.setSpacing(16)
 
-        # Trend chart
+        # Usage Trend Card (Left column)
         self._trend_card = _Card()
         tc_lo = QVBoxLayout(self._trend_card)
-        tc_lo.setContentsMargins(24,20,24,20); tc_lo.setSpacing(4)
-        tc_t = QLabel("USAGE TREND"); tc_t.setStyleSheet(
+        tc_lo.setContentsMargins(24, 20, 24, 20); tc_lo.setSpacing(4)
+        tc_t = QLabel("USAGE TREND")
+        tc_t.setStyleSheet(
             f"color:{_TEXT_MUTED};font-size:10px;font-weight:700;"
             f"letter-spacing:0.12em;background:transparent;border:none;")
         tc_lo.addWidget(tc_t)
@@ -398,8 +438,46 @@ class ReportsPage(QWidget):
             f"color:{_TEXT_MUTED};font-size:11px;background:transparent;border:none;")
         tc_lo.addWidget(self._trend_sub)
         tc_lo.addSpacing(6)
-        self._trend_chart = _TrendChart(); tc_lo.addWidget(self._trend_chart)
-        main.addWidget(self._trend_card)
+        
+        self._trend_chart = _TrendChart()
+        self._trend_chart.setMinimumHeight(300)  # Increased height by approx 50%
+        tc_lo.addWidget(self._trend_chart)
+        top_split.addWidget(self._trend_card, 72)  # Left column gets 72% stretch
+
+        # Sidebar Column (Right column)
+        sidebar_lo = QVBoxLayout()
+        sidebar_lo.setSpacing(12)
+
+        self._s_time = _StatCard("Total Screen Time")
+        self._s_sess = _StatCard("Total Sessions")
+        self._s_app = _StatCard("Most Used App")
+        self._s_day = _StatCard("Most Active Day")
+        sidebar_lo.addWidget(self._s_time)
+        sidebar_lo.addWidget(self._s_sess)
+        sidebar_lo.addWidget(self._s_app)
+        sidebar_lo.addWidget(self._s_day)
+
+        # Export section inside Sidebar
+        self._export_card = _Card()
+        ex_lo = QVBoxLayout(self._export_card)
+        ex_lo.setContentsMargins(18, 16, 18, 16); ex_lo.setSpacing(8)
+        ex_t = QLabel("EXPORT REPORT")
+        ex_t.setStyleSheet(
+            f"color:{_TEXT_MUTED};font-size:10px;font-weight:700;"
+            f"letter-spacing:0.12em;background:transparent;border:none;")
+        ex_lo.addWidget(ex_t)
+        ex_s = QLabel("Download activity data")
+        ex_s.setStyleSheet(f"color:{_TEXT_MUTED};font-size:11px;background:transparent;border:none;")
+        ex_lo.addWidget(ex_s); ex_lo.addSpacing(4)
+        
+        self._export_csv_btn = _ExportBtn("⬇  Export CSV", self._export_csv)
+        self._export_json_btn = _ExportBtn("⬇  Export JSON", self._export_json)
+        ex_lo.addWidget(self._export_csv_btn)
+        ex_lo.addWidget(self._export_json_btn)
+        sidebar_lo.addWidget(self._export_card)
+        
+        top_split.addLayout(sidebar_lo, 28)  # Right column gets 28% stretch
+        main.addLayout(top_split)
 
         # Row: Apps table + Categories
         r3 = QHBoxLayout(); r3.setSpacing(16)
@@ -456,23 +534,6 @@ class ReportsPage(QWidget):
 
         r3.addWidget(self._apps_card, 3); r3.addWidget(self._cat_card, 2)
         main.addLayout(r3)
-
-        # Export section
-        self._export_card = _Card()
-        ex_lo = QVBoxLayout(self._export_card)
-        ex_lo.setContentsMargins(24,20,24,20); ex_lo.setSpacing(8)
-        ex_t = QLabel("EXPORT REPORT"); ex_t.setStyleSheet(
-            f"color:{_TEXT_MUTED};font-size:10px;font-weight:700;"
-            f"letter-spacing:0.12em;background:transparent;border:none;")
-        ex_lo.addWidget(ex_t)
-        ex_s = QLabel("Download your activity data for the selected date range")
-        ex_s.setStyleSheet(f"color:{_TEXT_MUTED};font-size:11px;background:transparent;border:none;")
-        ex_lo.addWidget(ex_s); ex_lo.addSpacing(4)
-        btn_row = QHBoxLayout(); btn_row.setSpacing(12)
-        btn_row.addWidget(_ExportBtn("⬇  Export CSV", self._export_csv))
-        btn_row.addWidget(_ExportBtn("⬇  Export JSON", self._export_json))
-        btn_row.addStretch(1); ex_lo.addLayout(btn_row)
-        main.addWidget(self._export_card)
 
         # Empty state
         self._empty = QWidget(); el = QVBoxLayout(self._empty)
