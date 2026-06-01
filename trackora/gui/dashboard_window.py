@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QRectF, QTimer
-from PySide6.QtGui import QBrush, QColor, QPainter, QPen
+from PySide6.QtGui import QBrush, QColor, QPainter, QPen, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel,
     QMainWindow, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget,
@@ -133,10 +133,16 @@ class _Sidebar(QWidget):
         brand_row.setSpacing(8)
         brand_row.setContentsMargins(8, 0, 0, 0)
 
-        brand_icon = QLabel("◉")
-        brand_icon.setStyleSheet(
-            f"color: {_ACCENT}; font-size: 18px; background: transparent; border: none;"
-        )
+        brand_icon = QLabel()
+        logo_path = Path(__file__).resolve().parents[2] / "assets" / "trackora_logo.png"
+        if logo_path.exists():
+            px = QPixmap(str(logo_path))
+            brand_icon.setPixmap(px.scaled(24, 24, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        else:
+            brand_icon.setText("◉")
+            brand_icon.setStyleSheet(
+                f"color: {_ACCENT}; font-size: 18px; background: transparent; border: none;"
+            )
         brand_row.addWidget(brand_icon)
 
         brand_text = QLabel("Trackora")
@@ -200,6 +206,9 @@ class MainWindow(QMainWindow):
         self._refresh_seconds = refresh_seconds
 
         self.setWindowTitle("Trackora")
+        logo_path = Path(__file__).resolve().parents[2] / "assets" / "trackora_logo.png"
+        if logo_path.exists():
+            self.setWindowIcon(QIcon(str(logo_path)))
         self.resize(1280, 820)
         self.setMinimumSize(1024, 680)
 
