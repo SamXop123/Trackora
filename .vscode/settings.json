@@ -1,0 +1,13 @@
+{
+    "python.defaultInterpreterPath": "/usr/bin/python",
+    "python.analysis.extraPaths": [
+        "/home/samxop123/.local/lib/python3.14/site-packages"
+    ],
+    "python.autoComplete.extraPaths": [
+        "/home/samxop123/.local/lib/python3.14/site-packages"
+    ],
+    "python.envFile": "${workspaceFolder}/.env",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingImports": "none"
+    }
+}
