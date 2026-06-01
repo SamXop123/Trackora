@@ -5,25 +5,23 @@ from __future__ import annotations
 import math
 from datetime import date, datetime
 
-from PySide6.QtCore import Qt, QRectF, QSize
-from PySide6.QtGui import (
-    QBrush, QColor, QFont, QIcon, QLinearGradient,
-    QPainter, QPainterPath, QPen, QPixmap, QRadialGradient,
-)
-from PySide6.QtWidgets import (
-    QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel,
-    QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
-)
+from PySide6.QtCore import (Qt, QRectF, QSize)
 
-from trackora.charts import DailyUsageChart
-from trackora.models.dashboard import (
+from PySide6.QtGui import (QBrush, QColor, QFont, QIcon, QLinearGradient,
+                           QPainter, QPainterPath, QPen, QPixmap, QRadialGradient)
+
+from PySide6.QtWidgets import (QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel,
+                           QScrollArea, QSizePolicy, QVBoxLayout, QWidget)
+
+from ...charts import DailyUsageChart
+from ...models.dashboard import (
     ActiveAppStatus, AppUsageSummary, DailyUsageSummary, DashboardSnapshot,
 )
-from trackora.utils.formatting import format_duration_compact, format_duration_live
+from ...utils.formatting import format_duration_compact, format_duration_live
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from trackora.database.dashboard import DashboardRepository
+    from ...database.dashboard import DashboardRepository
 
 # ─── Color tokens ────────────────────────────────────────────────────────────
 _BG = "#0d1117"
