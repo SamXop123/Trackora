@@ -124,6 +124,47 @@ def _hour_label(hour_24: int) -> str:
     return f"{hour_24 - 12} PM"
 
 
+class _ToggleSwitch(QWidget):
+    """Custom premium toggle switch widget."""
+
+    def __init__(self, callback, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(38, 20)
+        self.setCursor(Qt.PointingHandCursor)
+        self._checked = False
+        self._callback = callback
+
+    def is_checked(self) -> bool:
+        return self._checked
+
+    def set_checked(self, checked: bool):
+        if self._checked != checked:
+            self._checked = checked
+            self.update()
+
+    def mousePressEvent(self, event):
+        self._checked = not self._checked
+        self.update()
+        self._callback(self._checked)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # Draw background track
+        track_color = QColor("#2563eb") if self._checked else QColor("#1c2735")
+        painter.setBrush(QBrush(track_color))
+        painter.setPen(Qt.NoPen)
+        painter.drawRoundedRect(0, 0, self.width(), self.height(), 10, 10)
+
+        # Draw knob
+        knob_color = QColor("#e6edf5") if self._checked else QColor("#8b9bb4")
+        painter.setBrush(QBrush(knob_color))
+        knob_x = self.width() - 17 if self._checked else 3
+        painter.drawEllipse(knob_x, 3, 14, 14)
+        painter.end()
+
+
 # ─── Summary stat chip ──────────────────────────────────────────────────────
 
 class _SummaryChip(QFrame):
@@ -430,23 +471,46 @@ class TimelinePage(QWidget):
         main.setSpacing(18)
 
         # ── Header ──────────────────────────────────────────────────────
-        header = QVBoxLayout()
-        header.setSpacing(4)
+        header_row = QHBoxLayout()
+        header_row.setContentsMargins(0, 0, 0, 0)
+        header_row.setSpacing(0)
+
+        header_left = QVBoxLayout()
+        header_left.setSpacing(4)
 
         title = QLabel("Timeline")
         title.setStyleSheet(
             f"color: {_TEXT_PRIMARY}; font-size: 22px; font-weight: 700; "
             f"background: transparent; border: none;"
         )
-        header.addWidget(title)
+        header_left.addWidget(title)
 
         subtitle = QLabel("Today's activity feed")
         subtitle.setStyleSheet(
             f"color: {_TEXT_SECONDARY}; font-size: 13px; "
             f"background: transparent; border: none;"
         )
-        header.addWidget(subtitle)
-        main.addLayout(header)
+        header_left.addWidget(subtitle)
+        header_row.addLayout(header_left, 1)
+
+        # Toggle Switch on the right side
+        toggle_layout = QHBoxLayout()
+        toggle_layout.setSpacing(8)
+        toggle_layout.setContentsMargins(0, 0, 0, 0)
+        toggle_layout.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        toggle_label = QLabel("Detailed Sessions")
+        toggle_label.setStyleSheet(
+            f"color: {_TEXT_SECONDARY}; font-size: 12px; font-weight: 500; "
+            f"background: transparent; border: none;"
+        )
+        toggle_layout.addWidget(toggle_label)
+
+        self._detailed_toggle = _ToggleSwitch(self._on_toggle_detailed)
+        toggle_layout.addWidget(self._detailed_toggle)
+
+        header_row.addLayout(toggle_layout)
+        main.addLayout(header_row)
 
         # ── Summary row ─────────────────────────────────────────────────
         summary_row = QHBoxLayout()
@@ -512,13 +576,19 @@ class TimelinePage(QWidget):
 
         sessions = self._repository.load_timeline_sessions()
         self._clear_feed()
-        self._update_summary(sessions)
 
         if not sessions:
+            self._update_summary([])
             self._empty_state.setVisible(True)
             return
 
         self._empty_state.setVisible(False)
+
+        # Merge consecutive sessions of the same app when detailed mode is OFF (default)
+        if not self._detailed_toggle.is_checked():
+            sessions = self._merge_consecutive_sessions(sessions)
+
+        self._update_summary(sessions)
 
         # Build render queue
         self._render_queue = []
@@ -561,7 +631,7 @@ class TimelinePage(QWidget):
         if not self._render_queue:
             return
 
-        batch_size = 50 if initial else 30
+        batch_size = 100 if initial else 50
         end_idx = min(self._rendered_count + batch_size, len(self._render_queue))
 
         if self._rendered_count >= len(self._render_queue):
@@ -611,3 +681,43 @@ class TimelinePage(QWidget):
         else:
             self._chip_longest.set_value("—")
             self._chip_most_used.set_value("—")
+
+    def _on_toggle_detailed(self, checked: bool):
+        self.refresh_data()
+
+    def _merge_consecutive_sessions(self, sessions: list[TimelineSession]) -> list[TimelineSession]:
+        if not sessions:
+            return []
+
+        merged: list[TimelineSession] = []
+        current_group: list[TimelineSession] = []
+
+        for s in sessions:
+            if not current_group:
+                current_group.append(s)
+            elif s.app_name == current_group[0].app_name:
+                current_group.append(s)
+            else:
+                merged.append(self._merge_group(current_group))
+                current_group = [s]
+
+        if current_group:
+            merged.append(self._merge_group(current_group))
+
+        return merged
+
+    def _merge_group(self, group: list[TimelineSession]) -> TimelineSession:
+        if len(group) == 1:
+            return group[0]
+
+        total_duration = sum(s.duration_seconds for s in group)
+        earliest_start = group[-1].start_time
+        latest_end = group[0].end_time
+
+        return TimelineSession(
+            app_name=group[0].app_name,
+            window_title="",
+            start_time=earliest_start,
+            end_time=latest_end,
+            duration_seconds=total_duration,
+        )
