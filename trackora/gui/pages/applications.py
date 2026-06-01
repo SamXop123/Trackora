@@ -144,7 +144,7 @@ class _AppCard(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("appCard")
-        self.setFrameShape(QFrame.NoFrame)
+        self.setFrameShape(QFrame.Shape.NoFrame)
         self._hovered = False
         self._expanded = False
         self._bar_ratio = 0.0
@@ -362,7 +362,7 @@ class ApplicationsPage(QWidget):
         # Scroll area
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setStyleSheet(
             f"QScrollArea {{ background: {_BG}; border: none; }}"

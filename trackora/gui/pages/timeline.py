@@ -132,7 +132,7 @@ class _SummaryChip(QFrame):
     def __init__(self, icon_char: str, caption: str, parent=None):
         super().__init__(parent)
         self.setObjectName("summaryChip")
-        self.setFrameShape(QFrame.NoFrame)
+        self.setFrameShape(QFrame.Shape.NoFrame)
         self.setStyleSheet(
             f"QFrame#summaryChip {{ background: {_CARD}; "
             f"border: 1px solid {_CARD_BORDER}; border-radius: 12px; }}"
@@ -179,7 +179,7 @@ class _TimelineEntryCard(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("tlCard")
-        self.setFrameShape(QFrame.NoFrame)
+        self.setFrameShape(QFrame.Shape.NoFrame)
         self._hovered = False
         self.setStyleSheet(self._css(_CARD))
         _add_shadow(self, blur=12, opacity=22, dy=2)
@@ -301,8 +301,8 @@ class _HourHeader(QWidget):
         layout.addWidget(label)
 
         line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setFrameShadow(QFrame.Plain)
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setFrameShadow(QFrame.Shadow.Plain)
         line.setFixedHeight(1)
         line.setStyleSheet(f"background-color: {_CARD_BORDER}; border: none;")
         layout.addWidget(line, 1)
@@ -407,7 +407,7 @@ class TimelinePage(QWidget):
         # Scroll area
         self._scroll = QScrollArea(self)
         self._scroll.setWidgetResizable(True)
-        self._scroll.setFrameShape(QFrame.NoFrame)
+        self._scroll.setFrameShape(QFrame.Shape.NoFrame)
         self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self._scroll.setStyleSheet(
             f"QScrollArea {{ background: {_BG}; border: none; }}"

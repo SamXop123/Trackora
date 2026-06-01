@@ -90,7 +90,7 @@ class _Card(QFrame):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("dashCard")
-        self.setFrameShape(QFrame.NoFrame)
+        self.setFrameShape(QFrame.Shape.NoFrame)
         self._base_bg = _CARD
         self._hovered = False
         self.setStyleSheet(self._card_css(_CARD))
@@ -726,8 +726,8 @@ class _MetricsCard(_Card):
 
     def _make_separator(self):
         sep = QFrame()
-        sep.setFrameShape(QFrame.HLine)
-        sep.setFrameShadow(QFrame.Plain)
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFrameShadow(QFrame.Shadow.Plain)
         sep.setFixedHeight(1)
         sep.setStyleSheet(f"background-color: {_CARD_BORDER}; border: none;")
         return sep
@@ -747,7 +747,7 @@ class DashboardPage(QWidget):
 
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setStyleSheet(
             f"QScrollArea {{ background: {_BG}; border: none; }}"
