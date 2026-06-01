@@ -60,17 +60,29 @@ _ICON_THEME_MAP: dict[str, list[str]] = {
 _FALLBACK_ICON = "application-x-executable"
 
 
+_ICON_CACHE: dict[tuple[str, int], QPixmap | None] = {}
+
+
 def _get_app_icon(app_name: str, size: int = 24) -> QPixmap | None:
+    cache_key = (app_name, size)
+    if cache_key in _ICON_CACHE:
+        return _ICON_CACHE[cache_key]
+
     candidates = _ICON_THEME_MAP.get(app_name, [app_name.lower().replace(" ", "-")])
     if isinstance(candidates, str):
         candidates = [candidates]
     for name in candidates:
         icon = QIcon.fromTheme(name)
         if not icon.isNull():
-            return icon.pixmap(QSize(size, size))
+            pm = icon.pixmap(QSize(size, size))
+            _ICON_CACHE[cache_key] = pm
+            return pm
     fallback = QIcon.fromTheme(_FALLBACK_ICON)
     if not fallback.isNull():
-        return fallback.pixmap(QSize(size, size))
+        pm = fallback.pixmap(QSize(size, size))
+        _ICON_CACHE[cache_key] = pm
+        return pm
+    _ICON_CACHE[cache_key] = None
     return None
 
 
@@ -390,26 +402,29 @@ class TimelinePage(QWidget):
         super().__init__(parent)
         self._repository: DashboardRepository | None = None
         self._entry_widgets: list[QWidget] = []
+        self._render_queue: list[tuple[str, any, any]] = []
+        self._rendered_count = 0
 
         # Scroll area
-        scroll = QScrollArea(self)
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setStyleSheet(
+        self._scroll = QScrollArea(self)
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QFrame.NoFrame)
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._scroll.setStyleSheet(
             f"QScrollArea {{ background: {_BG}; border: none; }}"
             f"QScrollBar:vertical {{ background: {_BG}; width: 5px; margin: 0; }}"
             f"QScrollBar::handle:vertical {{ background: {_CARD_BORDER}; border-radius: 2px; min-height: 30px; }}"
             f"QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}"
         )
+        self._scroll.verticalScrollBar().valueChanged.connect(self._on_scroll)
 
         self._container = QWidget()
         self._container.setStyleSheet(f"background: {_BG};")
-        scroll.setWidget(self._container)
+        self._scroll.setWidget(self._container)
 
         page_layout = QVBoxLayout(self)
         page_layout.setContentsMargins(0, 0, 0, 0)
-        page_layout.addWidget(scroll)
+        page_layout.addWidget(self._scroll)
 
         main = QVBoxLayout(self._container)
         main.setContentsMargins(32, 20, 32, 32)
@@ -506,6 +521,10 @@ class TimelinePage(QWidget):
 
         self._empty_state.setVisible(False)
 
+        # Build render queue
+        self._render_queue = []
+        self._rendered_count = 0
+
         # Group sessions by hour (local time), sorted newest hour first
         hour_groups: dict[int, list[TimelineSession]] = defaultdict(list)
         for session in sessions:
@@ -515,10 +534,7 @@ class TimelinePage(QWidget):
         sorted_hours = sorted(hour_groups.keys(), reverse=True)
 
         for hour in sorted_hours:
-            # Hour header
-            header = _HourHeader(_hour_label(hour))
-            self._feed_layout.addWidget(header)
-            self._entry_widgets.append(header)
+            self._render_queue.append(('header', _hour_label(hour), None))
 
             group = hour_groups[hour]
             # Sort sessions within hour: newest first
@@ -526,16 +542,57 @@ class TimelinePage(QWidget):
 
             for i, session in enumerate(group):
                 is_last_in_group = (i == len(group) - 1) and (hour == sorted_hours[-1])
-                row = _TimelineEntryRow(session, is_last=is_last_in_group)
+                self._render_queue.append(('session', session, is_last_in_group))
+
+        # Scroll to top first to prevent immediate scroll triggers during rendering
+        self._scroll.verticalScrollBar().setValue(0)
+
+        # Initial batch loading
+        self._load_next_batch(initial=True)
+
+    def _on_scroll(self, value):
+        """Trigger loading more items when the user scrolls near the bottom."""
+        scrollbar = self._scroll.verticalScrollBar()
+        # If we are close to the bottom (less than 150px remaining)
+        if value > scrollbar.maximum() - 150:
+            self._load_next_batch()
+
+    def _load_next_batch(self, initial=False):
+        """Render a small slice of items from the render queue."""
+        if not self._render_queue:
+            return
+
+        batch_size = 50 if initial else 30
+        end_idx = min(self._rendered_count + batch_size, len(self._render_queue))
+
+        if self._rendered_count >= len(self._render_queue):
+            return
+
+        # Suspend paint updates during batch layout insertions for maximum performance
+        self.setUpdatesEnabled(False)
+
+        for idx in range(self._rendered_count, end_idx):
+            item_type, data, extra = self._render_queue[idx]
+            if item_type == 'header':
+                header = _HourHeader(data)
+                self._feed_layout.addWidget(header)
+                self._entry_widgets.append(header)
+            elif item_type == 'session':
+                row = _TimelineEntryRow(data, is_last=extra)
                 self._feed_layout.addWidget(row)
                 self._entry_widgets.append(row)
 
+        self._rendered_count = end_idx
+        self.setUpdatesEnabled(True)
+
     def _clear_feed(self):
         """Remove all dynamically created timeline entries."""
+        self.setUpdatesEnabled(False)
         for widget in self._entry_widgets:
             self._feed_layout.removeWidget(widget)
             widget.deleteLater()
         self._entry_widgets.clear()
+        self.setUpdatesEnabled(True)
 
     def _update_summary(self, sessions: list[TimelineSession]):
         """Update the summary chips with today's stats."""
