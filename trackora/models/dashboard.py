@@ -101,3 +101,33 @@ class DashboardSnapshot:
             last_refreshed=datetime.now().astimezone(),
             status_message=status_message,
         )
+
+
+@dataclass(frozen=True)
+class InsightsData:
+    """Calculated productivity insights for the dashboard/insights view."""
+
+    most_used_app_name: str
+    most_used_app_duration: int
+    most_used_app_percentage: int
+
+    peak_hour_start: int
+    peak_hour_duration: int
+
+    longest_session_app: str
+    longest_session_duration: int
+
+    switches_today: int
+    switches_yesterday: int | None
+
+    usage_distribution: list[AppUsageSummary]
+    hourly_activity: list[int]  # 24 buckets representing duration in seconds for each hour
+
+    total_sessions_today: int
+    avg_session_length_seconds: int
+    most_active_app: str
+    total_active_hours: float
+    longest_focus_period_seconds: int
+
+    category_breakdown: list[tuple[str, int, int]]  # category_name, duration_seconds, percentage
+
