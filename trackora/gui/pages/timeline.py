@@ -131,7 +131,7 @@ class _ToggleSwitch(QWidget):
     def __init__(self, callback, parent=None):
         super().__init__(parent)
         self.setFixedSize(38, 20)
-        self.setCursor(Qt.PointingHandCursor)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._checked = False
         self._callback = callback
 
@@ -150,12 +150,12 @@ class _ToggleSwitch(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Draw background track
         track_color = QColor("#2563eb") if self._checked else QColor("#1c2735")
         painter.setBrush(QBrush(track_color))
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(0, 0, self.width(), self.height(), 10, 10)
 
         # Draw knob
@@ -233,7 +233,7 @@ class _TimelineEntryCard(QFrame):
         # App icon
         self._icon_label = QLabel()
         self._icon_label.setFixedSize(32, 32)
-        self._icon_label.setAlignment(Qt.AlignCenter)
+        self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._icon_label.setStyleSheet("background: transparent; border: none;")
         layout.addWidget(self._icon_label)
 
@@ -362,9 +362,9 @@ class _TimelineConnector(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         # Soft blue vertical dot
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         grad = QLinearGradient(0, 0, 0, self.height())
         grad.setColorAt(0, QColor(59, 130, 246, 40))
         grad.setColorAt(0.5, QColor(59, 130, 246, 70))
@@ -418,7 +418,7 @@ class _TimelineEntryRow(QWidget):
             painter.drawLine(cx, mid_y + 6, cx, h)
 
         # Glowing dot
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         # Outer glow
         glow = QRadialGradient(cx, mid_y, 8)
         glow.setColorAt(0, QColor(59, 130, 246, 50))
@@ -450,7 +450,7 @@ class TimelinePage(QWidget):
         self._scroll = QScrollArea(self)
         self._scroll.setWidgetResizable(True)
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._scroll.setStyleSheet(
             f"QScrollArea {{ background: {_BG}; border: none; }}"
             f"QScrollBar:vertical {{ background: {_BG}; width: 5px; margin: 0; }}"
@@ -498,7 +498,7 @@ class TimelinePage(QWidget):
         toggle_layout = QHBoxLayout()
         toggle_layout.setSpacing(8)
         toggle_layout.setContentsMargins(0, 0, 0, 0)
-        toggle_layout.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        toggle_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
         toggle_label = QLabel("Detailed Sessions")
         toggle_label.setStyleSheet(
@@ -534,19 +534,19 @@ class TimelinePage(QWidget):
         # ── Empty state (shown when no sessions) ────────────────────────
         self._empty_state = QWidget()
         empty_layout = QVBoxLayout(self._empty_state)
-        empty_layout.setAlignment(Qt.AlignCenter)
+        empty_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.setSpacing(10)
         empty_layout.setContentsMargins(0, 60, 0, 60)
 
         empty_icon = QLabel("◔")
-        empty_icon.setAlignment(Qt.AlignCenter)
+        empty_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_icon.setStyleSheet(
             f"color: {_TEXT_MUTED}; font-size: 36px; background: transparent; border: none;"
         )
         empty_layout.addWidget(empty_icon)
 
         empty_title = QLabel("No activity recorded yet")
-        empty_title.setAlignment(Qt.AlignCenter)
+        empty_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_title.setStyleSheet(
             f"color: {_TEXT_SECONDARY}; font-size: 15px; font-weight: 500; "
             f"background: transparent; border: none;"
@@ -554,7 +554,7 @@ class TimelinePage(QWidget):
         empty_layout.addWidget(empty_title)
 
         empty_sub = QLabel("Start using apps and your timeline will appear here")
-        empty_sub.setAlignment(Qt.AlignCenter)
+        empty_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_sub.setStyleSheet(
             f"color: {_TEXT_MUTED}; font-size: 12px; background: transparent; border: none;"
         )
