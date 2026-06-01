@@ -202,16 +202,16 @@ class _TrendChart(QWidget):
         # 1. Responsive Bar Width Calculation
         if n <= 7:
             # Small range: wide bars
-            width_factor = 0.55
-            min_w, max_w = 20, 70
+            width_factor = 0.85
+            min_w, max_w = 32, 120
         elif n <= 30:
             # Medium range: medium bars
-            width_factor = 0.45
-            min_w, max_w = 8, 32
+            width_factor = 0.80
+            min_w, max_w = 12, 50
         else:
             # Large range (60+ days): thinner bars
-            width_factor = 0.35
-            min_w, max_w = 2, 12
+            width_factor = 0.75
+            min_w, max_w = 4, 20
 
         slot_width = cw / max(n, 1)
         bw = max(min(int(slot_width * width_factor), max_w), min_w)
@@ -221,22 +221,27 @@ class _TrendChart(QWidget):
         remaining_space = cw - total_bars_width
         gap = remaining_space / max(n, 1)
 
-        # 2. Responsive Label Density Calculations
-        min_label_spacing = 64
-        max_labels_fit = w // min_label_spacing
-        step = max(1, n // max(1, max_labels_fit))
-        if n <= 7:
-            step = 1
+        # 2. Mathematically Robust Center-Distance Label Sampling
+        centers = []
+        for i in range(n):
+            bx = pad_l + int(i * (bw + gap) + gap / 2)
+            centers.append(bx + bw / 2.0)
 
         draw_indices = set()
         if n > 0:
             draw_indices.add(0)
-            draw_indices.add(n - 1)
-        for i in range(step, n - 1, step):
-            dist_from_first = i * (bw + gap)
-            dist_from_last = (n - 1 - i) * (bw + gap)
-            if dist_from_first >= min_label_spacing and dist_from_last >= min_label_spacing:
+            
+        last_drawn_center = centers[0] if n > 0 else 0
+        min_pixel_dist = 68  # Margin to ensure absolutely no date label overlap
+        
+        for i in range(1, n - 1):
+            cx = centers[i]
+            if (cx - last_drawn_center) >= min_pixel_dist and (centers[n - 1] - cx) >= min_pixel_dist:
                 draw_indices.add(i)
+                last_drawn_center = cx
+                
+        if n > 1:
+            draw_indices.add(n - 1)
 
         for i, d in enumerate(self._data):
             bx = pad_l + int(i * (bw + gap) + gap / 2)
@@ -264,60 +269,86 @@ class _TrendChart(QWidget):
 
 class _AppTableRow(QWidget):
     def __init__(self, parent=None):
-        super().__init__(parent); self.setFixedHeight(42)
-        self._hovered = False
+        super().__init__(parent); self.setFixedHeight(48)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         lo = QHBoxLayout(self); lo.setContentsMargins(16,0,16,0); lo.setSpacing(12)
-        self._icon = QLabel(); self._icon.setFixedSize(20,20)
+        self._icon = QLabel(); self._icon.setFixedSize(24,24)
+        self._icon.setStyleSheet("background:transparent;border:none;")
         lo.addWidget(self._icon)
         self._name = QLabel(); self._name.setStyleSheet(
-            f"color:{_TEXT_PRIMARY};font-size:13px;font-weight:500;background:transparent;border:none;")
+            f"color:{_TEXT_PRIMARY};font-size:14px;font-weight:500;background:transparent;border:none;")
         lo.addWidget(self._name, 1)
         self._dur = QLabel(); self._dur.setStyleSheet(
-            f"color:{_TEXT_SECONDARY};font-size:12px;font-weight:600;background:transparent;border:none;")
+            f"color:{_TEXT_SECONDARY};font-size:13px;font-weight:600;background:transparent;border:none;")
         self._dur.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         lo.addWidget(self._dur)
         self._pct = QLabel(); self._pct.setFixedWidth(55)
         self._pct.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         self._pct.setStyleSheet(
-            f"color:{_ACCENT};font-size:12px;font-weight:700;background:transparent;border:none;")
+            f"color:{_ACCENT};font-size:13px;font-weight:700;background:transparent;border:none;")
         lo.addWidget(self._pct)
+        self._apply_style(False)
+    def _apply_style(self, hovered: bool):
+        if hovered:
+            self.setStyleSheet(f"background: {_CARD_LIGHTER}; border: 1px solid {_CARD_BORDER}; border-radius: 10px;")
+            self._name.setStyleSheet(f"color: #ffffff; font-size: 14px; font-weight: 600; background: transparent; border: none;")
+            self._dur.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 600; background: transparent; border: none;")
+            self._pct.setStyleSheet(f"color: #60a5fa; font-size: 13px; font-weight: 800; background: transparent; border: none;")
+        else:
+            self.setStyleSheet("background: transparent; border: none;")
+            self._name.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 14px; font-weight: 500; background: transparent; border: none;")
+            self._dur.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 13px; font-weight: 600; background: transparent; border: none;")
+            self._pct.setStyleSheet(f"color: {_ACCENT}; font-size: 13px; font-weight: 700; background: transparent; border: none;")
     def set_data(self, name, dur, pct):
         self._name.setText(name); self._dur.setText(_fmt(dur)); self._pct.setText(f"{pct}%")
-        px = _get_icon(name, 20)
+        px = _get_icon(name, 24)
         if px: self._icon.setPixmap(px)
     def enterEvent(self, e):
-        self.setStyleSheet(f"background:{_CARD_LIGHTER};border-radius:8px;")
+        self._apply_style(True)
     def leaveEvent(self, e):
-        self.setStyleSheet("background:transparent;")
+        self._apply_style(False)
 
 
 class _CategoryRow(QWidget):
     def __init__(self, parent=None):
-        super().__init__(parent); self.setFixedHeight(38)
+        super().__init__(parent); self.setFixedHeight(44)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         lo = QHBoxLayout(self); lo.setContentsMargins(16,0,16,0); lo.setSpacing(10)
         self._icon = QLabel()
-        self._icon.setFixedSize(16, 16)
+        self._icon.setFixedSize(20, 20)
         self._icon.setStyleSheet("background:transparent;border:none;")
         lo.addWidget(self._icon)
         self._name = QLabel(); self._name.setStyleSheet(
-            f"color:{_TEXT_PRIMARY};font-size:13px;font-weight:500;background:transparent;border:none;")
+            f"color:{_TEXT_PRIMARY};font-size:14px;font-weight:500;background:transparent;border:none;")
         lo.addWidget(self._name, 1)
         self._dur = QLabel(); self._dur.setStyleSheet(
-            f"color:{_TEXT_SECONDARY};font-size:12px;font-weight:600;background:transparent;border:none;")
+            f"color:{_TEXT_SECONDARY};font-size:13px;font-weight:600;background:transparent;border:none;")
         self._dur.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter); lo.addWidget(self._dur)
         self._pct = QLabel(); self._pct.setFixedWidth(55)
         self._pct.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         self._pct.setStyleSheet(
-            f"color:{_ACCENT};font-size:12px;font-weight:700;background:transparent;border:none;")
+            f"color:{_ACCENT};font-size:13px;font-weight:700;background:transparent;border:none;")
         lo.addWidget(self._pct)
+        self._apply_style(False)
+    def _apply_style(self, hovered: bool):
+        if hovered:
+            self.setStyleSheet(f"background: {_CARD_LIGHTER}; border: 1px solid {_CARD_BORDER}; border-radius: 10px;")
+            self._name.setStyleSheet(f"color: #ffffff; font-size: 14px; font-weight: 600; background: transparent; border: none;")
+            self._dur.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 600; background: transparent; border: none;")
+            self._pct.setStyleSheet(f"color: #60a5fa; font-size: 13px; font-weight: 800; background: transparent; border: none;")
+        else:
+            self.setStyleSheet("background: transparent; border: none;")
+            self._name.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 14px; font-weight: 500; background: transparent; border: none;")
+            self._dur.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 13px; font-weight: 600; background: transparent; border: none;")
+            self._pct.setStyleSheet(f"color: {_ACCENT}; font-size: 13px; font-weight: 700; background: transparent; border: none;")
     def set_data(self, cat, dur, pct):
-        px = _get_category_icon(cat, 16, _ACCENT)
+        px = _get_category_icon(cat, 20, _ACCENT)
         self._icon.setPixmap(px)
         self._name.setText(cat); self._dur.setText(_fmt(dur)); self._pct.setText(f"{pct}%")
     def enterEvent(self, e):
-        self.setStyleSheet(f"background:{_CARD_LIGHTER};border-radius:8px;")
+        self._apply_style(True)
     def leaveEvent(self, e):
-        self.setStyleSheet("background:transparent;")
+        self._apply_style(False)
 
 
 class _ExportBtn(QWidget):
@@ -426,21 +457,25 @@ class ReportsPage(QWidget):
 
         # Usage Trend Card (Left column)
         self._trend_card = _Card()
+        self._trend_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         tc_lo = QVBoxLayout(self._trend_card)
-        tc_lo.setContentsMargins(24, 20, 24, 20); tc_lo.setSpacing(4)
+        tc_lo.setContentsMargins(24, 16, 24, 14); tc_lo.setSpacing(4)
         tc_t = QLabel("USAGE TREND")
         tc_t.setStyleSheet(
             f"color:{_TEXT_MUTED};font-size:10px;font-weight:700;"
             f"letter-spacing:0.12em;background:transparent;border:none;")
+        tc_t.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         tc_lo.addWidget(tc_t)
         self._trend_sub = QLabel("Daily activity across selected range")
         self._trend_sub.setStyleSheet(
             f"color:{_TEXT_MUTED};font-size:11px;background:transparent;border:none;")
+        self._trend_sub.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         tc_lo.addWidget(self._trend_sub)
         tc_lo.addSpacing(6)
         
         self._trend_chart = _TrendChart()
-        self._trend_chart.setMinimumHeight(300)  # Increased height by approx 50%
+        self._trend_chart.setMinimumHeight(320)  # Tall hero chart plotting area
+        self._trend_chart.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         tc_lo.addWidget(self._trend_chart)
         top_split.addWidget(self._trend_card, 72)  # Left column gets 72% stretch
 
@@ -498,13 +533,13 @@ class ReportsPage(QWidget):
         th_lo = QHBoxLayout(th); th_lo.setContentsMargins(16,0,16,0); th_lo.setSpacing(12)
         
         icon_spacer = QLabel()
-        icon_spacer.setFixedWidth(20)
+        icon_spacer.setFixedWidth(24)
         th_lo.addWidget(icon_spacer)
         
         for txt, stretch, w in [("App",1,0),("Duration",0,0),("",0,55)]:
             l = QLabel(txt)
             l.setStyleSheet(
-                f"color:{_TEXT_MUTED};font-size:9px;font-weight:700;"
+                f"color:{_TEXT_MUTED};font-size:10px;font-weight:700;"
                 f"letter-spacing:0.1em;background:transparent;border:none;"
             )
             if w:
