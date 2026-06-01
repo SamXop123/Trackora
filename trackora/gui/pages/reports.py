@@ -2,7 +2,8 @@
 from __future__ import annotations
 import csv, json, io
 from datetime import date, timedelta
-from PySide6.QtCore import Qt, QRectF, QSize, QDate
+from PySide6.QtCore import Qt, QRectF, QSize, QDate, QByteArray
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtGui import (QBrush, QColor, QIcon, QLinearGradient, QPainter,
                             QPainterPath, QPen, QPixmap)
 from PySide6.QtWidgets import (QDateEdit, QFileDialog, QFrame, QGraphicsDropShadowEffect,
@@ -17,8 +18,51 @@ _CARD_BORDER = "#1c2735"; _TEXT_PRIMARY = "#e6edf5"
 _TEXT_SECONDARY = "#8b9bb4"; _TEXT_MUTED = "#566a82"
 _ACCENT = "#3b82f6"; _GREEN = "#34d399"
 
-_CATEGORY_ICONS = {"Browsers":"🌐","Development":"💻","Music":"🎵",
-    "Communication":"💬","System":"⚙️","Utilities":"📁","Other":"📦"}
+_CATEGORY_SVGS = {
+    "Browsers": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="10"></circle>
+  <line x1="2" y1="12" x2="22" y2="12"></line>
+  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+</svg>""",
+    "Development": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="16 18 22 12 16 6"></polyline>
+  <polyline points="8 6 2 12 8 18"></polyline>
+</svg>""",
+    "Music": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 18V5l12-2v13"></path>
+  <circle cx="6" cy="18" r="3"></circle>
+  <circle cx="18" cy="16" r="3"></circle>
+</svg>""",
+    "Communication": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+</svg>""",
+    "Utilities": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+</svg>""",
+    "System": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="3"></circle>
+  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+</svg>""",
+    "Other": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line>
+  <polygon points="12 22.08 12 12 3 6.92 3 17.08 12 22.08"></polygon>
+  <polygon points="12 12 21 6.92 21 17.08 12 22.08"></polygon>
+  <polygon points="12 2 21 6.92 12 12 3 6.92 12 2"></polygon>
+  <line x1="12" y1="22.08" x2="12" y2="12"></line>
+</svg>"""
+}
+
+def _get_category_icon(cat: str, size: int, color_hex: str) -> QPixmap:
+    svg_text = _CATEGORY_SVGS.get(cat, _CATEGORY_SVGS["Other"])
+    svg_text = svg_text.replace('stroke="currentColor"', f'stroke="{color_hex}"')
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    renderer = QSvgRenderer(QByteArray(svg_text.encode('utf-8')))
+    renderer.render(painter)
+    painter.end()
+    return pixmap
+
 _ICON_MAP = {"VS Code":["code","visual-studio-code"],"Chrome":["google-chrome"],
     "Brave":["brave-browser"],"Firefox":["firefox"],"Spotify":["spotify"],
     "Discord":["discord"],"Slack":["slack"],"Terminal":["utilities-terminal"],
@@ -98,15 +142,57 @@ class _TrendChart(QWidget):
         super().__init__(parent); self._data = []; self.setMinimumHeight(200)
     def set_data(self, days: list[DailyUsageSummary]):
         self._data = days; self.update()
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        self.update()
     def paintEvent(self, e):
         if not self._data: return
         p = QPainter(self); p.setRenderHint(QPainter.RenderHint.Antialiasing)
         w, h = self.width(), self.height()
-        pad_l, pad_r, pad_t, pad_b = 10, 10, 10, 28
+        pad_l, pad_r, pad_t, pad_b = 32, 32, 12, 32
         cw = w - pad_l - pad_r; ch = h - pad_t - pad_b
         n = len(self._data); mx = max((d.duration_seconds for d in self._data), default=1) or 1
         peak_i = max(range(n), key=lambda i: self._data[i].duration_seconds)
-        bw = max(min(cw // n - 4, 28), 6); gap = (cw - bw * n) / max(n, 1)
+        
+        # 1. Responsive Bar Width Calculation
+        if n <= 7:
+            # Small range: wide bars
+            width_factor = 0.55
+            min_w, max_w = 20, 70
+        elif n <= 30:
+            # Medium range: medium bars
+            width_factor = 0.45
+            min_w, max_w = 8, 32
+        else:
+            # Large range (60+ days): thinner bars
+            width_factor = 0.35
+            min_w, max_w = 2, 12
+
+        slot_width = cw / max(n, 1)
+        bw = max(min(int(slot_width * width_factor), max_w), min_w)
+        
+        # Recalculate gaps proportionally so bars are evenly distributed
+        total_bars_width = bw * n
+        remaining_space = cw - total_bars_width
+        gap = remaining_space / max(n, 1)
+
+        # 2. Responsive Label Density Calculations
+        min_label_spacing = 64
+        max_labels_fit = w // min_label_spacing
+        step = max(1, n // max(1, max_labels_fit))
+        if n <= 7:
+            step = 1
+
+        draw_indices = set()
+        if n > 0:
+            draw_indices.add(0)
+            draw_indices.add(n - 1)
+        for i in range(step, n - 1, step):
+            dist_from_first = i * (bw + gap)
+            dist_from_last = (n - 1 - i) * (bw + gap)
+            if dist_from_first >= min_label_spacing and dist_from_last >= min_label_spacing:
+                draw_indices.add(i)
+
         for i, d in enumerate(self._data):
             bx = pad_l + int(i * (bw + gap) + gap / 2)
             bh = max(int((d.duration_seconds / mx) * ch), 2)
@@ -118,11 +204,16 @@ class _TrendChart(QWidget):
                 g.setColorAt(0, QColor(59,130,246,120)); g.setColorAt(1, QColor(59,130,246,70))
             path = QPainterPath(); path.addRoundedRect(r, 3, 3)
             p.setBrush(QBrush(g)); p.setPen(Qt.PenStyle.NoPen); p.drawPath(path)
-            # Label
-            lbl = d.label.replace("\n"," ")
-            if n <= 14 or i % max(n//10,1) == 0:
+            
+            # 3. Responsive Label Clamping & Rendering
+            if i in draw_indices:
+                lbl = d.label.replace("\n"," ")
                 p.setPen(QPen(QColor(_TEXT_MUTED)))
-                p.drawText(QRectF(bx-6, h-pad_b+4, bw+12, 16), Qt.AlignmentFlag.AlignCenter, lbl)
+                lw = 50
+                bar_center = bx + bw / 2
+                lx = int(bar_center - lw / 2)
+                lx = max(4, min(lx, w - lw - 4))
+                p.drawText(QRectF(lx, h - pad_b + 4, lw, 16), Qt.AlignmentFlag.AlignCenter, lbl)
         p.end()
 
 
@@ -159,10 +250,10 @@ class _CategoryRow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent); self.setFixedHeight(38)
         lo = QHBoxLayout(self); lo.setContentsMargins(16,0,16,0); lo.setSpacing(10)
-        self._icon = QLabel(); self._icon.setStyleSheet(
-            "font-family:'Noto Color Emoji','Segoe UI Emoji',sans-serif;"
-            "font-size:14px;background:transparent;border:none;")
-        self._icon.setFixedWidth(22); lo.addWidget(self._icon)
+        self._icon = QLabel()
+        self._icon.setFixedSize(16, 16)
+        self._icon.setStyleSheet("background:transparent;border:none;")
+        lo.addWidget(self._icon)
         self._name = QLabel(); self._name.setStyleSheet(
             f"color:{_TEXT_PRIMARY};font-size:13px;font-weight:500;background:transparent;border:none;")
         lo.addWidget(self._name, 1)
@@ -175,7 +266,8 @@ class _CategoryRow(QWidget):
             f"color:{_ACCENT};font-size:12px;font-weight:700;background:transparent;border:none;")
         lo.addWidget(self._pct)
     def set_data(self, cat, dur, pct):
-        self._icon.setText(_CATEGORY_ICONS.get(cat,"📦"))
+        px = _get_category_icon(cat, 16, _ACCENT)
+        self._icon.setPixmap(px)
         self._name.setText(cat); self._dur.setText(_fmt(dur)); self._pct.setText(f"{pct}%")
     def enterEvent(self, e):
         self.setStyleSheet(f"background:{_CARD_LIGHTER};border-radius:8px;")
