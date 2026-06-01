@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from ...models.dashboard import TimelineSession
+from ...utils.grouping import merge_consecutive_sessions
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -584,9 +585,8 @@ class TimelinePage(QWidget):
 
         self._empty_state.setVisible(False)
 
-        # Merge consecutive sessions of the same app when detailed mode is OFF (default)
         if not self._detailed_toggle.is_checked():
-            sessions = self._merge_consecutive_sessions(sessions)
+            sessions = merge_consecutive_sessions(sessions, descending=True)
 
         self._update_summary(sessions)
 
@@ -685,39 +685,4 @@ class TimelinePage(QWidget):
     def _on_toggle_detailed(self, checked: bool):
         self.refresh_data()
 
-    def _merge_consecutive_sessions(self, sessions: list[TimelineSession]) -> list[TimelineSession]:
-        if not sessions:
-            return []
 
-        merged: list[TimelineSession] = []
-        current_group: list[TimelineSession] = []
-
-        for s in sessions:
-            if not current_group:
-                current_group.append(s)
-            elif s.app_name == current_group[0].app_name:
-                current_group.append(s)
-            else:
-                merged.append(self._merge_group(current_group))
-                current_group = [s]
-
-        if current_group:
-            merged.append(self._merge_group(current_group))
-
-        return merged
-
-    def _merge_group(self, group: list[TimelineSession]) -> TimelineSession:
-        if len(group) == 1:
-            return group[0]
-
-        total_duration = sum(s.duration_seconds for s in group)
-        earliest_start = group[-1].start_time
-        latest_end = group[0].end_time
-
-        return TimelineSession(
-            app_name=group[0].app_name,
-            window_title="",
-            start_time=earliest_start,
-            end_time=latest_end,
-            duration_seconds=total_duration,
-        )
