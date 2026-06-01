@@ -15,6 +15,7 @@ from trackora.models.dashboard import (
     SessionRecord,
     TimelineSession,
     InsightsData,
+    ReportsData,
 )
 from trackora.utils.app_names import normalize_app_name
 from trackora.utils.time import duration_seconds, now_utc, parse_timestamp
@@ -756,3 +757,165 @@ class DashboardRepository:
             category_breakdown=category_breakdown,
         )
 
+    def load_reports_data(self, *, days: int = 7, start_date: date | None = None, end_date: date | None = None) -> ReportsData | None:
+        """Compute analytics for the Reports page over a date range.
+
+        Args:
+            days: Number of days to look back (used when start_date/end_date not specified).
+            start_date: Explicit start of date range (inclusive).
+            end_date: Explicit end of date range (inclusive).
+        """
+        if not self._database_path.exists():
+            return None
+
+        now = now_utc()
+        local_now = now.astimezone()
+        today_local = local_now.date()
+
+        if start_date is not None and end_date is not None:
+            range_start_local = start_date
+            range_end_local = end_date
+        else:
+            range_end_local = today_local
+            range_start_local = today_local - timedelta(days=max(days - 1, 0))
+
+        range_start_utc, _ = self._local_day_bounds(range_start_local, local_now)
+        _, range_end_utc = self._local_day_bounds(range_end_local, local_now)
+
+        try:
+            with sqlite3.connect(self._database_path, timeout=2.0) as conn:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    """
+                    SELECT app_name, window_title, start_time, end_time, duration_seconds
+                    FROM app_sessions
+                    WHERE start_time < ?
+                      AND COALESCE(end_time, ?) > ?
+                    ORDER BY start_time ASC
+                    """,
+                    (
+                        self._to_sql_timestamp(range_end_utc),
+                        self._to_sql_timestamp(now),
+                        self._to_sql_timestamp(range_start_utc),
+                    ),
+                ).fetchall()
+        except sqlite3.Error:
+            return None
+
+        sessions = [self._to_session_record(row) for row in rows]
+
+        # Build daily summaries
+        num_days = (range_end_local - range_start_local).days + 1
+        daily_usage: list[DailyUsageSummary] = []
+        for offset in range(num_days):
+            day = range_start_local + timedelta(days=offset)
+            day_start_utc, day_end_utc = self._local_day_bounds(day, local_now)
+            day_sessions = [
+                s for s in sessions
+                if self._intersects_day(s, day_start_utc, day_end_utc, now)
+            ]
+            normalized = self._normalized_sessions(
+                todays_sessions=day_sessions,
+                day_start_utc=day_start_utc,
+                day_end_utc=day_end_utc,
+                now=now,
+            )
+            daily_usage.append(DailyUsageSummary(
+                day=day,
+                label=day.strftime("%a\n%d") if num_days <= 7 else day.strftime("%d/%m"),
+                duration_seconds=self._merged_total_seconds(normalized),
+            ))
+
+        # Full range aggregation
+        relevant = [
+            s for s in sessions
+            if self._intersects_day(s, range_start_utc, range_end_utc, now)
+        ]
+        normalized_all = self._normalized_sessions(
+            todays_sessions=relevant,
+            day_start_utc=range_start_utc,
+            day_end_utc=range_end_utc,
+            now=now,
+        )
+
+        total_screen_time = self._merged_total_seconds(normalized_all)
+
+        # Build TimelineSessions for grouping engine
+        tl_sessions: list[TimelineSession] = []
+        for app_name, start, end in normalized_all:
+            dur = duration_seconds(start, end)
+            tl_sessions.append(TimelineSession(
+                app_name=app_name,
+                window_title="",
+                start_time=start,
+                end_time=end,
+                duration_seconds=dur,
+            ))
+
+        grouped = merge_consecutive_sessions(tl_sessions)
+        total_sessions = len(grouped)
+
+        # App usage
+        app_durations: dict[str, int] = {}
+        for s in grouped:
+            app_durations[s.app_name] = app_durations.get(s.app_name, 0) + s.duration_seconds
+
+        app_usage = [
+            AppUsageSummary(app_name=name, duration_seconds=dur)
+            for name, dur in sorted(app_durations.items(), key=lambda x: -x[1])
+        ]
+
+        most_used_app_name = app_usage[0].app_name if app_usage else "—"
+        most_used_app_duration = app_usage[0].duration_seconds if app_usage else 0
+
+        # Most active day
+        if daily_usage:
+            most_active = max(daily_usage, key=lambda d: d.duration_seconds)
+            most_active_day_label = most_active.day.strftime("%A, %b %d")
+            most_active_day_seconds = most_active.duration_seconds
+        else:
+            most_active_day_label = "—"
+            most_active_day_seconds = 0
+
+        # Category breakdown
+        total_duration = sum(app_durations.values()) or 1
+        category_durations: dict[str, int] = {
+            "Development": 0, "Browsers": 0, "Communication": 0,
+            "Music": 0, "System": 0, "Utilities": 0, "Other": 0,
+        }
+        for name, dur in app_durations.items():
+            name_lower = name.lower()
+            if any(kw in name_lower for kw in ["vs code", "vscode", "cursor", "kitty", "terminal", "console", "sublime", "pycharm", "webstorm", "intellij", "git", "github", "neovim", "vim", "emacs", "bash", "sh", "antigravity"]):
+                cat = "Development"
+            elif any(kw in name_lower for kw in ["chrome", "chromium", "firefox", "brave", "safari", "edge", "opera", "vivaldi", "browser"]):
+                cat = "Browsers"
+            elif any(kw in name_lower for kw in ["discord", "slack", "telegram", "teams", "zoom", "skype", "whatsapp", "signal", "messenger", "wechat", "mail", "outlook", "thunderbird"]):
+                cat = "Communication"
+            elif any(kw in name_lower for kw in ["spotify", "rhythmbox", "vlc", "audacious", "clementine", "itunes", "music", "youtube music", "deezer"]):
+                cat = "Music"
+            elif any(kw in name_lower for kw in ["settings", "system settings", "gnome-control-center", "task manager", "monitor", "finder", "nautilus", "files", "explorer", "dbus", "xorg", "software", "gnome-software"]):
+                cat = "System"
+            elif any(kw in name_lower for kw in ["calculator", "text editor", "notes", "obsidian", "notion", "keep", "gedit", "kwrite", "archive", "file roller", "manager"]):
+                cat = "Utilities"
+            else:
+                cat = "Other"
+            category_durations[cat] += dur
+
+        category_breakdown = []
+        for cat, dur in category_durations.items():
+            if dur > 0:
+                pct = int((dur / total_duration) * 100)
+                category_breakdown.append((cat, dur, pct))
+        category_breakdown.sort(key=lambda x: -x[1])
+
+        return ReportsData(
+            total_screen_time_seconds=total_screen_time,
+            total_sessions=total_sessions,
+            most_used_app_name=most_used_app_name,
+            most_used_app_duration=most_used_app_duration,
+            most_active_day_label=most_active_day_label,
+            most_active_day_seconds=most_active_day_seconds,
+            daily_usage=daily_usage,
+            app_usage=app_usage,
+            category_breakdown=category_breakdown,
+        )
