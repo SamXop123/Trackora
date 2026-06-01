@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 from ...models.dashboard import TimelineSession
 from ...utils.grouping import merge_consecutive_sessions
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from ...database.dashboard import DashboardRepository
 
@@ -264,7 +264,7 @@ class _TimelineEntryCard(QFrame):
         right_col.setSpacing(2)
 
         self._duration = QLabel("")
-        self._duration.setAlignment(Qt.AlignRight)
+        self._duration.setAlignment(Qt.AlignmentFlag.AlignRight)
         self._duration.setStyleSheet(
             f"color: {_ACCENT}; font-size: 13px; font-weight: 700; "
             f"background: transparent; border: none;"
@@ -272,7 +272,7 @@ class _TimelineEntryCard(QFrame):
         right_col.addWidget(self._duration)
 
         self._time_range = QLabel("")
-        self._time_range.setAlignment(Qt.AlignRight)
+        self._time_range.setAlignment(Qt.AlignmentFlag.AlignRight)
         self._time_range.setStyleSheet(
             f"color: {_TEXT_MUTED}; font-size: 10px; "
             f"background: transparent; border: none;"
@@ -401,7 +401,7 @@ class _TimelineEntryRow(QWidget):
     def paintEvent(self, event):
         super().paintEvent(event)
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         cx = 8  # center of connector column
         h = self.height()
@@ -443,7 +443,7 @@ class TimelinePage(QWidget):
         super().__init__(parent)
         self._repository: DashboardRepository | None = None
         self._entry_widgets: list[QWidget] = []
-        self._render_queue: list[tuple[str, any, any]] = []
+        self._render_queue: list[tuple[str, Any, Any]] = []
         self._rendered_count = 0
 
         # Scroll area

@@ -53,8 +53,8 @@ class _NavButton(QWidget):
         self._active = False
         self._hovered = False
         self.setFixedHeight(38)
-        self.setCursor(Qt.PointingHandCursor)
-        self.setAttribute(Qt.WA_Hover, True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(14, 0, 14, 0)
@@ -62,7 +62,7 @@ class _NavButton(QWidget):
 
         self._icon = QLabel(icon_char)
         self._icon.setFixedWidth(18)
-        self._icon.setAlignment(Qt.AlignCenter)
+        self._icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self._icon)
 
         self._label = QLabel(text)
@@ -95,9 +95,9 @@ class _NavButton(QWidget):
         super().paintEvent(event)
         if self._active:
             painter = QPainter(self)
-            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             painter.setBrush(QBrush(QColor(_ACCENT)))
-            painter.setPen(Qt.NoPen)
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(QRectF(2, 10, 3, self.height() - 20), 1.5, 1.5)
             painter.end()
 
@@ -119,7 +119,7 @@ class _Sidebar(QWidget):
     def __init__(self, navigate_callback, parent=None):
         super().__init__(parent)
         self.setFixedWidth(185)
-        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
         self.setStyleSheet(
             f"background: {_SIDEBAR_BG}; border-right: 1px solid {_SIDEBAR_BORDER};"
         )
