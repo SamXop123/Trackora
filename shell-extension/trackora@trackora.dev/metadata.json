@@ -3,6 +3,6 @@
   "name": "Trackora",
   "description": "Logs the focused MetaWindow (app + title) every 3s using GNOME Shell APIs. Intended for Wayland-safe activity detection without X11.",
   "version": 1,
-  "shell-version": ["45", "46", "47", "48", "49"],
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
   "session-modes": ["user"]
 }
