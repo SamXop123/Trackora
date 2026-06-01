@@ -131,3 +131,19 @@ class InsightsData:
 
     category_breakdown: list[tuple[str, int, int]]  # category_name, duration_seconds, percentage
 
+
+@dataclass(frozen=True)
+class ReportsData:
+    """Aggregated analytics for the Reports page over a date range."""
+
+    total_screen_time_seconds: int
+    total_sessions: int
+    most_used_app_name: str
+    most_used_app_duration: int
+    most_active_day_label: str
+    most_active_day_seconds: int
+
+    daily_usage: list[DailyUsageSummary]
+    app_usage: list[AppUsageSummary]
+    category_breakdown: list[tuple[str, int, int]]  # category_name, duration_seconds, percentage
+
