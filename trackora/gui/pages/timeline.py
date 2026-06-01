@@ -19,12 +19,11 @@ from PySide6.QtWidgets import (
     QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
 )
 
-from trackora.models.dashboard import TimelineSession
-from trackora.utils.formatting import format_duration_compact
+from ...models.dashboard import TimelineSession
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from trackora.database.dashboard import DashboardRepository
+    from ...database.dashboard import DashboardRepository
 
 # ─── Color tokens (identical to dashboard) ──────────────────────────────────
 _BG = "#0d1117"
