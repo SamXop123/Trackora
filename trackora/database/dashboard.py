@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
+from typing import Any
 
 from trackora.models.dashboard import (
     ActiveAppStatus,
@@ -935,3 +936,62 @@ class DashboardRepository:
             app_usage=app_usage,
             category_breakdown=category_breakdown,
         )
+
+    def get_database_stats(self) -> dict[str, Any]:
+        """Return raw metrics about the database for the Settings Data page."""
+        if not self._database_path.exists():
+            return {
+                "size_bytes": 0,
+                "total_sessions": 0,
+                "earliest_date": None,
+                "latest_date": None,
+            }
+        try:
+            import os
+            size_bytes = os.path.getsize(self._database_path)
+            with sqlite3.connect(self._database_path, timeout=2.0) as conn:
+                row = conn.execute("SELECT COUNT(*), MIN(start_time), MAX(start_time) FROM app_sessions").fetchone()
+                total_sessions = row[0] if row else 0
+                earliest_date = parse_timestamp(row[1]) if row and row[1] else None
+                latest_date = parse_timestamp(row[2]) if row and row[2] else None
+                return {
+                    "size_bytes": size_bytes,
+                    "total_sessions": total_sessions,
+                    "earliest_date": earliest_date,
+                    "latest_date": latest_date,
+                }
+        except Exception:
+            return {
+                "size_bytes": 0,
+                "total_sessions": 0,
+                "earliest_date": None,
+                "latest_date": None,
+            }
+
+    def reset_today(self, start_of_day_utc: datetime) -> bool:
+        """Delete all app sessions from today."""
+        if not self._database_path.exists():
+            return False
+        try:
+            with sqlite3.connect(self._database_path, timeout=2.0) as conn:
+                conn.execute(
+                    "DELETE FROM app_sessions WHERE start_time >= ?",
+                    (self._to_sql_timestamp(start_of_day_utc),)
+                )
+                conn.commit()
+            return True
+        except Exception:
+            return False
+
+    def reset_all(self) -> bool:
+        """Truncate all tracking data."""
+        if not self._database_path.exists():
+            return False
+        try:
+            with sqlite3.connect(self._database_path, timeout=2.0) as conn:
+                conn.execute("DELETE FROM app_sessions")
+                # Add other tables if they exist
+                conn.commit()
+            return True
+        except Exception:
+            return False
