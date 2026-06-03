@@ -246,7 +246,11 @@ class MainWindow(QMainWindow):
         self._reports_page = ReportsPage()
         self._reports_page.set_repository(self._repository)
         self._stack.addWidget(self._reports_page)          # 5
-        self._stack.addWidget(SettingsPage())             # 6
+        
+        self._settings_page = SettingsPage()
+        self._settings_page.set_repository(self._repository)
+        self._stack.addWidget(self._settings_page)         # 6
+
         self._stack.setCurrentIndex(0)
 
     def _on_nav_click(self, index: int):
@@ -262,6 +266,8 @@ class MainWindow(QMainWindow):
                 self._insights_page.refresh_data()
             elif index == 5:
                 self._reports_page.refresh_data()
+            elif index == 6:
+                self._settings_page.refresh_data()
 
     def _start_timers(self):
         self._refresh_timer = QTimer(self)
@@ -287,6 +293,8 @@ class MainWindow(QMainWindow):
                 self._insights_page.refresh_data()
             elif self._stack.currentIndex() == 5:
                 self._reports_page.refresh_data()
+            elif self._stack.currentIndex() == 6:
+                self._settings_page.refresh_data()
             log_info("dashboard refresh success")
         except Exception as exc:
             log_error(f"refresh exception if any: {exc}")
