@@ -232,7 +232,10 @@ class DashboardRepository:
             if start is None:
                 continue
             end_raw = str(row["end_time"] or "") if row["end_time"] else None
-            end = parse_timestamp(end_raw) if end_raw else now
+            parsed_end = parse_timestamp(end_raw) if end_raw else now
+            if parsed_end is None:
+                continue
+            end = parsed_end
             if end <= start:
                 continue
             # Clip to today's bounds
@@ -347,8 +350,10 @@ class DashboardRepository:
         start = parse_timestamp(session.start_time)
         if start is None:
             return False
-        end = parse_timestamp(session.end_time) if session.end_time else now
-        return end > day_start_utc and start < day_end_utc
+        parsed_end = parse_timestamp(session.end_time) if session.end_time else now
+        if parsed_end is None:
+            return False
+        return parsed_end > day_start_utc and start < day_end_utc
 
     def _aggregate_app_usage(
         self,
@@ -507,7 +512,10 @@ class DashboardRepository:
             start = parse_timestamp(session.start_time)
             if start is None:
                 continue
-            end = parse_timestamp(session.end_time) if session.end_time else now
+            parsed_end = parse_timestamp(session.end_time) if session.end_time else now
+            if parsed_end is None:
+                continue
+            end = parsed_end
             if end <= start:
                 continue
             clipped_start = max(start, day_start_utc)
@@ -619,7 +627,10 @@ class DashboardRepository:
             if start is None:
                 continue
             end_raw = str(row["end_time"] or "") if row["end_time"] else None
-            end = parse_timestamp(end_raw) if end_raw else now
+            parsed_end = parse_timestamp(end_raw) if end_raw else now
+            if parsed_end is None:
+                continue
+            end = parsed_end
             if end <= start:
                 continue
             
@@ -664,7 +675,7 @@ class DashboardRepository:
         total_duration_today = sum(app_durations.values())
 
         # 4. Most Used App
-        most_used_app_name = max(app_durations, key=app_durations.get) if app_durations else ""
+        most_used_app_name = max(app_durations, key=lambda k: app_durations[k]) if app_durations else ""
         most_used_app_duration = app_durations[most_used_app_name] if most_used_app_name else 0
         most_used_app_percentage = int((most_used_app_duration / total_duration_today) * 100) if total_duration_today > 0 else 0
 
@@ -696,7 +707,10 @@ class DashboardRepository:
             if start is None:
                 continue
             end_raw = str(row["end_time"] or "") if row["end_time"] else None
-            end = parse_timestamp(end_raw) if end_raw else now
+            parsed_end = parse_timestamp(end_raw) if end_raw else now
+            if parsed_end is None:
+                continue
+            end = parsed_end
             if end <= start:
                 continue
             clipped_start = max(start, yesterday_start_utc)
