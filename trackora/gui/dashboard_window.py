@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from datetime import date, timedelta
-from PySide6.QtCore import Qt, QRectF, QTimer
+from PySide6.QtCore import Qt, QRectF, QTimer, QVariantAnimation
 from PySide6.QtGui import QBrush, QColor, QPainter, QPen, QIcon, QPixmap, QLinearGradient, QRadialGradient
 from PySide6.QtWidgets import (
     QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel,
@@ -45,7 +45,7 @@ _NAV_ITEMS: list[tuple[str, str]] = [
 
 
 class _NavButton(QWidget):
-    """Sidebar navigation item with icon, label, active indicator, and hover."""
+    """Sidebar navigation item with icon, label, active indicator, and smooth ambient hover animation."""
 
     def __init__(self, text: str, icon_char: str, index: int, callback, parent=None):
         super().__init__(parent)
@@ -53,16 +53,23 @@ class _NavButton(QWidget):
         self._callback = callback
         self._active = False
         self._hovered = False
-        self.setFixedHeight(38)
+        self.setFixedHeight(44)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
 
+        # Ambient hover fade animation
+        self._hover_anim = QVariantAnimation(self)
+        self._hover_anim.setDuration(180)  # smooth 180ms
+        self._hover_anim.setStartValue(0.0)
+        self._hover_anim.setEndValue(1.0)
+        self._hover_anim.valueChanged.connect(self._on_anim_value_changed)
+
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(14, 0, 14, 0)
-        layout.setSpacing(11)
+        layout.setContentsMargins(16, 0, 16, 0)
+        layout.setSpacing(14)
 
         self._icon = QLabel(icon_char)
-        self._icon.setFixedWidth(18)
+        self._icon.setFixedWidth(24)
         self._icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self._icon)
 
@@ -72,46 +79,69 @@ class _NavButton(QWidget):
         self._apply_style()
 
     def set_active(self, active: bool):
-        self._active = active
-        self._apply_style()
+        if self._active != active:
+            self._active = active
+            self._apply_style()
+            self.update()
 
     def _apply_style(self):
         if self._active:
-            bg, text_c, icon_c = _NAV_ACTIVE_BG, _TEXT_PRIMARY, _ACCENT
-            border_css = f"border: 1px solid rgba(59, 130, 246, 0.15);"
+            text_c, icon_c = _TEXT_PRIMARY, _ACCENT
         elif self._hovered:
-            bg, text_c, icon_c = _NAV_HOVER_BG, _TEXT_PRIMARY, _TEXT_SECONDARY
-            border_css = f"border: 1px solid rgba(139, 155, 180, 0.05);"
+            text_c, icon_c = _TEXT_PRIMARY, _TEXT_SECONDARY
         else:
-            bg, text_c, icon_c = "transparent", _TEXT_SECONDARY, _TEXT_MUTED
-            border_css = "border: 1px solid transparent;"
+            text_c, icon_c = _TEXT_SECONDARY, _TEXT_MUTED
 
-        self.setStyleSheet(f"background: {bg}; border-radius: 6px; {border_css}")
         self._icon.setStyleSheet(
-            f"color: {icon_c}; font-size: 14px; background: transparent; border: none;"
+            f"color: {icon_c}; font-size: 18px; background: transparent; border: none;"
         )
         self._label.setStyleSheet(
-            f"color: {text_c}; font-size: 13px; font-weight: 500; "
+            f"color: {text_c}; font-size: 14px; font-weight: 500; "
             f"background: transparent; border: none;"
         )
 
+    def _on_anim_value_changed(self, val: float):
+        self.update()
+
     def paintEvent(self, event):
-        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Draw ambient background & subtle border
+        r_val = self._hover_anim.currentValue()
         if self._active:
-            painter = QPainter(self)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            bg_color = QColor("#152035")
+            border_color = QColor(59, 130, 246, int(255 * 0.15))
+        else:
+            # Animate from transparent (0 alpha) to hover background color
+            bg_color = QColor(18, 27, 40, int(255 * r_val))
+            border_color = QColor(139, 155, 180, int(255 * 0.05 * r_val))
+
+        painter.setBrush(QBrush(bg_color))
+        painter.setPen(QPen(border_color, 1.0))
+        
+        rect = QRectF(0.5, 0.5, self.width() - 1, self.height() - 1)
+        painter.drawRoundedRect(rect, 8.0, 8.0)
+
+        # Draw active indicator line on the left
+        if self._active:
             painter.setBrush(QBrush(QColor(_ACCENT)))
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(QRectF(3, 10, 3, self.height() - 20), 1.5, 1.5)
-            painter.end()
+            painter.drawRoundedRect(QRectF(3, 12, 3, self.height() - 24), 1.5, 1.5)
+
+        painter.end()
 
     def enterEvent(self, event):
         self._hovered = True
         self._apply_style()
+        self._hover_anim.setDirection(QVariantAnimation.Direction.Forward)
+        self._hover_anim.start()
 
     def leaveEvent(self, event):
         self._hovered = False
         self._apply_style()
+        self._hover_anim.setDirection(QVariantAnimation.Direction.Backward)
+        self._hover_anim.start()
 
     def mousePressEvent(self, event):
         self._callback(self._index)
