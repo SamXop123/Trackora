@@ -35,9 +35,20 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    from PySide6.QtGui import QFont, QFontDatabase
+
     app = QApplication(sys.argv if argv is None else [sys.argv[0], *argv])
     app.setApplicationName("Trackora")
     app.setOrganizationName("Trackora")
+
+    # Load custom premium 'Inter' font from assets folder
+    font_path = Path(__file__).resolve().parents[2] / "assets" / "Inter.ttf"
+    if font_path.exists():
+        font_id = QFontDatabase.addApplicationFont(str(font_path))
+        if font_id != -1:
+            families = QFontDatabase.applicationFontFamilies(font_id)
+            if families:
+                app.setFont(QFont(families[0], 10))
 
     database_path = args.database.expanduser() if args.database else default_database_path()
     window = MainWindow(
