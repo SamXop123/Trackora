@@ -8,11 +8,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from datetime import date, timedelta
 from PySide6.QtCore import Qt, QRectF, QTimer
-from PySide6.QtGui import QBrush, QColor, QPainter, QPen, QIcon, QPixmap
+from PySide6.QtGui import QBrush, QColor, QPainter, QPen, QIcon, QPixmap, QLinearGradient, QRadialGradient
 from PySide6.QtWidgets import (
     QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel,
-    QMainWindow, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget,
+    QMainWindow, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget, QPushButton
 )
 
 from trackora.database.dashboard import DashboardRepository
@@ -116,6 +117,66 @@ class _NavButton(QWidget):
         self._callback(self._index)
 
 
+class _QuoteCard(QWidget):
+    """Custom quote card displaying a motivational message with a premium glowing ray decoration."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(120)
+        
+        ql = QVBoxLayout(self)
+        ql.setContentsMargins(16, 14, 16, 25)
+        ql.setSpacing(6)
+
+        qm = QLabel("❝")
+        qm.setStyleSheet(
+            f"color: {_ACCENT}; font-size: 24px; font-weight: bold; background: transparent; border: none;"
+        )
+        ql.addWidget(qm)
+
+        qt = QLabel("Focus is the\nfoundation of\nmeaningful progress.")
+        qt.setWordWrap(True)
+        qt.setStyleSheet(
+            f"color: {_TEXT_SECONDARY}; font-size: 11px; font-weight: 500; "
+            f"background: transparent; border: none; line-height: 1.4;"
+        )
+        ql.addWidget(qt)
+        ql.addStretch(1)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        rect = QRectF(0, 0, self.width(), self.height())
+        painter.setBrush(QBrush(QColor(255, 255, 255, 4)))
+        painter.setPen(QPen(QColor(255, 255, 255, 8), 1))
+        painter.drawRoundedRect(rect.adjusted(0.5, 0.5, -0.5, -0.5), 12, 12)
+        
+        y = self.height() - 22
+        w = self.width()
+        
+        line_grad = QLinearGradient(0, y, w, y)
+        line_grad.setColorAt(0, QColor(59, 130, 246, 0))
+        line_grad.setColorAt(0.3, QColor(59, 130, 246, 30))
+        line_grad.setColorAt(0.5, QColor(59, 130, 246, 200))
+        line_grad.setColorAt(0.7, QColor(59, 130, 246, 30))
+        line_grad.setColorAt(1, QColor(59, 130, 246, 0))
+        
+        painter.setPen(QPen(QBrush(line_grad), 1.5))
+        painter.drawLine(15, y, w - 15, y)
+        
+        cx, cy = w / 2, y
+        for radius, alpha in [(12, 20), (7, 60), (3, 180), (1.5, 255)]:
+            orb_grad = QRadialGradient(cx, cy, radius)
+            orb_grad.setColorAt(0, QColor(59, 130, 246, alpha))
+            orb_grad.setColorAt(1, QColor(59, 130, 246, 0))
+            painter.setBrush(QBrush(orb_grad))
+            painter.setPen(Qt.NoPen)
+            painter.drawEllipse(QRectF(cx - radius, cy - radius, radius * 2, radius * 2))
+            
+        painter.end()
+
+
 class _Sidebar(QWidget):
     """Vertical navigation sidebar."""
 
@@ -183,32 +244,8 @@ class _Sidebar(QWidget):
         layout.addStretch(1)
 
         # Quote
-        quote_frame = QWidget()
-        quote_frame.setObjectName("quoteFrame")
-        quote_frame.setStyleSheet(
-            f"QWidget#quoteFrame {{ "
-            f"  background: rgba(255, 255, 255, 0.015); "
-            f"  border: 1px solid {_SIDEBAR_BORDER}; "
-            f"  border-radius: 8px; "
-            f"}}"
-        )
-        ql = QVBoxLayout(quote_frame)
-        ql.setContentsMargins(12, 10, 12, 12)
-        ql.setSpacing(6)
-
-        qm = QLabel("❝")
-        qm.setStyleSheet(
-            f"color: {_ACCENT}; font-size: 18px; font-weight: bold; background: transparent; border: none; line-height: 1;"
-        )
-        ql.addWidget(qm)
-
-        qt = QLabel("Focus is the\nfoundation of\nmeaningful progress.")
-        qt.setWordWrap(True)
-        qt.setStyleSheet(
-            f"color: {_TEXT_MUTED}; font-size: 10px; font-style: italic; background: transparent; border: none; line-height: 1.3;"
-        )
-        ql.addWidget(qt)
-        layout.addWidget(quote_frame)
+        quote_card = _QuoteCard()
+        layout.addWidget(quote_card)
         layout.addSpacing(12)
 
         # Settings
@@ -229,6 +266,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._repository = DashboardRepository(database_path)
         self._refresh_seconds = refresh_seconds
+        self._selected_date = date.today()
+        self._tracking_paused = False
 
         self.setWindowTitle("Trackora")
         logo_path = Path(__file__).resolve().parents[2] / "assets" / "trackora_logo.png"
@@ -257,6 +296,10 @@ class MainWindow(QMainWindow):
 
         self._dashboard_page = DashboardPage()
         self._dashboard_page.set_repository(self._repository)
+        self._dashboard_page.date_changed.connect(self._on_dashboard_date_changed)
+        self._dashboard_page.reset_date_requested.connect(self._on_dashboard_reset_date)
+        self._dashboard_page.view_all_requested.connect(lambda: self._on_nav_click(2))
+        self._dashboard_page.stop_clicked.connect(self._on_dashboard_stop_clicked)
         self._stack.addWidget(self._dashboard_page)      # 0
         self._timeline_page = TimelinePage()
         self._timeline_page.set_repository(self._repository)
@@ -300,16 +343,45 @@ class MainWindow(QMainWindow):
         self._refresh_timer.start(self._refresh_seconds * 1000)
 
         self._tick_timer = QTimer(self)
-        self._tick_timer.timeout.connect(self._dashboard_page.tick_active_session)
+        self._tick_timer.timeout.connect(self._on_tick)
         self._tick_timer.start(1000)
+
+    def _on_tick(self):
+        if not self._tracking_paused:
+            self._dashboard_page.tick_active_session()
+
+    def _on_dashboard_date_changed(self, offset: int):
+        self._selected_date += timedelta(days=offset)
+        if self._selected_date > date.today():
+            self._selected_date = date.today()
+        self._refresh_dashboard()
+
+    def _on_dashboard_reset_date(self):
+        self._selected_date = date.today()
+        self._refresh_dashboard()
+
+    def _on_dashboard_stop_clicked(self):
+        self._tracking_paused = not self._tracking_paused
+        self._refresh_dashboard()
 
     def _refresh_dashboard(self):
         from trackora.utils.logging import log_info, log_error
+        from dataclasses import replace
         log_info("dashboard refresh started")
         try:
-            snapshot = self._repository.load_snapshot()
+            snapshot = self._repository.load_snapshot(self._selected_date)
+            if self._tracking_paused:
+                snapshot = replace(snapshot, active_app=None)
             self._dashboard_page.refresh(snapshot)
-            # Also refresh timeline/apps page if currently visible
+            
+            if self._tracking_paused:
+                self._dashboard_page._active_card._app_label.setText("Tracking Paused")
+                self._dashboard_page._active_card._elapsed_label.setText("Paused")
+                self._dashboard_page._active_card._stop_btn.set_paused(True)
+                self._dashboard_page._active_card._category_badge.setVisible(False)
+            else:
+                self._dashboard_page._active_card._stop_btn.set_paused(False)
+
             if self._stack.currentIndex() == 1:
                 self._timeline_page.refresh_data()
             elif self._stack.currentIndex() == 2:

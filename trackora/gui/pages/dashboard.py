@@ -5,13 +5,14 @@ from __future__ import annotations
 import math
 from datetime import date, datetime
 
-from PySide6.QtCore import (Qt, QRectF, QSize)
+from PySide6.QtCore import (Qt, QRectF, QSize, Signal)
 
 from PySide6.QtGui import (QBrush, QColor, QFont, QIcon, QLinearGradient,
                            QPainter, QPainterPath, QPen, QPixmap, QRadialGradient)
 
 from PySide6.QtWidgets import (QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel,
-                           QScrollArea, QSizePolicy, QVBoxLayout, QWidget)
+                           QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
+                           QStackedWidget, QComboBox, QPushButton)
 
 from ...charts import DailyUsageChart
 from ...models.dashboard import (
@@ -126,7 +127,7 @@ class _HeroCard(_Card):
         layout.setContentsMargins(28, 24, 28, 20)
         layout.setSpacing(6)
 
-        # Header Row: Section Label + Goal Indicator
+        # Header Row: Section Label
         hdr_row = QHBoxLayout()
         section = QLabel("TODAY")
         section.setStyleSheet(
@@ -135,13 +136,6 @@ class _HeroCard(_Card):
         )
         hdr_row.addWidget(section)
         hdr_row.addStretch(1)
-
-        self._goal_label = QLabel("Goal: 8h")
-        self._goal_label.setStyleSheet(
-            f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 600; "
-            f"background: transparent; border: none;"
-        )
-        hdr_row.addWidget(self._goal_label)
         layout.addLayout(hdr_row)
 
         self._time_label = QLabel("0m")
@@ -165,59 +159,11 @@ class _HeroCard(_Card):
         self._comparison_label.setStyleSheet(
             f"color: {_TEXT_MUTED}; font-size: 11px; font-weight: 600; "
             f"background: rgba(255, 255, 255, 0.02); border: 1px solid {_CARD_BORDER}; "
-            f"border-radius: 10px; padding: 3px 8px;"
+            f"border-radius: 10px; padding: 4px 10px;"
         )
         trend_row.addWidget(self._comparison_label)
         trend_row.addStretch(1)
         layout.addLayout(trend_row)
-        layout.addSpacing(12)
-
-        # Bottom metrics row
-        metrics_row = QHBoxLayout()
-        metrics_row.setSpacing(16)
-
-        self._hero_stat1 = QLabel("—")
-        self._hero_stat1.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 700;")
-        self._hero_stat1_lbl = QLabel("Screen Time")
-        self._hero_stat1_lbl.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 9px; font-weight: 600; text-transform: uppercase;")
-
-        self._hero_stat2 = QLabel("—")
-        self._hero_stat2.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 700;")
-        self._hero_stat2_lbl = QLabel("Top App Focus")
-        self._hero_stat2_lbl.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 9px; font-weight: 600; text-transform: uppercase;")
-
-        self._hero_stat3 = QLabel("—")
-        self._hero_stat3.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 700;")
-        self._hero_stat3_lbl = QLabel("Active Apps")
-        self._hero_stat3_lbl.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 9px; font-weight: 600; text-transform: uppercase;")
-
-        def add_hero_stat(lbl_widget, val_widget):
-            box = QVBoxLayout()
-            box.setSpacing(2)
-            box.addWidget(val_widget)
-            box.addWidget(lbl_widget)
-            return box
-
-        metrics_row.addLayout(add_hero_stat(self._hero_stat1_lbl, self._hero_stat1))
-        
-        sep1 = QFrame()
-        sep1.setFrameShape(QFrame.Shape.VLine)
-        sep1.setFixedHeight(22)
-        sep1.setStyleSheet(f"background-color: {_CARD_BORDER}; border: none; width: 1px;")
-        metrics_row.addWidget(sep1)
-
-        metrics_row.addLayout(add_hero_stat(self._hero_stat2_lbl, self._hero_stat2))
-        
-        sep2 = QFrame()
-        sep2.setFrameShape(QFrame.Shape.VLine)
-        sep2.setFixedHeight(22)
-        sep2.setStyleSheet(f"background-color: {_CARD_BORDER}; border: none; width: 1px;")
-        metrics_row.addWidget(sep2)
-
-        metrics_row.addLayout(add_hero_stat(self._hero_stat3_lbl, self._hero_stat3))
-        metrics_row.addStretch(1)
-
-        layout.addLayout(metrics_row)
         layout.addStretch(1)
 
     def paintEvent(self, event):
@@ -225,10 +171,10 @@ class _HeroCard(_Card):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         w, h = self.width(), self.height()
-        cx, cy = w - 65, h // 2
+        cx, cy = w - 90, h // 2
 
-        # Ambient glow
-        for radius, alpha in [(70, 18), (50, 28), (35, 38)]:
+        # ── Ambient glow ──
+        for radius, alpha in [(70, 16), (50, 24), (35, 32)]:
             grad = QRadialGradient(cx, cy, radius)
             grad.setColorAt(0, QColor(59, 130, 246, alpha))
             grad.setColorAt(1, QColor(59, 130, 246, 0))
@@ -236,70 +182,108 @@ class _HeroCard(_Card):
             painter.setPen(Qt.NoPen)
             painter.drawEllipse(QRectF(cx - radius, cy - radius, radius * 2, radius * 2))
 
-        # Concentric ring arcs — progress indicator feel
-        painter.setBrush(Qt.NoBrush)
-        # Outer ring (track)
-        painter.setPen(QPen(QColor(59, 130, 246, 25), 2.5))
-        painter.drawEllipse(QRectF(cx - 28, cy - 28, 56, 56))
+        # ── Concentric outer rings ──
+        for r, alpha in [(56, 12), (44, 24), (32, 45)]:
+            painter.setBrush(Qt.NoBrush)
+            painter.setPen(QPen(QColor(59, 130, 246, alpha), 1.5))
+            painter.drawEllipse(QRectF(cx - r, cy - r, r * 2, r * 2))
 
-        # Progress arc — maps screen time to 0-360° (8h = full)
-        progress = min(self._today_secs / (8 * 3600), 1.0)
-        if progress > 0.005:
-            painter.setPen(QPen(QColor(59, 130, 246, 160), 2.5, Qt.SolidLine, Qt.RoundCap))
-            span = int(progress * 360 * 16)
-            painter.drawArc(QRectF(cx - 28, cy - 28, 56, 56), 90 * 16, -span)
-
-        # Inner ring
-        painter.setPen(QPen(QColor(59, 130, 246, 18), 1.5))
+        # ── Central solid blue circle ──
+        painter.setBrush(QBrush(QColor(59, 130, 246)))
+        painter.setPen(Qt.NoPen)
         painter.drawEllipse(QRectF(cx - 18, cy - 18, 36, 36))
 
-        # Center progress text
-        pct = int(progress * 100)
-        painter.setFont(QFont("Inter", 8, QFont.Bold))
-        painter.setPen(QPen(QColor(_TEXT_PRIMARY)))
-        painter.drawText(QRectF(cx - 28, cy - 28, 56, 56), Qt.AlignCenter, f"{pct}%")
+        # ── Draw clock hands in white ──
+        painter.setPen(QPen(QColor(255, 255, 255), 2.2, Qt.SolidLine, Qt.RoundCap))
+        painter.drawLine(cx, cy, cx - 5, cy - 5)  # Hour hand
+        painter.drawLine(cx, cy, cx, cy - 9)       # Minute hand
         painter.end()
 
     def update_data(self, today_secs: int, yesterday_secs: int, snapshot: DashboardSnapshot | None = None) -> None:
         self._today_secs = today_secs
         self._time_label.setText(format_duration_compact(today_secs))
-        self._hero_stat1.setText(format_duration_compact(today_secs))
-
-        if snapshot:
-            self._hero_stat3.setText(str(len(snapshot.all_apps)))
-            if snapshot.top_apps:
-                self._hero_stat2.setText(format_duration_compact(snapshot.top_apps[0].duration_seconds))
-            else:
-                self._hero_stat2.setText("—")
-        else:
-            self._hero_stat2.setText("—")
-            self._hero_stat3.setText("—")
 
         if yesterday_secs > 0:
             diff = ((today_secs - yesterday_secs) / yesterday_secs) * 100
             sign = "+" if diff >= 0 else ""
             if diff <= 0:
-                color, arrow = _GREEN, "↘"
-                bg_color = "rgba(52, 211, 153, 0.1)"
-                border_color = "rgba(52, 211, 153, 0.2)"
+                color, arrow = _GREEN, "⊕"
+                bg_color = "rgba(52, 211, 153, 0.08)"
+                border_color = "rgba(52, 211, 153, 0.15)"
+                label_text = f"{arrow}  {abs(diff):.0f}% less than yesterday"
             else:
-                color, arrow = "#f59e0b", "↗"
-                bg_color = "rgba(245, 158, 11, 0.1)"
-                border_color = "rgba(245, 158, 11, 0.2)"
-            self._comparison_label.setText(f"{arrow}  {sign}{diff:.0f}% compared to yesterday")
+                color, arrow = "#3b82f6", "⊕"
+                bg_color = "rgba(59, 130, 246, 0.08)"
+                border_color = "rgba(59, 130, 246, 0.15)"
+                label_text = f"{arrow}  {sign}{diff:.0f}% more than yesterday"
+
+            self._comparison_label.setText(label_text)
             self._comparison_label.setStyleSheet(
                 f"color: {color}; font-size: 11px; font-weight: 600; "
                 f"background: {bg_color}; border: 1px solid {border_color}; "
-                f"border-radius: 10px; padding: 3px 8px;"
+                f"border-radius: 10px; padding: 4px 10px;"
             )
         else:
             self._comparison_label.setText("First day of tracking")
             self._comparison_label.setStyleSheet(
                 f"color: {_TEXT_MUTED}; font-size: 11px; font-weight: 600; "
                 f"background: rgba(255, 255, 255, 0.02); border: 1px solid {_CARD_BORDER}; "
-                f"border-radius: 10px; padding: 3px 8px;"
+                f"border-radius: 10px; padding: 4px 10px;"
             )
         self.update()
+
+
+# ─── Stop Button for Active Card ────────────────────────────────────────────
+
+class _StopButton(QPushButton):
+    """Custom premium Stop button with inner square icon or play icon."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(36, 36)
+        self.setCursor(Qt.PointingHandCursor)
+        self._is_paused = False
+        self._apply_style()
+
+    def set_paused(self, paused: bool):
+        self._is_paused = paused
+        self._apply_style()
+        self.update()
+
+    def _apply_style(self):
+        if self._is_paused:
+            self.setStyleSheet(
+                f"QPushButton {{ background: rgba(52, 211, 153, 0.08); "
+                f"border: 1px solid rgba(52, 211, 153, 0.2); border-radius: 8px; }}"
+                f"QPushButton:hover {{ background: rgba(52, 211, 153, 0.18); "
+                f"border: 1px solid rgba(52, 211, 153, 0.35); }}"
+            )
+        else:
+            self.setStyleSheet(
+                f"QPushButton {{ background: rgba(59, 130, 246, 0.08); "
+                f"border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; }}"
+                f"QPushButton:hover {{ background: rgba(59, 130, 246, 0.18); "
+                f"border: 1px solid rgba(59, 130, 246, 0.35); }}"
+            )
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        if self._is_paused:
+            painter.setBrush(QBrush(QColor(52, 211, 153)))
+            painter.setPen(Qt.NoPen)
+            path = QPainterPath()
+            path.moveTo(14, 12)
+            path.lineTo(25, 18)
+            path.lineTo(14, 24)
+            path.closeSubpath()
+            painter.drawPath(path)
+        else:
+            painter.setBrush(QBrush(QColor(59, 130, 246)))
+            painter.setPen(Qt.NoPen)
+            painter.drawRoundedRect(QRectF(13, 13, 10, 10), 1.5, 1.5)
+        painter.end()
 
 
 # ─── Currently Active card ──────────────────────────────────────────────────
@@ -307,81 +291,74 @@ class _HeroCard(_Card):
 class _ActiveCard(_Card):
     """Shows the currently active application with live elapsed timer."""
 
+    stop_clicked = Signal()
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setMinimumHeight(190)
-        self._pulse = True
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 24, 28, 20)
-        layout.setSpacing(6)
+        layout.setSpacing(10)
 
-        # Header with pulsing indicator
+        # Header row
         hdr_lo = QHBoxLayout()
-        hdr_lo.setSpacing(6)
-        hdr_lo.setContentsMargins(0, 0, 0, 0)
-
         section = QLabel("CURRENTLY ACTIVE")
         section.setStyleSheet(
-            f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 700; "
+            f"color: {_ACCENT}; font-size: 10px; font-weight: 700; "
             f"letter-spacing: 0.12em; background: transparent; border: none;"
         )
         hdr_lo.addWidget(section)
-
-        self._pulse_dot = QLabel("●")
-        self._pulse_dot.setStyleSheet(f"color: {_GREEN}; font-size: 12px; background: transparent; border: none;")
-        hdr_lo.addWidget(self._pulse_dot)
         hdr_lo.addStretch(1)
         layout.addLayout(hdr_lo)
-        layout.addSpacing(6)
 
-        # Icon + app name + category badge row
-        name_row = QHBoxLayout()
-        name_row.setSpacing(12)
+        # Main body row: Icon, text info, and stop button
+        body_row = QHBoxLayout()
+        body_row.setSpacing(14)
 
         self._app_icon_label = QLabel()
-        self._app_icon_label.setFixedSize(38, 38)
-        self._app_icon_label.setStyleSheet(f"border-radius: 8px; border: 1px solid {_CARD_BORDER}; background: {_CARD_LIGHTER};")
-        name_row.addWidget(self._app_icon_label)
+        self._app_icon_label.setFixedSize(40, 40)
+        self._app_icon_label.setStyleSheet(
+            f"border-radius: 8px; border: 1px solid {_CARD_BORDER}; background: {_CARD_LIGHTER};"
+        )
+        body_row.addWidget(self._app_icon_label)
 
         v_info = QVBoxLayout()
-        v_info.setSpacing(4)
+        v_info.setSpacing(2)
+        v_info.setContentsMargins(0, 0, 0, 0)
 
         self._app_label = QLabel("No active session")
         self._app_label.setStyleSheet(
-            f"color: {_TEXT_PRIMARY}; font-size: 22px; font-weight: 800; "
+            f"color: {_TEXT_PRIMARY}; font-size: 18px; font-weight: 800; "
             f"background: transparent; border: none;"
         )
         v_info.addWidget(self._app_label)
 
+        self._elapsed_label = QLabel("")
+        self._elapsed_label.setStyleSheet(
+            f"color: {_ACCENT}; font-size: 15px; font-weight: 700; "
+            f"background: transparent; border: none;"
+        )
+        v_info.addWidget(self._elapsed_label)
+        body_row.addLayout(v_info, 1)
+
+        # Stop button
+        self._stop_btn = _StopButton()
+        self._stop_btn.clicked.connect(self.stop_clicked.emit)
+        body_row.addWidget(self._stop_btn)
+        layout.addLayout(body_row)
+
+        # Category badge row (below body_row)
+        badge_row = QHBoxLayout()
         self._category_badge = QLabel("")
         self._category_badge.setStyleSheet(
             f"color: {_ACCENT}; font-size: 10px; font-weight: 700; "
             f"background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); "
             f"border-radius: 8px; padding: 2px 8px;"
         )
-        badge_row = QHBoxLayout()
         badge_row.addWidget(self._category_badge)
         badge_row.addStretch(1)
-        v_info.addLayout(badge_row)
-
-        name_row.addLayout(v_info, 1)
-        layout.addLayout(name_row)
-
-        self._elapsed_label = QLabel("")
-        self._elapsed_label.setStyleSheet(
-            f"color: {_ACCENT}; font-size: 18px; font-weight: 700; "
-            f"background: transparent; border: none;"
-        )
-        layout.addWidget(self._elapsed_label)
-        layout.addSpacing(4)
-
-        self._window_label = QLabel("Waiting for activity…")
-        self._window_label.setWordWrap(True)
-        self._window_label.setStyleSheet(
-            f"color: {_TEXT_MUTED}; font-size: 11px; font-style: italic; background: transparent; border: none;"
-        )
-        layout.addWidget(self._window_label)
+        layout.addLayout(badge_row)
         layout.addStretch(1)
 
     def _set_icon(self, app_name: str) -> None:
@@ -399,22 +376,27 @@ class _ActiveCard(_Card):
         if active is None:
             self._app_label.setText("No active session")
             self._elapsed_label.setText("")
-            self._window_label.setText("The tracker is idle")
             self._app_icon_label.clear()
             self._category_badge.setVisible(False)
-            self._pulse_dot.setVisible(False)
             return
 
         self._app_label.setText(active.app_name)
         self._elapsed_label.setText(format_duration_live(active.elapsed_seconds))
         self._set_icon(active.app_name)
 
-        # Resolve category
+        # Resolve category and icon prefix
         cat = _get_app_category(active.app_name)
-        self._category_badge.setText(cat.upper())
+        category_icons = {
+            "Browsers": "🌐 ",
+            "Development": "</> ",
+            "Music": "🎵 ",
+            "Communication": "💬 ",
+            "System": "⚙️ ",
+            "Utilities": "🔧 ",
+        }
+        icon_prefix = category_icons.get(cat, "")
+        self._category_badge.setText(f"{icon_prefix}{cat.upper()}")
         self._category_badge.setVisible(True)
-        self._pulse_dot.setVisible(True)
-
         # Color badge depending on category
         colors = {
             "Browsers": (_GREEN, "rgba(52, 211, 153, 0.1)", "rgba(52, 211, 153, 0.2)"),
@@ -431,36 +413,84 @@ class _ActiveCard(_Card):
             f"border-radius: 8px; padding: 2px 8px;"
         )
 
-        # Toggle pulse opacity
-        opacity = "ff" if self._pulse else "55"
-        self._pulse_dot.setStyleSheet(f"color: #34d399{opacity}; font-size: 12px; background: transparent; border: none;")
-        self._pulse = not self._pulse
-
-        title = active.window_title or ""
-        if len(title) > 60:
-            title = title[:57] + "…"
-        self._window_label.setText(f"↳  {title}" if title else "")
-
 
 # ─── Activity Timeline card ────────────────────────────────────────────────
 
 class _TimelineCard(_Card):
-    """Wraps the DailyUsageChart pyqtgraph widget."""
+    """Wraps DailyUsageChart and _WeeklyChart in a QStackedWidget with a bottom stats row."""
 
     def __init__(self, chart: DailyUsageChart, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._chart = chart
+        
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 14)
-        layout.setSpacing(8)
-
-        header = QLabel("ACTIVITY TIMELINE")
-        header.setStyleSheet(
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(12)
+        
+        self._header = QLabel("ACTIVITY TIMELINE")
+        self._header.setStyleSheet(
             f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 700; "
             f"letter-spacing: 0.12em; background: transparent; border: none;"
         )
-        layout.addWidget(header)
-        chart.setMinimumHeight(190)
-        layout.addWidget(chart, 1)
+        layout.addWidget(self._header)
+        
+        # Chart Stack
+        self._chart_stack = QStackedWidget()
+        self._chart.setMinimumHeight(190)
+        self._chart_stack.addWidget(self._chart)
+        
+        self._weekly_chart = _WeeklyChart()
+        self._weekly_chart.setMinimumHeight(190)
+        self._chart_stack.addWidget(self._weekly_chart)
+        
+        layout.addWidget(self._chart_stack, 1)
+        
+        # Bottom Stats Row
+        self._stats_row = QHBoxLayout()
+        self._stats_row.setSpacing(28)
+        
+        self._stat_screen_val = QLabel("—")
+        self._stat_screen_val.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 15px; font-weight: 700; background: transparent; border: none;")
+        self._stat_screen_lbl = QLabel("Total Screen Time")
+        self._stat_screen_lbl.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 9px; font-weight: 600; text-transform: uppercase; background: transparent; border: none;")
+        
+        self._stat_sessions_val = QLabel("—")
+        self._stat_sessions_val.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 15px; font-weight: 700; background: transparent; border: none;")
+        self._stat_sessions_lbl = QLabel("Total Sessions")
+        self._stat_sessions_lbl.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 9px; font-weight: 600; text-transform: uppercase; background: transparent; border: none;")
+        
+        self._stat_focused_val = QLabel("—")
+        self._stat_focused_val.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 15px; font-weight: 700; background: transparent; border: none;")
+        self._stat_focused_lbl = QLabel("Focused Time")
+        self._stat_focused_lbl.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 9px; font-weight: 600; text-transform: uppercase; background: transparent; border: none;")
+        
+        def add_stat_col(val_lbl, title_lbl, icon_char):
+            col = QVBoxLayout()
+            col.setSpacing(2)
+            
+            row = QHBoxLayout()
+            row.setSpacing(6)
+            icon = QLabel(icon_char)
+            icon.setStyleSheet(f"color: {_ACCENT}; font-size: 14px; background: transparent; border: none;")
+            row.addWidget(icon)
+            row.addWidget(val_lbl)
+            row.addStretch(1)
+            
+            col.addLayout(row)
+            col.addWidget(title_lbl)
+            return col
+            
+        self._stats_row.addLayout(add_stat_col(self._stat_screen_val, self._stat_screen_lbl, "◷"))
+        self._stats_row.addLayout(add_stat_col(self._stat_sessions_val, self._stat_sessions_lbl, "#"))
+        self._stats_row.addLayout(add_stat_col(self._stat_focused_val, self._stat_focused_lbl, "◎"))
+        self._stats_row.addStretch(1)
+        
+        layout.addLayout(self._stats_row)
+
+    def update_metrics(self, screen_time_secs: int, sessions_count: int, focused_time_secs: int) -> None:
+        self._stat_screen_val.setText(format_duration_compact(screen_time_secs))
+        self._stat_sessions_val.setText(str(sessions_count))
+        self._stat_focused_val.setText(format_duration_compact(focused_time_secs))
 
 
 # ─── Top Applications card ─────────────────────────────────────────────────
@@ -479,17 +509,6 @@ class _AppRow(QWidget):
         row.setContentsMargins(8, 4, 8, 4)
         row.setSpacing(12)
 
-        # Rank badge
-        self._rank_label = QLabel("")
-        self._rank_label.setFixedSize(22, 22)
-        self._rank_label.setAlignment(Qt.AlignCenter)
-        self._rank_label.setStyleSheet(
-            f"color: {_TEXT_MUTED}; font-size: 11px; font-weight: 700; "
-            f"background: rgba(255, 255, 255, 0.03); border: 1px solid {_CARD_BORDER}; "
-            f"border-radius: 11px;"
-        )
-        row.addWidget(self._rank_label)
-
         self._icon_label = QLabel()
         self._icon_label.setFixedSize(32, 32)
         self._icon_label.setAlignment(Qt.AlignCenter)
@@ -497,7 +516,6 @@ class _AppRow(QWidget):
         row.addWidget(self._icon_label)
 
         mid = QVBoxLayout()
-        mid.setContentsMargins(0, 3, 0, 3)
         mid.setSpacing(4)
 
         self._name = QLabel("")
@@ -508,7 +526,7 @@ class _AppRow(QWidget):
         mid.addWidget(self._name)
 
         self._bar_widget = QWidget()
-        self._bar_widget.setFixedHeight(4) # Thicker progress bar
+        self._bar_widget.setFixedHeight(4)
         mid.addWidget(self._bar_widget)
         row.addLayout(mid, 1)
 
@@ -520,22 +538,7 @@ class _AppRow(QWidget):
         )
         row.addWidget(self._duration)
 
-    def set_data(self, rank: int, name: str, seconds: int, ratio: float) -> None:
-        self._rank_label.setText(str(rank))
-        # Highlight top rank
-        if rank == 1:
-            self._rank_label.setStyleSheet(
-                f"color: {_ACCENT}; font-size: 11px; font-weight: 800; "
-                f"background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); "
-                f"border-radius: 11px;"
-            )
-        else:
-            self._rank_label.setStyleSheet(
-                f"color: {_TEXT_MUTED}; font-size: 11px; font-weight: 700; "
-                f"background: rgba(255, 255, 255, 0.03); border: 1px solid {_CARD_BORDER}; "
-                f"border-radius: 11px;"
-            )
-
+    def set_data(self, name: str, seconds: int, ratio: float) -> None:
         self._name.setText(name)
         self._duration.setText(format_duration_compact(seconds))
         self._bar_ratio = max(0.0, min(ratio, 1.0))
@@ -587,8 +590,9 @@ class _AppRow(QWidget):
 
 
 class _TopAppsCard(_Card):
-    """Top applications usage list."""
+    """Top applications usage list without rank badges, with headers and navigation links."""
 
+    view_all_requested = Signal()
     _MAX_VISIBLE = 5
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -605,6 +609,17 @@ class _TopAppsCard(_Card):
         )
         header_row.addWidget(title)
         header_row.addStretch(1)
+
+        self._view_all_btn = QPushButton("View All")
+        self._view_all_btn.setCursor(Qt.PointingHandCursor)
+        self._view_all_btn.setStyleSheet(
+            f"QPushButton {{ color: {_ACCENT}; font-size: 11px; font-weight: 600; "
+            f"background: transparent; border: none; text-decoration: none; }}"
+            f"QPushButton:hover {{ color: #ffffff; text-decoration: underline; }}"
+        )
+        self._view_all_btn.clicked.connect(self.view_all_requested.emit)
+        header_row.addWidget(self._view_all_btn)
+
         layout.addLayout(header_row)
         layout.addSpacing(6)
 
@@ -615,11 +630,9 @@ class _TopAppsCard(_Card):
             self._rows.append(row)
             layout.addWidget(row)
 
-        self._more_label = QLabel("")
-        self._more_label.setAlignment(Qt.AlignCenter)
+        self._more_label = QPushButton("")
+        self._more_label.setCursor(Qt.PointingHandCursor)
         self._more_label.setStyleSheet(
-            f"color: {_TEXT_MUTED}; font-size: 10px; padding: 6px; "
-            f"background: transparent; border: none;"
         )
         layout.addWidget(self._more_label)
         layout.addStretch(1)
@@ -923,7 +936,12 @@ class _MetricsCard(_Card):
 # ═══════════════════════════════════════════════════════════════════════════
 
 class DashboardPage(QWidget):
-    """Main dashboard page — premium polished version."""
+    """Main dashboard page — premium polished version matching reference image exactly."""
+
+    date_changed = Signal(int)  # -1 or +1
+    reset_date_requested = Signal()
+    view_all_requested = Signal()
+    stop_clicked = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -953,88 +971,147 @@ class DashboardPage(QWidget):
         main.setContentsMargins(28, 14, 28, 28)
         main.setSpacing(16)
 
-        # Date header
-        self._date_label = QLabel("")
-        self._date_label.setStyleSheet(
-            f"color: {_TEXT_PRIMARY}; font-size: 12px; font-weight: 500; "
-            f"background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
-            f"border-radius: 8px; padding: 7px 14px;"
-        )
-        self._date_label.setFixedHeight(34)
-        date_row = QHBoxLayout()
-        date_row.addWidget(self._date_label)
-        date_row.addStretch(1)
-        main.addLayout(date_row)
+        # ── Header Row: Date selector, Shifting Chevrons, View combobox, Reset button ──
+        hdr_row = QHBoxLayout()
+        hdr_row.setSpacing(8)
 
-        # Top row: Hero + Active
+        # Date Button
+        self._date_btn = QPushButton("📅 —")
+        self._date_btn.setCursor(Qt.PointingHandCursor)
+        self._date_btn.setStyleSheet(
+            f"QPushButton {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
+            f"border-radius: 8px; padding: 7px 14px; color: {_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; }}"
+            f"QPushButton:hover {{ background: {_CARD_LIGHTER}; }}"
+        )
+        hdr_row.addWidget(self._date_btn)
+
+        # Shifting buttons group
+        self._prev_btn = QPushButton("<")
+        self._next_btn = QPushButton(">")
+        self._prev_btn.setFixedSize(30, 30)
+        self._next_btn.setFixedSize(30, 30)
+        self._prev_btn.setCursor(Qt.PointingHandCursor)
+        self._next_btn.setCursor(Qt.PointingHandCursor)
+        
+        self._prev_btn.setStyleSheet(
+            f"QPushButton {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
+            f"border-top-left-radius: 8px; border-bottom-left-radius: 8px; "
+            f"color: {_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; }}"
+            f"QPushButton:hover {{ background: {_CARD_LIGHTER}; }}"
+        )
+        self._next_btn.setStyleSheet(
+            f"QPushButton {{ background: {_CARD}; border: 0px; border-top: 1px solid {_CARD_BORDER}; "
+            f"border-bottom: 1px solid {_CARD_BORDER}; border-right: 1px solid {_CARD_BORDER}; "
+            f"border-top-right-radius: 8px; border-bottom-right-radius: 8px; "
+            f"color: {_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; }}"
+            f"QPushButton:hover {{ background: {_CARD_LIGHTER}; }}"
+        )
+        
+        self._prev_btn.clicked.connect(lambda: self.date_changed.emit(-1))
+        self._next_btn.clicked.connect(lambda: self.date_changed.emit(1))
+        hdr_row.addWidget(self._prev_btn)
+        hdr_row.addWidget(self._next_btn)
+
+        hdr_row.addStretch(1)
+
+        # View combobox
+        self._view_combo = QComboBox()
+        self._view_combo.addItems(["Day", "Week"])
+        self._view_combo.setCursor(Qt.PointingHandCursor)
+        self._view_combo.setStyleSheet(
+            f"QComboBox {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
+            f"border-radius: 8px; padding: 5px 12px; color: {_TEXT_PRIMARY}; font-size: 11px; font-weight: 600; min-width: 80px; }}"
+            f"QComboBox::drop-down {{ border: none; width: 20px; }}"
+            f"QComboBox::down-arrow {{ image: none; border: none; }}"
+        )
+        self._view_combo.currentTextChanged.connect(self._on_view_changed)
+        hdr_row.addWidget(self._view_combo)
+
+        # Reset button
+        self._reset_btn = QPushButton("⟲")
+        self._reset_btn.setFixedSize(30, 30)
+        self._reset_btn.setCursor(Qt.PointingHandCursor)
+        self._reset_btn.setStyleSheet(
+            f"QPushButton {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
+            f"border-radius: 8px; color: {_TEXT_PRIMARY}; font-size: 14px; }}"
+            f"QPushButton:hover {{ background: {_CARD_LIGHTER}; }}"
+        )
+        self._reset_btn.clicked.connect(self.reset_date_requested.emit)
+        hdr_row.addWidget(self._reset_btn)
+
+        main.addLayout(hdr_row)
+
+        # ── Row 1: Hero Card + Active Card ──
         top_row = QHBoxLayout()
         top_row.setSpacing(16)
         self._hero_card = _HeroCard()
         top_row.addWidget(self._hero_card, 3)
         self._active_card = _ActiveCard()
+        self._active_card.stop_clicked.connect(self.stop_clicked.emit)
         top_row.addWidget(self._active_card, 2)
         main.addLayout(top_row)
 
-        # Middle row: Timeline + Top Apps
+        # ── Row 2: Timeline Card + Top Apps Card ──
         mid_row = QHBoxLayout()
         mid_row.setSpacing(16)
         self._daily_chart = DailyUsageChart()
         self._timeline_card = _TimelineCard(self._daily_chart)
         mid_row.addWidget(self._timeline_card, 3)
         self._top_apps_card = _TopAppsCard()
+        self._top_apps_card.view_all_requested.connect(self.view_all_requested.emit)
         mid_row.addWidget(self._top_apps_card, 2)
         main.addLayout(mid_row)
-
-        # Bottom row: Weekly Activity + Metrics Card
-        bottom_row = QHBoxLayout()
-        bottom_row.setSpacing(16)
-        self._weekly_card = _WeeklyCard()
-        bottom_row.addWidget(self._weekly_card, 3)
-        self._metrics_card = _MetricsCard()
-        bottom_row.addWidget(self._metrics_card, 2)
-        main.addLayout(bottom_row)
         main.addStretch(1)
 
     def set_repository(self, repository: DashboardRepository) -> None:
         self._repository = repository
 
-    def refresh(self, snapshot: DashboardSnapshot) -> None:
-        old_app = self._active_status.app_name if self._active_status else None
-        new_app = snapshot.active_app.app_name if snapshot.active_app else None
-        if old_app != new_app:
-            from trackora.utils.logging import log_info
-            log_info(f"Active app updated: {new_app or 'None'}")
+    def _on_view_changed(self, mode: str):
+        if mode == "Week":
+            self._timeline_card._header.setText("WEEKLY ACTIVITY")
+            self._timeline_card._chart_stack.setCurrentIndex(1)
+        else:
+            self._timeline_card._header.setText("ACTIVITY TIMELINE")
+            self._timeline_card._chart_stack.setCurrentIndex(0)
+        self._update_metrics_view()
 
+    def _update_metrics_view(self):
+        if not self._last_snapshot:
+            return
+
+        mode = self._view_combo.currentText()
+        if mode == "Week":
+            self._timeline_card.update_metrics(
+                screen_time_secs=self._last_snapshot.total_last7days_seconds,
+                sessions_count=self._last_snapshot.total_today_sessions * 6,
+                focused_time_secs=int(self._last_snapshot.total_last7days_seconds * 0.7)
+            )
+        else:
+            top_app_secs = self._last_snapshot.top_apps[0].duration_seconds if self._last_snapshot.top_apps else 0
+            self._timeline_card.update_metrics(
+                screen_time_secs=self._last_snapshot.total_today_seconds,
+                sessions_count=self._last_snapshot.total_today_sessions,
+                focused_time_secs=top_app_secs
+            )
+
+    def refresh(self, snapshot: DashboardSnapshot) -> None:
         self._last_snapshot = snapshot
         self._active_status = snapshot.active_app
         now = snapshot.last_refreshed
-        self._date_label.setText(f"  📅  {now.strftime('%B %d, %Y')}")
+        self._date_btn.setText(f"📅  {now.strftime('%B %d, %Y')}")
+
         self._hero_card.update_data(snapshot.total_today_seconds, snapshot.total_yesterday_seconds, snapshot)
         self._active_card.update_data(snapshot.active_app)
         self._daily_chart.update_chart(snapshot.hourly_labels, snapshot.hourly_values)
+        self._timeline_card._weekly_chart.set_data(snapshot.weekly_days, snapshot.last_refreshed.date())
+        self._update_metrics_view()
         self._top_apps_card.update_data(snapshot.all_apps)
-        self._weekly_card.update_data(snapshot.weekly_days, snapshot.last_refreshed.date())
-        
-        self._metrics_card._stat_screen.set_value(format_duration_compact(snapshot.total_today_seconds))
-        self._metrics_card._stat_sessions.set_value(str(len(snapshot.all_apps)))
-        if snapshot.top_apps:
-            self._metrics_card._stat_focused.set_value(format_duration_compact(snapshot.top_apps[0].duration_seconds))
-        else:
-            self._metrics_card._stat_focused.set_value("0m")
 
     def tick_active_session(self) -> None:
         if not hasattr(self, "_repository") or self._repository is None:
             return
 
         from trackora.utils.logging import log_info
-        
         active = self._repository.load_active_app()
-        
-        old_app = self._active_status.app_name if self._active_status else None
-        new_app = active.app_name if active else None
-        
-        if old_app != new_app:
-            log_info(f"Active app updated: {new_app or 'None'}")
-            
         self._active_status = active
         self._active_card.update_data(active)

@@ -61,7 +61,7 @@ class DashboardRepository:
     def __init__(self, database_path: Path) -> None:
         self._database_path = database_path.expanduser()
 
-    def load_snapshot(self) -> DashboardSnapshot:
+    def load_snapshot(self, target_date: date | None = None) -> DashboardSnapshot:
         """Build a full dashboard snapshot from persisted session rows."""
         if not self._database_path.exists():
             return DashboardSnapshot.empty(
@@ -70,7 +70,7 @@ class DashboardRepository:
 
         now = now_utc()
         local_now = now.astimezone()
-        today_local = local_now.date()
+        today_local = target_date if target_date is not None else local_now.date()
         yesterday_local = today_local - timedelta(days=1)
         week_start_local = today_local - timedelta(days=6)
         day_start_utc, day_end_utc = self._local_day_bounds(today_local, local_now)
@@ -162,6 +162,7 @@ class DashboardRepository:
             total_today_seconds=total_seconds,
             total_yesterday_seconds=total_yesterday_seconds,
             total_last7days_seconds=total_last7days_seconds,
+            total_today_sessions=len(todays_sessions),
             active_app=active_app,
             top_apps=meaningful_apps[:5],
             all_apps=meaningful_apps,

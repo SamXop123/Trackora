@@ -73,6 +73,7 @@ class DashboardSnapshot:
     total_today_seconds: int
     total_yesterday_seconds: int
     total_last7days_seconds: int
+    total_today_sessions: int
     active_app: ActiveAppStatus | None
     top_apps: list[AppUsageSummary]
     all_apps: list[AppUsageSummary]
@@ -90,6 +91,7 @@ class DashboardSnapshot:
             total_today_seconds=0,
             total_yesterday_seconds=0,
             total_last7days_seconds=0,
+            total_today_sessions=0,
             active_app=None,
             top_apps=[],
             all_apps=[],
