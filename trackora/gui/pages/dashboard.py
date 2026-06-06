@@ -633,7 +633,11 @@ class _TopAppsCard(_Card):
         self._more_label = QPushButton("")
         self._more_label.setCursor(Qt.PointingHandCursor)
         self._more_label.setStyleSheet(
+            f"QPushButton {{ color: {_TEXT_SECONDARY}; font-size: 11px; font-weight: 500; "
+            f"background: transparent; border: none; padding: 6px; }}"
+            f"QPushButton:hover {{ color: #ffffff; text-decoration: underline; }}"
         )
+        self._more_label.clicked.connect(self.view_all_requested.emit)
         layout.addWidget(self._more_label)
         layout.addStretch(1)
 
@@ -642,12 +646,12 @@ class _TopAppsCard(_Card):
         for i, row in enumerate(self._rows):
             if i < len(apps):
                 ratio = apps[i].duration_seconds / max(max_secs, 1)
-                row.set_data(i + 1, apps[i].app_name, apps[i].duration_seconds, ratio)
+                row.set_data(apps[i].app_name, apps[i].duration_seconds, ratio)
                 row.setVisible(True)
             else:
                 row.setVisible(False)
         extra = len(apps) - self._MAX_VISIBLE
-        self._more_label.setText(f"+ {extra} more applications" if extra > 0 else "")
+        self._more_label.setText(f"Show more ∨" if extra > 0 else "")
 
 
 # ─── Weekly Activity chart (custom-painted) ────────────────────────────────
