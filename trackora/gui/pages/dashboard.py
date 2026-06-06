@@ -295,11 +295,11 @@ class _ActiveCard(_Card):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setMinimumHeight(190)
+        self.setFixedHeight(150)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 24, 28, 20)
-        layout.setSpacing(10)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(8)
 
         # Header row
         hdr_lo = QHBoxLayout()
@@ -312,7 +312,7 @@ class _ActiveCard(_Card):
         hdr_lo.addStretch(1)
         layout.addLayout(hdr_lo)
 
-        # Main body row: Icon, text info, and stop button
+        # Main body row: Icon and text info
         body_row = QHBoxLayout()
         body_row.setSpacing(14)
 
@@ -341,11 +341,6 @@ class _ActiveCard(_Card):
         )
         v_info.addWidget(self._elapsed_label)
         body_row.addLayout(v_info, 1)
-
-        # Stop button
-        self._stop_btn = _StopButton()
-        self._stop_btn.clicked.connect(self.stop_clicked.emit)
-        body_row.addWidget(self._stop_btn)
         layout.addLayout(body_row)
 
         # Category badge row (below body_row)
@@ -359,7 +354,6 @@ class _ActiveCard(_Card):
         badge_row.addWidget(self._category_badge)
         badge_row.addStretch(1)
         layout.addLayout(badge_row)
-        layout.addStretch(1)
 
     def _set_icon(self, app_name: str) -> None:
         pixmap = _get_app_icon(app_name, 38)
@@ -506,7 +500,7 @@ class _AppRow(QWidget):
         self._bar_ratio = 0.0
 
         row = QHBoxLayout(self)
-        row.setContentsMargins(8, 4, 8, 4)
+        row.setContentsMargins(12, 6, 12, 6)
         row.setSpacing(12)
 
         self._icon_label = QLabel()
@@ -516,7 +510,8 @@ class _AppRow(QWidget):
         row.addWidget(self._icon_label)
 
         mid = QVBoxLayout()
-        mid.setSpacing(4)
+        mid.setSpacing(2)
+        mid.setContentsMargins(0, 0, 0, 8)  # Leave space for the custom painted progress bar below the text
 
         self._name = QLabel("")
         self._name.setStyleSheet(
@@ -524,13 +519,10 @@ class _AppRow(QWidget):
             f"background: transparent; border: none;"
         )
         mid.addWidget(self._name)
-
-        self._bar_widget = QWidget()
-        self._bar_widget.setFixedHeight(4)
-        mid.addWidget(self._bar_widget)
         row.addLayout(mid, 1)
 
         self._duration = QLabel("")
+        self._duration.setFixedWidth(70)
         self._duration.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self._duration.setStyleSheet(
             f"color: {_TEXT_SECONDARY}; font-size: 12px; font-weight: 500; "
@@ -571,21 +563,25 @@ class _AppRow(QWidget):
             painter.setPen(Qt.NoPen)
             painter.drawRoundedRect(QRectF(0, 0, self.width(), self.height()), 8, 8)
 
-        # Progress bar
-        bw = self._bar_widget
-        if bw.width() > 1:
-            pos = bw.mapTo(self, bw.rect().topLeft())
-            x, y, w, h = pos.x(), pos.y(), bw.width(), bw.height()
-            painter.setBrush(QBrush(QColor(_CARD_BORDER)))
-            painter.setPen(Qt.NoPen)
-            painter.drawRoundedRect(QRectF(x, y, w, h), 2.0, 2.0)
-            fill_w = w * self._bar_ratio
-            if fill_w > 0:
-                grad = QLinearGradient(x, y, x + fill_w, y)
-                grad.setColorAt(0, QColor("#2563eb"))
-                grad.setColorAt(1, QColor("#60a5fa"))
-                painter.setBrush(QBrush(grad))
-                painter.drawRoundedRect(QRectF(x, y, fill_w, h), 2.0, 2.0)
+        # Custom progress bar: starts aligned with name text (x=56)
+        x = 56
+        y = 33
+        w = max(10, self.width() - x - 90)
+        h = 5
+
+        # Draw empty track
+        painter.setBrush(QBrush(QColor(_CARD_BORDER)))
+        painter.setPen(Qt.NoPen)
+        painter.drawRoundedRect(QRectF(x, y, w, h), 2.5, 2.5)
+
+        # Draw filled part
+        fill_w = w * self._bar_ratio
+        if fill_w > 0:
+            grad = QLinearGradient(x, y, x + fill_w, y)
+            grad.setColorAt(0, QColor("#2563eb"))
+            grad.setColorAt(1, QColor("#60a5fa"))
+            painter.setBrush(QBrush(grad))
+            painter.drawRoundedRect(QRectF(x, y, fill_w, h), 2.5, 2.5)
         painter.end()
 
 
@@ -630,28 +626,43 @@ class _TopAppsCard(_Card):
             self._rows.append(row)
             layout.addWidget(row)
 
-        self._more_label = QPushButton("")
-        self._more_label.setCursor(Qt.PointingHandCursor)
-        self._more_label.setStyleSheet(
-            f"QPushButton {{ color: {_TEXT_SECONDARY}; font-size: 11px; font-weight: 500; "
-            f"background: transparent; border: none; padding: 6px; }}"
-            f"QPushButton:hover {{ color: #ffffff; text-decoration: underline; }}"
+        layout.addSpacing(8)
+
+        # Centered capsule "Show More" button container
+        self._more_container = QWidget()
+        self._more_container.setStyleSheet("background: transparent; border: none;")
+        more_layout = QHBoxLayout(self._more_container)
+        more_layout.setContentsMargins(0, 0, 0, 0)
+        more_layout.setSpacing(0)
+        more_layout.addStretch(1)
+
+        self._more_btn = QPushButton("Show More ∨")
+        self._more_btn.setCursor(Qt.PointingHandCursor)
+        self._more_btn.setStyleSheet(
+            f"QPushButton {{ color: {_TEXT_SECONDARY}; font-size: 11px; font-weight: 600; "
+            f"background: {_CARD_LIGHTER}; border: 1px solid {_CARD_BORDER}; "
+            f"border-radius: 12px; padding: 5px 16px; }}"
+            f"QPushButton:hover {{ color: #ffffff; background: rgba(255, 255, 255, 0.08); "
+            f"border-color: rgba(59, 130, 246, 0.4); }}"
         )
-        self._more_label.clicked.connect(self.view_all_requested.emit)
-        layout.addWidget(self._more_label)
+        self._more_btn.clicked.connect(self.view_all_requested.emit)
+        more_layout.addWidget(self._more_btn)
+        more_layout.addStretch(1)
+
+        layout.addWidget(self._more_container)
         layout.addStretch(1)
 
     def update_data(self, apps: list[AppUsageSummary]) -> None:
-        max_secs = apps[0].duration_seconds if apps else 1
+        total_secs = sum(app.duration_seconds for app in apps)
         for i, row in enumerate(self._rows):
             if i < len(apps):
-                ratio = apps[i].duration_seconds / max(max_secs, 1)
+                ratio = apps[i].duration_seconds / max(total_secs, 1)
                 row.set_data(apps[i].app_name, apps[i].duration_seconds, ratio)
                 row.setVisible(True)
             else:
                 row.setVisible(False)
         extra = len(apps) - self._MAX_VISIBLE
-        self._more_label.setText(f"Show more ∨" if extra > 0 else "")
+        self._more_container.setVisible(extra > 0)
 
 
 # ─── Weekly Activity chart (custom-painted) ────────────────────────────────
