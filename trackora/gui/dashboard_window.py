@@ -93,10 +93,10 @@ class _NavButton(QWidget):
             text_c, icon_c = _TEXT_SECONDARY, _TEXT_MUTED
 
         self._icon.setStyleSheet(
-            f"color: {icon_c}; font-size: 18px; background: transparent; border: none;"
+            f"color: {icon_c}; font-size: 20px; background: transparent; border: none;"
         )
         self._label.setStyleSheet(
-            f"color: {text_c}; font-size: 14px; font-weight: 500; "
+            f"color: {text_c}; font-size: 12px; font-weight: 500; "
             f"background: transparent; border: none;"
         )
 
@@ -214,6 +214,7 @@ class _Sidebar(QWidget):
         super().__init__(parent)
         self.setFixedWidth(185)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(
             f"background: {_SIDEBAR_BG}; border-right: 1px solid {_SIDEBAR_BORDER};"
         )
