@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
+
+# Scale the UI up by 40% for better legibility on high-DPI screens
+os.environ["QT_SCALE_FACTOR"] = "1.4"
 
 from PySide6.QtWidgets import QApplication
 
