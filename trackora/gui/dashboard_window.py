@@ -77,12 +77,15 @@ class _NavButton(QWidget):
     def _apply_style(self):
         if self._active:
             bg, text_c, icon_c = _NAV_ACTIVE_BG, _TEXT_PRIMARY, _ACCENT
+            border_css = f"border: 1px solid rgba(59, 130, 246, 0.15);"
         elif self._hovered:
             bg, text_c, icon_c = _NAV_HOVER_BG, _TEXT_PRIMARY, _TEXT_SECONDARY
+            border_css = f"border: 1px solid rgba(139, 155, 180, 0.05);"
         else:
             bg, text_c, icon_c = "transparent", _TEXT_SECONDARY, _TEXT_MUTED
+            border_css = "border: 1px solid transparent;"
 
-        self.setStyleSheet(f"background: {bg}; border-radius: 9px;")
+        self.setStyleSheet(f"background: {bg}; border-radius: 6px; {border_css}")
         self._icon.setStyleSheet(
             f"color: {icon_c}; font-size: 14px; background: transparent; border: none;"
         )
@@ -98,7 +101,7 @@ class _NavButton(QWidget):
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             painter.setBrush(QBrush(QColor(_ACCENT)))
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(QRectF(2, 10, 3, self.height() - 20), 1.5, 1.5)
+            painter.drawRoundedRect(QRectF(3, 10, 3, self.height() - 20), 1.5, 1.5)
             painter.end()
 
     def enterEvent(self, event):
@@ -129,15 +132,21 @@ class _Sidebar(QWidget):
         layout.setSpacing(3)
 
         # Branding
+        brand_container = QWidget()
+        brand_container.setStyleSheet("background: transparent;")
+        brand_container_layout = QVBoxLayout(brand_container)
+        brand_container_layout.setContentsMargins(8, 0, 8, 12)
+        brand_container_layout.setSpacing(0)
+
         brand_row = QHBoxLayout()
-        brand_row.setSpacing(8)
-        brand_row.setContentsMargins(8, 0, 0, 0)
+        brand_row.setSpacing(10)
+        brand_row.setContentsMargins(0, 0, 0, 0)
 
         brand_icon = QLabel()
         logo_path = Path(__file__).resolve().parents[2] / "assets" / "trackora_logo.png"
         if logo_path.exists():
             px = QPixmap(str(logo_path))
-            brand_icon.setPixmap(px.scaled(24, 24, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            brand_icon.setPixmap(px.scaled(26, 26, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         else:
             brand_icon.setText("◉")
             brand_icon.setStyleSheet(
@@ -147,13 +156,22 @@ class _Sidebar(QWidget):
 
         brand_text = QLabel("Trackora")
         brand_text.setStyleSheet(
-            f"color: {_TEXT_PRIMARY}; font-size: 15px; font-weight: 700; "
-            f"background: transparent; border: none;"
+            f"color: {_TEXT_PRIMARY}; font-size: 16px; font-weight: 800; "
+            f"letter-spacing: 0.05em; background: transparent; border: none;"
         )
         brand_row.addWidget(brand_text)
         brand_row.addStretch(1)
-        layout.addLayout(brand_row)
-        layout.addSpacing(22)
+        brand_container_layout.addLayout(brand_row)
+
+        divider = QFrame()
+        divider.setFrameShape(QFrame.Shape.HLine)
+        divider.setFrameShadow(QFrame.Shadow.Plain)
+        divider.setFixedHeight(1)
+        divider.setStyleSheet(f"background-color: {_SIDEBAR_BORDER}; border: none; margin-top: 12px;")
+        brand_container_layout.addWidget(divider)
+
+        layout.addWidget(brand_container)
+        layout.addSpacing(12)
 
         # Nav items
         self._buttons: list[_NavButton] = []
@@ -166,25 +184,32 @@ class _Sidebar(QWidget):
 
         # Quote
         quote_frame = QWidget()
-        quote_frame.setStyleSheet("background: transparent; border: none;")
+        quote_frame.setObjectName("quoteFrame")
+        quote_frame.setStyleSheet(
+            f"QWidget#quoteFrame {{ "
+            f"  background: rgba(255, 255, 255, 0.015); "
+            f"  border: 1px solid {_SIDEBAR_BORDER}; "
+            f"  border-radius: 8px; "
+            f"}}"
+        )
         ql = QVBoxLayout(quote_frame)
-        ql.setContentsMargins(10, 0, 10, 0)
-        ql.setSpacing(5)
+        ql.setContentsMargins(12, 10, 12, 12)
+        ql.setSpacing(6)
 
         qm = QLabel("❝")
         qm.setStyleSheet(
-            f"color: {_ACCENT}; font-size: 20px; background: transparent; border: none;"
+            f"color: {_ACCENT}; font-size: 18px; font-weight: bold; background: transparent; border: none; line-height: 1;"
         )
         ql.addWidget(qm)
 
         qt = QLabel("Focus is the\nfoundation of\nmeaningful progress.")
         qt.setWordWrap(True)
         qt.setStyleSheet(
-            f"color: {_TEXT_MUTED}; font-size: 10px; background: transparent; border: none;"
+            f"color: {_TEXT_MUTED}; font-size: 10px; font-style: italic; background: transparent; border: none; line-height: 1.3;"
         )
         ql.addWidget(qt)
         layout.addWidget(quote_frame)
-        layout.addSpacing(10)
+        layout.addSpacing(12)
 
         # Settings
         settings_btn = _NavButton("Settings", "⚙", len(_NAV_ITEMS), navigate_callback)
