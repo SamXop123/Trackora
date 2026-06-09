@@ -322,11 +322,7 @@ class SettingsPage(QWidget):
         clo.setContentsMargins(24, 16, 24, 16)
         clo.setSpacing(8)
         
-        clo.addWidget(_ControlRow("Launch on Login", 
-            _create_switch(settings_manager.get("launch_on_login"), lambda c: settings_manager.set("launch_on_login", c)),
-            "Automatically start tracking when you log into your desktop."
-        ))
-        self._add_separator(clo)
+        # 'Launch on Login' removed: automatic startup is no longer supported.
         
         clo.addWidget(_ControlRow("Start Minimized", 
             _create_switch(settings_manager.get("start_minimized"), lambda c: settings_manager.set("start_minimized", c)),
