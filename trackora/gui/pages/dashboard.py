@@ -5,12 +5,12 @@ from __future__ import annotations
 import math
 from datetime import date, datetime
 
-from PySide6.QtCore import (Qt, QRectF, QSize, Signal)
+from PySide6.QtCore import Qt, QRectF, QSize, Signal
 
 from PySide6.QtGui import (QBrush, QColor, QFont, QIcon, QLinearGradient,
                            QPainter, QPainterPath, QPen, QPixmap, QRadialGradient)
 
-from PySide6.QtWidgets import (QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel,
+from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel,
                            QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
                            QStackedWidget, QComboBox, QPushButton)
 
@@ -76,12 +76,8 @@ def _get_app_icon(app_name: str, size: int = 24) -> QPixmap | None:
 
 
 def _add_shadow(widget: QWidget, blur: int = 24, opacity: int = 40, dy: int = 4):
-    """Attach a soft drop shadow to a widget for depth layering."""
-    shadow = QGraphicsDropShadowEffect(widget)
-    shadow.setBlurRadius(blur)
-    shadow.setColor(QColor(0, 0, 0, opacity))
-    shadow.setOffset(0, dy)
-    widget.setGraphicsEffect(shadow)
+    """No-op shadow helper for stable painting."""
+    return None
 
 
 # ─── Base card ──────────────────────────────────────────────────────────────
@@ -96,7 +92,7 @@ class _Card(QFrame):
         self._base_bg = _CARD
         self._hovered = False
         self.setStyleSheet(self._card_css(_CARD))
-        _add_shadow(self, blur=20, opacity=35, dy=3)
+        self._shadow = None
 
     def _card_css(self, bg: str) -> str:
         return (
@@ -159,11 +155,55 @@ class _HeroCard(_Card):
         self._comparison_label.setStyleSheet(
             f"color: {_TEXT_MUTED}; font-size: 11px; font-weight: 600; "
             f"background: rgba(255, 255, 255, 0.02); border: 1px solid {_CARD_BORDER}; "
-            f"border-radius: 10px; padding: 4px 10px;"
+            f"border-radius: 10px; padding: 6px 12px;"
         )
         trend_row.addWidget(self._comparison_label)
         trend_row.addStretch(1)
         layout.addLayout(trend_row)
+        layout.addSpacing(18)
+
+        stats = QHBoxLayout()
+        stats.setSpacing(14)
+
+        self._focus_card = QFrame()
+        self._focus_card.setStyleSheet(
+            f"QFrame {{ background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.15); border-radius: 14px; }}"
+        )
+        focus_layout = QVBoxLayout(self._focus_card)
+        focus_layout.setContentsMargins(16, 12, 16, 12)
+        focus_layout.setSpacing(4)
+        self._focus_value = QLabel("0m")
+        self._focus_value.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 20px; font-weight: 700; background: transparent; border: none;"
+        )
+        focus_layout.addWidget(self._focus_value)
+        focus_label = QLabel("Top App")
+        focus_label.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 600; background: transparent; border: none;"
+        )
+        focus_layout.addWidget(focus_label)
+        stats.addWidget(self._focus_card, 1)
+
+        self._sessions_card = QFrame()
+        self._sessions_card.setStyleSheet(
+            f"QFrame {{ background: rgba(255, 255, 255, 0.015); border: 1px solid {_CARD_BORDER}; border-radius: 14px; }}"
+        )
+        sess_layout = QVBoxLayout(self._sessions_card)
+        sess_layout.setContentsMargins(16, 12, 16, 12)
+        sess_layout.setSpacing(4)
+        self._sessions_value = QLabel("0")
+        self._sessions_value.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 20px; font-weight: 700; background: transparent; border: none;"
+        )
+        sess_layout.addWidget(self._sessions_value)
+        sess_label = QLabel("Sessions Today")
+        sess_label.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 600; background: transparent; border: none;"
+        )
+        sess_layout.addWidget(sess_label)
+        stats.addWidget(self._sessions_card, 1)
+
+        layout.addLayout(stats)
         layout.addStretch(1)
 
     def paintEvent(self, event):
@@ -203,7 +243,21 @@ class _HeroCard(_Card):
         self._today_secs = today_secs
         self._time_label.setText(format_duration_compact(today_secs))
 
-        if yesterday_secs > 0:
+        sessions = snapshot.total_today_sessions if snapshot else 0
+        self._sessions_value.setText(str(sessions))
+
+        top_app_secs = snapshot.top_apps[0].duration_seconds if snapshot and snapshot.top_apps else 0
+        self._focus_value.setText(format_duration_compact(top_app_secs))
+
+        if snapshot and snapshot.top_apps:
+            top_app_name = snapshot.top_apps[0].app_name
+            self._comparison_label.setText(f"Top app: {top_app_name}")
+            self._comparison_label.setStyleSheet(
+                f"color: {_ACCENT}; font-size: 11px; font-weight: 600; "
+                f"background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.15); "
+                f"border-radius: 10px; padding: 6px 12px;"
+            )
+        elif yesterday_secs > 0:
             diff = ((today_secs - yesterday_secs) / yesterday_secs) * 100
             sign = "+" if diff >= 0 else ""
             if diff <= 0:
@@ -432,6 +486,13 @@ class _TimelineCard(_Card):
             f"letter-spacing: 0.12em; background: transparent; border: none;"
         )
         layout.addWidget(self._header)
+
+        subheader = QLabel("A clear view of screen pressure and focus rhythms")
+        subheader.setStyleSheet(
+            f"color: {_TEXT_SECONDARY}; font-size: 11px; font-weight: 500; "
+            f"background: transparent; border: none;"
+        )
+        layout.addWidget(subheader)
         
         # Chart Stack
         self._chart_stack = QStackedWidget()
@@ -603,10 +664,10 @@ class _TopAppsCard(_Card):
         layout.setSpacing(2)
 
         header_row = QHBoxLayout()
-        title = QLabel("TOP APPLICATIONS")
+        title = QLabel("Top Applications")
         title.setStyleSheet(
-            f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 700; "
-            f"letter-spacing: 0.12em; background: transparent; border: none;"
+            f"color: {_TEXT_PRIMARY}; font-size: 14px; font-weight: 700; "
+            f"background: transparent; border: none;"
         )
         header_row.addWidget(title)
         header_row.addStretch(1)
@@ -622,7 +683,14 @@ class _TopAppsCard(_Card):
         header_row.addWidget(self._view_all_btn)
 
         layout.addLayout(header_row)
-        layout.addSpacing(6)
+
+        self._summary_label = QLabel("Most used apps by time today")
+        self._summary_label.setStyleSheet(
+            f"color: {_TEXT_SECONDARY}; font-size: 11px; font-weight: 500; "
+            f"background: transparent; border: none;"
+        )
+        layout.addWidget(self._summary_label)
+        layout.addSpacing(10)
 
         self._rows: list[_AppRow] = []
         for _ in range(self._MAX_VISIBLE):
@@ -659,6 +727,9 @@ class _TopAppsCard(_Card):
 
     def update_data(self, apps: list[AppUsageSummary]) -> None:
         total_secs = sum(app.duration_seconds for app in apps)
+        self._summary_label.setText(
+            f"{len(apps)} apps tracked today · {format_duration_compact(total_secs)} total"
+        )
         for i, row in enumerate(self._rows):
             if i < len(apps):
                 ratio = apps[i].duration_seconds / max(total_secs, 1)
@@ -1082,6 +1153,9 @@ class DashboardPage(QWidget):
         mid_row.addWidget(self._top_apps_card, 2)
         main.addLayout(mid_row)
         main.addStretch(1)
+
+    def showEvent(self, event):
+        super().showEvent(event)
 
     def set_repository(self, repository: DashboardRepository) -> None:
         self._repository = repository
