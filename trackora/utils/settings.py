@@ -13,7 +13,6 @@ from trackora.utils.paths import trackora_data_dir
 @dataclass
 class SettingsConfig:
     # General
-    launch_on_login: bool = False
     start_minimized: bool = False
     desktop_notifications: bool = True
     minimize_to_tray: bool = True
