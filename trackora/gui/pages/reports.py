@@ -17,6 +17,14 @@ _BG = "#0d1117"; _CARD = "#141a23"; _CARD_LIGHTER = "#171f2a"
 _CARD_BORDER = "#1c2735"; _TEXT_PRIMARY = "#e6edf5"
 _TEXT_SECONDARY = "#8b9bb4"; _TEXT_MUTED = "#566a82"
 _ACCENT = "#3b82f6"; _GREEN = "#34d399"
+_SCALE = 0.80
+
+def _s(px: int) -> int:
+    return max(1, int(px * _SCALE))
+
+
+def _sf(px: int) -> str:
+    return f"{max(1, int(px * _SCALE))}px"
 
 _CATEGORY_SVGS = {
     "Browsers": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -102,18 +110,18 @@ class _Card(QFrame):
 class _StatCard(_Card):
     def __init__(self, title, parent=None):
         super().__init__(parent)
-        self.setFixedHeight(110); self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        lo = QVBoxLayout(self); lo.setContentsMargins(20,16,20,16); lo.setSpacing(4)
+        self.setFixedHeight(_s(110)); self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        lo = QVBoxLayout(self); lo.setContentsMargins(_s(20), _s(16), _s(20), _s(16)); lo.setSpacing(_s(4))
         h = QLabel(title.upper()); h.setStyleSheet(
-            f"color:{_TEXT_MUTED};font-size:9px;font-weight:700;"
+            f"color:{_TEXT_MUTED};font-size:{_sf(9)};font-weight:700;"
             f"letter-spacing:0.12em;background:transparent;border:none;")
         lo.addWidget(h)
         self._val = QLabel("—"); self._val.setStyleSheet(
-            f"color:{_TEXT_PRIMARY};font-size:20px;font-weight:700;"
+            f"color:{_TEXT_PRIMARY};font-size:{_sf(20)};font-weight:700;"
             f"background:transparent;border:none;")
         lo.addWidget(self._val)
         self._sub = QLabel(""); self._sub.setStyleSheet(
-            f"color:{_TEXT_SECONDARY};font-size:11px;background:transparent;border:none;")
+            f"color:{_TEXT_SECONDARY};font-size:{_sf(11)};background:transparent;border:none;")
         lo.addWidget(self._sub)
     def set_val(self, v): self._val.setText(v)
     def set_sub(self, s): self._sub.setText(s)
@@ -122,16 +130,16 @@ class _StatCard(_Card):
 class _FilterBtn(QWidget):
     def __init__(self, text, cb, parent=None):
         super().__init__(parent); self._active = False; self._text = text; self._cb = cb
-        self.setCursor(Qt.CursorShape.PointingHandCursor); self.setFixedHeight(32)
-        lo = QHBoxLayout(self); lo.setContentsMargins(14,0,14,0)
+        self.setCursor(Qt.CursorShape.PointingHandCursor); self.setFixedHeight(_s(32))
+        lo = QHBoxLayout(self); lo.setContentsMargins(_s(14), 0, _s(14), 0)
         self._lbl = QLabel(text); lo.addWidget(self._lbl); self._apply_style()
     def _apply_style(self):
         bg = _ACCENT if self._active else "transparent"
         fg = "#fff" if self._active else _TEXT_SECONDARY
         bd = f"1px solid {_ACCENT}" if self._active else f"1px solid {_CARD_BORDER}"
-        self._lbl.setStyleSheet(f"color:{fg};font-size:12px;font-weight:600;"
+        self._lbl.setStyleSheet(f"color:{fg};font-size:{_sf(12)};font-weight:600;"
             f"background:transparent;border:none;")
-        self.setStyleSheet(f"background:{bg};border:{bd};border-radius:8px;")
+        self.setStyleSheet(f"background:{bg};border:{bd};border-radius:{_s(8)}px;")
     def set_active(self, a): self._active = a; self._apply_style()
     def mousePressEvent(self, e): self._cb(self._text)
 
@@ -139,7 +147,7 @@ class _FilterBtn(QWidget):
 class _TrendChart(QWidget):
     """Daily usage bar chart."""
     def __init__(self, parent=None):
-        super().__init__(parent); self._data = []; self.setMinimumHeight(200)
+        super().__init__(parent); self._data = []; self.setMinimumHeight(_s(200))
     def set_data(self, days: list[DailyUsageSummary]):
         self._data = days; self.update()
     def resizeEvent(self, e):
@@ -269,36 +277,36 @@ class _TrendChart(QWidget):
 
 class _AppTableRow(QWidget):
     def __init__(self, parent=None):
-        super().__init__(parent); self.setFixedHeight(48)
+        super().__init__(parent); self.setFixedHeight(_s(48))
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        lo = QHBoxLayout(self); lo.setContentsMargins(16,0,16,0); lo.setSpacing(12)
-        self._icon = QLabel(); self._icon.setFixedSize(24,24)
+        lo = QHBoxLayout(self); lo.setContentsMargins(_s(16), 0, _s(16), 0); lo.setSpacing(_s(12))
+        self._icon = QLabel(); self._icon.setFixedSize(_s(24), _s(24))
         self._icon.setStyleSheet("background:transparent;border:none;")
         lo.addWidget(self._icon)
         self._name = QLabel(); self._name.setStyleSheet(
-            f"color:{_TEXT_PRIMARY};font-size:14px;font-weight:500;background:transparent;border:none;")
+            f"color:{_TEXT_PRIMARY};font-size:{_sf(14)};font-weight:500;background:transparent;border:none;")
         lo.addWidget(self._name, 1)
         self._dur = QLabel(); self._dur.setStyleSheet(
-            f"color:{_TEXT_SECONDARY};font-size:13px;font-weight:600;background:transparent;border:none;")
+            f"color:{_TEXT_SECONDARY};font-size:{_sf(13)};font-weight:600;background:transparent;border:none;")
         self._dur.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         lo.addWidget(self._dur)
-        self._pct = QLabel(); self._pct.setFixedWidth(55)
+        self._pct = QLabel(); self._pct.setFixedWidth(_s(55))
         self._pct.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         self._pct.setStyleSheet(
-            f"color:{_ACCENT};font-size:13px;font-weight:700;background:transparent;border:none;")
+            f"color:{_ACCENT};font-size:{_sf(13)};font-weight:700;background:transparent;border:none;")
         lo.addWidget(self._pct)
         self._apply_style(False)
     def _apply_style(self, hovered: bool):
         if hovered:
-            self.setStyleSheet(f"background: {_CARD_LIGHTER}; border: 1px solid {_CARD_BORDER}; border-radius: 10px;")
-            self._name.setStyleSheet(f"color: #ffffff; font-size: 14px; font-weight: 600; background: transparent; border: none;")
-            self._dur.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 600; background: transparent; border: none;")
-            self._pct.setStyleSheet(f"color: #60a5fa; font-size: 13px; font-weight: 800; background: transparent; border: none;")
+            self.setStyleSheet(f"background: {_CARD_LIGHTER}; border: 1px solid {_CARD_BORDER}; border-radius: {_s(10)}px;")
+            self._name.setStyleSheet(f"color: #ffffff; font-size: {_sf(14)}; font-weight: 600; background: transparent; border: none;")
+            self._dur.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: {_sf(13)}; font-weight: 600; background: transparent; border: none;")
+            self._pct.setStyleSheet(f"color: #60a5fa; font-size: {_sf(13)}; font-weight: 800; background: transparent; border: none;")
         else:
             self.setStyleSheet("background: transparent; border: none;")
-            self._name.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 14px; font-weight: 500; background: transparent; border: none;")
-            self._dur.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 13px; font-weight: 600; background: transparent; border: none;")
-            self._pct.setStyleSheet(f"color: {_ACCENT}; font-size: 13px; font-weight: 700; background: transparent; border: none;")
+            self._name.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: {_sf(14)}; font-weight: 500; background: transparent; border: none;")
+            self._dur.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: {_sf(13)}; font-weight: 600; background: transparent; border: none;")
+            self._pct.setStyleSheet(f"color: {_ACCENT}; font-size: {_sf(13)}; font-weight: 700; background: transparent; border: none;")
     def set_data(self, name, dur, pct):
         self._name.setText(name); self._dur.setText(_fmt(dur)); self._pct.setText(f"{pct}%")
         px = _get_icon(name, 24)
@@ -311,36 +319,36 @@ class _AppTableRow(QWidget):
 
 class _CategoryRow(QWidget):
     def __init__(self, parent=None):
-        super().__init__(parent); self.setFixedHeight(44)
+        super().__init__(parent); self.setFixedHeight(_s(44))
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        lo = QHBoxLayout(self); lo.setContentsMargins(16,0,16,0); lo.setSpacing(10)
+        lo = QHBoxLayout(self); lo.setContentsMargins(_s(16), 0, _s(16), 0); lo.setSpacing(_s(10))
         self._icon = QLabel()
-        self._icon.setFixedSize(20, 20)
+        self._icon.setFixedSize(_s(20), _s(20))
         self._icon.setStyleSheet("background:transparent;border:none;")
         lo.addWidget(self._icon)
         self._name = QLabel(); self._name.setStyleSheet(
-            f"color:{_TEXT_PRIMARY};font-size:14px;font-weight:500;background:transparent;border:none;")
+            f"color:{_TEXT_PRIMARY};font-size:{_sf(14)};font-weight:500;background:transparent;border:none;")
         lo.addWidget(self._name, 1)
         self._dur = QLabel(); self._dur.setStyleSheet(
-            f"color:{_TEXT_SECONDARY};font-size:13px;font-weight:600;background:transparent;border:none;")
+            f"color:{_TEXT_SECONDARY};font-size:{_sf(13)};font-weight:600;background:transparent;border:none;")
         self._dur.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter); lo.addWidget(self._dur)
-        self._pct = QLabel(); self._pct.setFixedWidth(55)
+        self._pct = QLabel(); self._pct.setFixedWidth(_s(55))
         self._pct.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         self._pct.setStyleSheet(
-            f"color:{_ACCENT};font-size:13px;font-weight:700;background:transparent;border:none;")
+            f"color:{_ACCENT};font-size:{_sf(13)};font-weight:700;background:transparent;border:none;")
         lo.addWidget(self._pct)
         self._apply_style(False)
     def _apply_style(self, hovered: bool):
         if hovered:
-            self.setStyleSheet(f"background: {_CARD_LIGHTER}; border: 1px solid {_CARD_BORDER}; border-radius: 10px;")
-            self._name.setStyleSheet(f"color: #ffffff; font-size: 14px; font-weight: 600; background: transparent; border: none;")
-            self._dur.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 600; background: transparent; border: none;")
-            self._pct.setStyleSheet(f"color: #60a5fa; font-size: 13px; font-weight: 800; background: transparent; border: none;")
+            self.setStyleSheet(f"background: {_CARD_LIGHTER}; border: 1px solid {_CARD_BORDER}; border-radius: {_s(10)}px;")
+            self._name.setStyleSheet(f"color: #ffffff; font-size: {_sf(14)}; font-weight: 600; background: transparent; border: none;")
+            self._dur.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: {_sf(13)}; font-weight: 600; background: transparent; border: none;")
+            self._pct.setStyleSheet(f"color: #60a5fa; font-size: {_sf(13)}; font-weight: 800; background: transparent; border: none;")
         else:
             self.setStyleSheet("background: transparent; border: none;")
-            self._name.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 14px; font-weight: 500; background: transparent; border: none;")
-            self._dur.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 13px; font-weight: 600; background: transparent; border: none;")
-            self._pct.setStyleSheet(f"color: {_ACCENT}; font-size: 13px; font-weight: 700; background: transparent; border: none;")
+            self._name.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: {_sf(14)}; font-weight: 500; background: transparent; border: none;")
+            self._dur.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: {_sf(13)}; font-weight: 600; background: transparent; border: none;")
+            self._pct.setStyleSheet(f"color: {_ACCENT}; font-size: {_sf(13)}; font-weight: 700; background: transparent; border: none;")
     def set_data(self, cat, dur, pct):
         px = _get_category_icon(cat, 20, _ACCENT)
         self._icon.setPixmap(px)
@@ -354,13 +362,13 @@ class _CategoryRow(QWidget):
 class _ExportBtn(QWidget):
     def __init__(self, text, cb, parent=None):
         super().__init__(parent); self._cb = cb; self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedHeight(36); self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setFixedHeight(_s(36)); self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         lo = QHBoxLayout(self); lo.setContentsMargins(0,0,0,0)
         lbl = QLabel(text); lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl.setStyleSheet(f"color:#fff;font-size:12px;font-weight:600;"
+        lbl.setStyleSheet(f"color:#fff;font-size:{_sf(12)};font-weight:600;"
             f"background:transparent;border:none;")
         lo.addWidget(lbl)
-        self.setStyleSheet(f"background:{_ACCENT};border-radius:8px;")
+        self.setStyleSheet(f"background:{_ACCENT};border-radius:{_s(8)}px;")
     def mousePressEvent(self, e): self._cb()
     def enterEvent(self, e): self.setStyleSheet("background:#2563eb;border-radius:8px;")
     def leaveEvent(self, e): self.setStyleSheet(f"background:{_ACCENT};border-radius:8px;")
@@ -389,19 +397,19 @@ class ReportsPage(QWidget):
         ctr = QWidget(); ctr.setStyleSheet(f"background:{_BG};")
         scroll.setWidget(ctr)
         pg = QVBoxLayout(self); pg.setContentsMargins(0,0,0,0); pg.addWidget(scroll)
-        main = QVBoxLayout(ctr); main.setContentsMargins(28,14,28,28); main.setSpacing(16)
+        main = QVBoxLayout(ctr); main.setContentsMargins(_s(28), _s(14), _s(28), _s(28)); main.setSpacing(_s(16))
 
         # Header
-        hdr = QVBoxLayout(); hdr.setSpacing(4)
+        hdr = QVBoxLayout(); hdr.setSpacing(_s(4))
         t = QLabel("Reports"); t.setStyleSheet(
-            f"color:{_TEXT_PRIMARY};font-size:22px;font-weight:700;background:transparent;border:none;")
+            f"color:{_TEXT_PRIMARY};font-size:{_sf(22)};font-weight:700;background:transparent;border:none;")
         hdr.addWidget(t)
         st = QLabel("Analyze and export your activity history"); st.setStyleSheet(
-            f"color:{_TEXT_SECONDARY};font-size:13px;background:transparent;border:none;")
+            f"color:{_TEXT_SECONDARY};font-size:{_sf(13)};background:transparent;border:none;")
         hdr.addWidget(st); main.addLayout(hdr)
 
         # Filters
-        filt = QHBoxLayout(); filt.setSpacing(8)
+        filt = QHBoxLayout(); filt.setSpacing(_s(8))
         self._filter_btns = {}
         for name in ["Today","Yesterday","Last 7 Days","Last 30 Days","Custom Range"]:
             btn = _FilterBtn(name, self._on_filter)
@@ -414,11 +422,11 @@ class ReportsPage(QWidget):
         self._custom_range_widget.setVisible(False)
         self._custom_range_widget.setStyleSheet("background:transparent;border:none;")
         cw_lo = QHBoxLayout(self._custom_range_widget)
-        cw_lo.setContentsMargins(0, 4, 0, 8)
-        cw_lo.setSpacing(12)
+        cw_lo.setContentsMargins(0, _s(4), 0, _s(8))
+        cw_lo.setSpacing(_s(12))
 
         start_lbl = QLabel("Start Date:")
-        start_lbl.setStyleSheet(f"color:{_TEXT_SECONDARY};font-size:12px;font-weight:600;background:transparent;")
+        start_lbl.setStyleSheet(f"color:{_TEXT_SECONDARY};font-size:{_sf(12)};font-weight:600;background:transparent;")
         cw_lo.addWidget(start_lbl)
 
         self._start_date_edit = QDateEdit()
@@ -428,7 +436,7 @@ class ReportsPage(QWidget):
         cw_lo.addWidget(self._start_date_edit)
 
         end_lbl = QLabel("End Date:")
-        end_lbl.setStyleSheet(f"color:{_TEXT_SECONDARY};font-size:12px;font-weight:600;background:transparent;")
+        end_lbl.setStyleSheet(f"color:{_TEXT_SECONDARY};font-size:{_sf(12)};font-weight:600;background:transparent;")
         cw_lo.addWidget(end_lbl)
 
         self._end_date_edit = QDateEdit()
@@ -453,35 +461,35 @@ class ReportsPage(QWidget):
 
         # Top Row Split Layout: Trend Chart (Left) + Sidebar (Right)
         top_split = QHBoxLayout()
-        top_split.setSpacing(16)
+        top_split.setSpacing(_s(16))
 
         # Usage Trend Card (Left column)
         self._trend_card = _Card()
         self._trend_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         tc_lo = QVBoxLayout(self._trend_card)
-        tc_lo.setContentsMargins(24, 16, 24, 14); tc_lo.setSpacing(4)
+        tc_lo.setContentsMargins(_s(24), _s(16), _s(24), _s(14)); tc_lo.setSpacing(_s(4))
         tc_t = QLabel("USAGE TREND")
         tc_t.setStyleSheet(
-            f"color:{_TEXT_MUTED};font-size:10px;font-weight:700;"
+            f"color:{_TEXT_MUTED};font-size:{_sf(10)};font-weight:700;"
             f"letter-spacing:0.12em;background:transparent;border:none;")
         tc_t.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         tc_lo.addWidget(tc_t)
         self._trend_sub = QLabel("Daily activity across selected range")
         self._trend_sub.setStyleSheet(
-            f"color:{_TEXT_MUTED};font-size:11px;background:transparent;border:none;")
+            f"color:{_TEXT_MUTED};font-size:{_sf(11)};background:transparent;border:none;")
         self._trend_sub.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         tc_lo.addWidget(self._trend_sub)
         tc_lo.addSpacing(6)
         
         self._trend_chart = _TrendChart()
-        self._trend_chart.setMinimumHeight(320)  # Tall hero chart plotting area
+        self._trend_chart.setMinimumHeight(_s(320))  # Tall hero chart plotting area
         self._trend_chart.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         tc_lo.addWidget(self._trend_chart)
         top_split.addWidget(self._trend_card, 72)  # Left column gets 72% stretch
 
         # Sidebar Column (Right column)
         sidebar_lo = QVBoxLayout()
-        sidebar_lo.setSpacing(12)
+        sidebar_lo.setSpacing(_s(12))
 
         self._s_time = _StatCard("Total Screen Time")
         self._s_sess = _StatCard("Total Sessions")
@@ -495,15 +503,15 @@ class ReportsPage(QWidget):
         # Export section inside Sidebar
         self._export_card = _Card()
         ex_lo = QVBoxLayout(self._export_card)
-        ex_lo.setContentsMargins(18, 16, 18, 16); ex_lo.setSpacing(8)
+        ex_lo.setContentsMargins(_s(18), _s(16), _s(18), _s(16)); ex_lo.setSpacing(_s(8))
         ex_t = QLabel("EXPORT REPORT")
         ex_t.setStyleSheet(
-            f"color:{_TEXT_MUTED};font-size:10px;font-weight:700;"
+            f"color:{_TEXT_MUTED};font-size:{_sf(10)};font-weight:700;"
             f"letter-spacing:0.12em;background:transparent;border:none;")
         ex_lo.addWidget(ex_t)
         ex_s = QLabel("Download activity data")
-        ex_s.setStyleSheet(f"color:{_TEXT_MUTED};font-size:11px;background:transparent;border:none;")
-        ex_lo.addWidget(ex_s); ex_lo.addSpacing(4)
+        ex_s.setStyleSheet(f"color:{_TEXT_MUTED};font-size:{_sf(11)};background:transparent;border:none;")
+        ex_lo.addWidget(ex_s); ex_lo.addSpacing(_s(4))
         
         self._export_csv_btn = _ExportBtn("⬇  Export CSV", self._export_csv)
         self._export_json_btn = _ExportBtn("⬇  Export JSON", self._export_json)
@@ -515,31 +523,31 @@ class ReportsPage(QWidget):
         main.addLayout(top_split)
 
         # Row: Apps table + Categories
-        r3 = QHBoxLayout(); r3.setSpacing(16)
+        r3 = QHBoxLayout(); r3.setSpacing(_s(16))
 
         # Apps table
         self._apps_card = _Card()
         ac_lo = QVBoxLayout(self._apps_card)
-        ac_lo.setContentsMargins(24,20,24,16); ac_lo.setSpacing(4)
+        ac_lo.setContentsMargins(_s(24), _s(20), _s(24), _s(16)); ac_lo.setSpacing(_s(4))
         ac_t = QLabel("TOP APPLICATIONS"); ac_t.setStyleSheet(
-            f"color:{_TEXT_MUTED};font-size:10px;font-weight:700;"
+            f"color:{_TEXT_MUTED};font-size:{_sf(10)};font-weight:700;"
             f"letter-spacing:0.12em;background:transparent;border:none;")
         ac_lo.addWidget(ac_t)
         ac_s = QLabel("Sorted by usage time"); ac_s.setStyleSheet(
-            f"color:{_TEXT_MUTED};font-size:11px;background:transparent;border:none;")
-        ac_lo.addWidget(ac_s); ac_lo.addSpacing(6)
+            f"color:{_TEXT_MUTED};font-size:{_sf(11)};background:transparent;border:none;")
+        ac_lo.addWidget(ac_s); ac_lo.addSpacing(_s(6))
         # Table header
-        th = QWidget(); th.setFixedHeight(28)
+        th = QWidget(); th.setFixedHeight(_s(28))
         th_lo = QHBoxLayout(th); th_lo.setContentsMargins(16,0,16,0); th_lo.setSpacing(12)
         
         icon_spacer = QLabel()
-        icon_spacer.setFixedWidth(24)
+        icon_spacer.setFixedWidth(_s(24))
         th_lo.addWidget(icon_spacer)
         
         for txt, stretch, w in [("App",1,0),("Duration",0,0),("",0,55)]:
             l = QLabel(txt)
             l.setStyleSheet(
-                f"color:{_TEXT_MUTED};font-size:10px;font-weight:700;"
+                f"color:{_TEXT_MUTED};font-size:{_sf(10)};font-weight:700;"
                 f"letter-spacing:0.1em;background:transparent;border:none;"
             )
             if w:
@@ -556,13 +564,13 @@ class ReportsPage(QWidget):
         # Categories
         self._cat_card = _Card()
         cc_lo = QVBoxLayout(self._cat_card)
-        cc_lo.setContentsMargins(24,20,24,16); cc_lo.setSpacing(4)
+        cc_lo.setContentsMargins(_s(24), _s(20), _s(24), _s(16)); cc_lo.setSpacing(_s(4))
         cc_t = QLabel("CATEGORY BREAKDOWN"); cc_t.setStyleSheet(
-            f"color:{_TEXT_MUTED};font-size:10px;font-weight:700;"
+            f"color:{_TEXT_MUTED};font-size:{_sf(10)};font-weight:700;"
             f"letter-spacing:0.12em;background:transparent;border:none;")
         cc_lo.addWidget(cc_t)
         cc_s = QLabel("Usage by application category"); cc_s.setStyleSheet(
-            f"color:{_TEXT_MUTED};font-size:11px;background:transparent;border:none;")
+            f"color:{_TEXT_MUTED};font-size:{_sf(11)};background:transparent;border:none;")
         cc_lo.addWidget(cc_s); cc_lo.addSpacing(6)
         self._cat_rows_lo = QVBoxLayout(); self._cat_rows_lo.setSpacing(2)
         cc_lo.addLayout(self._cat_rows_lo); cc_lo.addStretch(1)
@@ -572,16 +580,16 @@ class ReportsPage(QWidget):
 
         # Empty state
         self._empty = QWidget(); el = QVBoxLayout(self._empty)
-        el.setAlignment(Qt.AlignmentFlag.AlignCenter); el.setContentsMargins(0,60,0,60); el.setSpacing(10)
+        el.setAlignment(Qt.AlignmentFlag.AlignCenter); el.setContentsMargins(0, _s(60), 0, _s(60)); el.setSpacing(_s(10))
         ei = QLabel("◷"); ei.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        ei.setStyleSheet(f"color:{_TEXT_MUTED};font-size:40px;background:transparent;border:none;")
+        ei.setStyleSheet(f"color:{_TEXT_MUTED};font-size:{_sf(40)};background:transparent;border:none;")
         el.addWidget(ei)
         et = QLabel("No activity data for this period"); et.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        et.setStyleSheet(f"color:{_TEXT_SECONDARY};font-size:15px;font-weight:500;"
+        et.setStyleSheet(f"color:{_TEXT_SECONDARY};font-size:{_sf(15)};font-weight:500;"
             f"background:transparent;border:none;")
         el.addWidget(et)
         es = QLabel("Try selecting a different date range"); es.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        es.setStyleSheet(f"color:{_TEXT_MUTED};font-size:12px;background:transparent;border:none;")
+        es.setStyleSheet(f"color:{_TEXT_MUTED};font-size:{_sf(12)};background:transparent;border:none;")
         el.addWidget(es)
         self._empty.setVisible(False); main.addWidget(self._empty)
         main.addStretch(1)
@@ -669,12 +677,12 @@ class ReportsPage(QWidget):
             QDateEdit {{
                 background: {_CARD};
                 border: 1px solid {_CARD_BORDER};
-                border-radius: 8px;
+                border-radius: {_s(8)}px;
                 color: {_TEXT_PRIMARY};
-                font-size: 12px;
+                font-size: {_sf(12)};
                 font-weight: 600;
-                padding: 6px 12px;
-                min-width: 110px;
+                padding: {_s(6)}px {_s(12)}px;
+                min-width: {_s(110)}px;
             }}
             QDateEdit::drop-down {{
                 subcontrol-origin: padding;
