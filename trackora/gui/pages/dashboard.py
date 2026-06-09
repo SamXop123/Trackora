@@ -341,6 +341,11 @@ class _ActiveCard(_Card):
         )
         v_info.addWidget(self._elapsed_label)
         body_row.addLayout(v_info, 1)
+
+        self._stop_btn = _StopButton()
+        self._stop_btn.clicked.connect(lambda: self.stop_clicked.emit())
+        body_row.addWidget(self._stop_btn, 0, Qt.AlignTop)
+
         layout.addLayout(body_row)
 
         # Category badge row (below body_row)
