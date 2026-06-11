@@ -298,7 +298,6 @@ class MainWindow(QMainWindow):
         self._repository = DashboardRepository(database_path)
         self._refresh_seconds = refresh_seconds
         self._selected_date = date.today()
-        self._tracking_paused = False
 
         self.setWindowTitle("Trackora")
         logo_path = Path(__file__).resolve().parents[2] / "assets" / "trackora_logo.png"
@@ -330,7 +329,6 @@ class MainWindow(QMainWindow):
         self._dashboard_page.date_changed.connect(self._on_dashboard_date_changed)
         self._dashboard_page.reset_date_requested.connect(self._on_dashboard_reset_date)
         self._dashboard_page.view_all_requested.connect(lambda: self._on_nav_click(2))
-        self._dashboard_page.stop_clicked.connect(self._on_dashboard_stop_clicked)
         self._stack.addWidget(self._dashboard_page)      # 0
         self._timeline_page = TimelinePage()
         self._timeline_page.set_repository(self._repository)
@@ -378,8 +376,7 @@ class MainWindow(QMainWindow):
         self._tick_timer.start(1000)
 
     def _on_tick(self):
-        if not self._tracking_paused:
-            self._dashboard_page.tick_active_session()
+        self._dashboard_page.tick_active_session()
 
     def _on_dashboard_date_changed(self, offset: int):
         self._selected_date += timedelta(days=offset)
@@ -391,27 +388,12 @@ class MainWindow(QMainWindow):
         self._selected_date = date.today()
         self._refresh_dashboard()
 
-    def _on_dashboard_stop_clicked(self):
-        self._tracking_paused = not self._tracking_paused
-        self._refresh_dashboard()
-
     def _refresh_dashboard(self):
         from trackora.utils.logging import log_info, log_error
-        from dataclasses import replace
         log_info("dashboard refresh started")
         try:
             snapshot = self._repository.load_snapshot(self._selected_date)
-            if self._tracking_paused:
-                snapshot = replace(snapshot, active_app=None)
             self._dashboard_page.refresh(snapshot)
-            
-            if self._tracking_paused:
-                self._dashboard_page._active_card._app_label.setText("Tracking Paused")
-                self._dashboard_page._active_card._elapsed_label.setText("Paused")
-                self._dashboard_page._active_card._stop_btn.set_paused(True)
-                self._dashboard_page._active_card._category_badge.setVisible(False)
-            else:
-                self._dashboard_page._active_card._stop_btn.set_paused(False)
 
             if self._stack.currentIndex() == 1:
                 self._timeline_page.refresh_data()
