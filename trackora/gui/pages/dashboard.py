@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 import math
+import os
 from datetime import date, datetime
 
-from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QEvent, QPoint, QPropertyAnimation, QRect, QRectF, QSize, QTimer, Qt, Signal
+from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QEvent, QPoint, QPropertyAnimation, QRect, QRectF, QSize, QTimer, Qt, Signal, QDate
 
 from PySide6.QtGui import (QBrush, QColor, QFont, QIcon, QLinearGradient,
                            QPainter, QPainterPath, QPen, QPixmap, QRadialGradient)
 
 from PySide6.QtWidgets import (QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel,
                            QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
-                           QStackedWidget, QPushButton)
+                           QStackedWidget, QPushButton, QDialog, QCalendarWidget)
 
 from ...charts import DailyUsageChart
 from ...models.dashboard import (
@@ -37,6 +38,9 @@ _ACCENT = "#3b82f6"
 _ACCENT_SOFT = "#2563eb"
 _GREEN = "#34d399"
 _GREEN_DIM = "#065f46"
+
+_ASSETS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "assets"))
+_CALENDAR_SVG_PATH = os.path.join(_ASSETS_DIR, "calendar.svg").replace("\\", "/")
 
 # ─── Icon theme lookup ──────────────────────────────────────────────────────
 _ICON_THEME_MAP: dict[str, list[str]] = {
@@ -1018,6 +1022,61 @@ class _MetricsCard(_Card):
         layout.addStretch(1)
 
 
+class _CalendarPopup(QDialog):
+    def __init__(self, current_date: date, parent=None):
+        super().__init__(parent, Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(4, 4, 4, 4)
+        
+        self._calendar = QCalendarWidget(self)
+        self._calendar.setGridVisible(False)
+        self._calendar.setSelectedDate(QDate(current_date.year, current_date.month, current_date.day))
+        
+        self._calendar.setStyleSheet(f"""
+            QCalendarWidget QWidget {{
+                background-color: {_CARD};
+                color: {_TEXT_PRIMARY};
+                font-family: 'Inter', sans-serif;
+            }}
+            QCalendarWidget QAbstractItemView:enabled {{
+                background-color: {_CARD};
+                color: {_TEXT_PRIMARY};
+                selection-background-color: {_ACCENT};
+                selection-color: #ffffff;
+            }}
+            QCalendarWidget QNavigationBar {{
+                background-color: {_CARD_LIGHTER};
+                color: {_TEXT_PRIMARY};
+            }}
+            QCalendarWidget QMenu {{
+                background-color: {_CARD};
+                color: {_TEXT_PRIMARY};
+            }}
+            QCalendarWidget QToolButton {{
+                color: {_TEXT_PRIMARY};
+                background-color: transparent;
+                border: none;
+            }}
+            QCalendarWidget QToolButton:hover {{
+                background-color: {_CARD_LIGHTER};
+                border-radius: 4px;
+            }}
+        """)
+        
+        layout.addWidget(self._calendar)
+        self.setStyleSheet(f"background-color: {_CARD}; border: 1px solid {_CARD_BORDER}; border-radius: 8px;")
+        
+        self._calendar.activated.connect(self.accept)
+        self._calendar.clicked.connect(self.accept)
+
+    def get_selected_date(self) -> date:
+        qd = self._calendar.selectedDate()
+        return date(qd.year(), qd.month(), qd.day())
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 #  DASHBOARD PAGE
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1028,6 +1087,7 @@ class DashboardPage(QWidget):
     date_changed = Signal(int)  # -1 or +1
     reset_date_requested = Signal()
     view_all_requested = Signal()
+    custom_date_selected = Signal(object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -1062,13 +1122,16 @@ class DashboardPage(QWidget):
         hdr_row.setSpacing(8)
 
         # Date Button
-        self._date_btn = QPushButton("📅 —")
+        self._date_btn = QPushButton("—")
+        self._date_btn.setIcon(QIcon(_CALENDAR_SVG_PATH))
+        self._date_btn.setIconSize(QSize(14, 14))
         self._date_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._date_btn.setStyleSheet(
             f"QPushButton {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
-            f"border-radius: 8px; padding: 7px 14px; color: {_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; }}"
+            f"border-radius: 8px; padding: 7px 14px; color: {_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; text-align: center; }}"
             f"QPushButton:hover {{ background: {_CARD_LIGHTER}; }}"
         )
+        self._date_btn.clicked.connect(self._on_date_btn_clicked)
         hdr_row.addWidget(self._date_btn)
 
         # Shifting buttons group
@@ -1178,7 +1241,7 @@ class DashboardPage(QWidget):
         self._last_snapshot = snapshot
         self._active_status = snapshot.active_app
         now = snapshot.last_refreshed
-        self._date_btn.setText(f"📅  {now.strftime('%B %d, %Y')}")
+        self._date_btn.setText(now.strftime('%B %d, %Y'))
 
         self._hero_card.update_data(snapshot.total_today_seconds, snapshot.total_yesterday_seconds, snapshot)
         self._active_card.update_data(snapshot.active_app)
@@ -1195,3 +1258,14 @@ class DashboardPage(QWidget):
         active = self._repository.load_active_app()
         self._active_status = active
         self._active_card.update_data(active)
+
+    def _on_date_btn_clicked(self) -> None:
+        if not self._last_snapshot:
+            return
+        current_date = self._last_snapshot.last_refreshed.date()
+        popup = _CalendarPopup(current_date, self)
+        btn_pos = self._date_btn.mapToGlobal(QPoint(0, self._date_btn.height()))
+        popup.move(btn_pos)
+        if popup.exec():
+            selected_date = popup.get_selected_date()
+            self.custom_date_selected.emit(selected_date)
