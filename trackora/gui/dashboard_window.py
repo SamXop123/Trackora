@@ -423,6 +423,7 @@ class MainWindow(QMainWindow):
         self._dashboard_page.set_repository(self._repository)
         self._dashboard_page.date_changed.connect(self._on_dashboard_date_changed)
         self._dashboard_page.reset_date_requested.connect(self._on_dashboard_reset_date)
+        self._dashboard_page.custom_date_selected.connect(self._on_dashboard_custom_date_selected)
         self._dashboard_page.view_all_requested.connect(lambda: self._on_nav_click(2))
         self._stack.addWidget(self._dashboard_page)      # 0
         self._timeline_page = TimelinePage()
@@ -507,6 +508,12 @@ class MainWindow(QMainWindow):
         self._selected_date = date.today()
         self._refresh_dashboard()
         self._show_refresh_toast()
+
+    def _on_dashboard_custom_date_selected(self, selected_date):
+        if selected_date > date.today():
+            selected_date = date.today()
+        self._selected_date = selected_date
+        self._refresh_dashboard()
 
     def _refresh_dashboard(self):
         from trackora.utils.logging import log_info, log_error
