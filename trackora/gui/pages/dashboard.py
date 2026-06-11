@@ -160,56 +160,12 @@ class _HeroCard(_Card):
         trend_row.addWidget(self._comparison_label)
         trend_row.addStretch(1)
         layout.addLayout(trend_row)
-        layout.addSpacing(18)
-
-        stats = QHBoxLayout()
-        stats.setSpacing(14)
-
-        self._focus_card = QFrame()
-        self._focus_card.setStyleSheet(
-            f"QFrame {{ background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.15); border-radius: 14px; }}"
-        )
-        focus_layout = QVBoxLayout(self._focus_card)
-        focus_layout.setContentsMargins(16, 12, 16, 12)
-        focus_layout.setSpacing(4)
-        self._focus_value = QLabel("0m")
-        self._focus_value.setStyleSheet(
-            f"color: {_TEXT_PRIMARY}; font-size: 20px; font-weight: 700; background: transparent; border: none;"
-        )
-        focus_layout.addWidget(self._focus_value)
-        focus_label = QLabel("Top App")
-        focus_label.setStyleSheet(
-            f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 600; background: transparent; border: none;"
-        )
-        focus_layout.addWidget(focus_label)
-        stats.addWidget(self._focus_card, 1)
-
-        self._sessions_card = QFrame()
-        self._sessions_card.setStyleSheet(
-            f"QFrame {{ background: rgba(255, 255, 255, 0.015); border: 1px solid {_CARD_BORDER}; border-radius: 14px; }}"
-        )
-        sess_layout = QVBoxLayout(self._sessions_card)
-        sess_layout.setContentsMargins(16, 12, 16, 12)
-        sess_layout.setSpacing(4)
-        self._sessions_value = QLabel("0")
-        self._sessions_value.setStyleSheet(
-            f"color: {_TEXT_PRIMARY}; font-size: 20px; font-weight: 700; background: transparent; border: none;"
-        )
-        sess_layout.addWidget(self._sessions_value)
-        sess_label = QLabel("Sessions Today")
-        sess_label.setStyleSheet(
-            f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 600; background: transparent; border: none;"
-        )
-        sess_layout.addWidget(sess_label)
-        stats.addWidget(self._sessions_card, 1)
-
-        layout.addLayout(stats)
         layout.addStretch(1)
 
     def paintEvent(self, event):
         super().paintEvent(event)
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         w, h = self.width(), self.height()
         cx, cy = w - 90, h // 2
 
@@ -219,22 +175,29 @@ class _HeroCard(_Card):
             grad.setColorAt(0, QColor(59, 130, 246, alpha))
             grad.setColorAt(1, QColor(59, 130, 246, 0))
             painter.setBrush(QBrush(grad))
-            painter.setPen(Qt.NoPen)
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.drawEllipse(QRectF(cx - radius, cy - radius, radius * 2, radius * 2))
 
         # ── Concentric outer rings ──
         for r, alpha in [(56, 12), (44, 24), (32, 45)]:
-            painter.setBrush(Qt.NoBrush)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.setPen(QPen(QColor(59, 130, 246, alpha), 1.5))
             painter.drawEllipse(QRectF(cx - r, cy - r, r * 2, r * 2))
 
         # ── Central solid blue circle ──
         painter.setBrush(QBrush(QColor(59, 130, 246)))
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(QRectF(cx - 18, cy - 18, 36, 36))
 
         # ── Draw clock hands in white ──
-        painter.setPen(QPen(QColor(255, 255, 255), 2.2, Qt.SolidLine, Qt.RoundCap))
+        painter.setPen(
+            QPen(
+                QColor(255, 255, 255),
+                2.2,
+                Qt.PenStyle.SolidLine,
+                Qt.PenCapStyle.RoundCap,
+            )
+        )
         painter.drawLine(cx, cy, cx - 5, cy - 5)  # Hour hand
         painter.drawLine(cx, cy, cx, cy - 9)       # Minute hand
         painter.end()
@@ -242,12 +205,6 @@ class _HeroCard(_Card):
     def update_data(self, today_secs: int, yesterday_secs: int, snapshot: DashboardSnapshot | None = None) -> None:
         self._today_secs = today_secs
         self._time_label.setText(format_duration_compact(today_secs))
-
-        sessions = snapshot.total_today_sessions if snapshot else 0
-        self._sessions_value.setText(str(sessions))
-
-        top_app_secs = snapshot.top_apps[0].duration_seconds if snapshot and snapshot.top_apps else 0
-        self._focus_value.setText(format_duration_compact(top_app_secs))
 
         if snapshot and snapshot.top_apps:
             top_app_name = snapshot.top_apps[0].app_name
@@ -287,73 +244,18 @@ class _HeroCard(_Card):
         self.update()
 
 
-# ─── Stop Button for Active Card ────────────────────────────────────────────
-
-class _StopButton(QPushButton):
-    """Custom premium Stop button with inner square icon or play icon."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFixedSize(36, 36)
-        self.setCursor(Qt.PointingHandCursor)
-        self._is_paused = False
-        self._apply_style()
-
-    def set_paused(self, paused: bool):
-        self._is_paused = paused
-        self._apply_style()
-        self.update()
-
-    def _apply_style(self):
-        if self._is_paused:
-            self.setStyleSheet(
-                f"QPushButton {{ background: rgba(52, 211, 153, 0.08); "
-                f"border: 1px solid rgba(52, 211, 153, 0.2); border-radius: 8px; }}"
-                f"QPushButton:hover {{ background: rgba(52, 211, 153, 0.18); "
-                f"border: 1px solid rgba(52, 211, 153, 0.35); }}"
-            )
-        else:
-            self.setStyleSheet(
-                f"QPushButton {{ background: rgba(59, 130, 246, 0.08); "
-                f"border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; }}"
-                f"QPushButton:hover {{ background: rgba(59, 130, 246, 0.18); "
-                f"border: 1px solid rgba(59, 130, 246, 0.35); }}"
-            )
-
-    def paintEvent(self, event):
-        super().paintEvent(event)
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        if self._is_paused:
-            painter.setBrush(QBrush(QColor(52, 211, 153)))
-            painter.setPen(Qt.NoPen)
-            path = QPainterPath()
-            path.moveTo(14, 12)
-            path.lineTo(25, 18)
-            path.lineTo(14, 24)
-            path.closeSubpath()
-            painter.drawPath(path)
-        else:
-            painter.setBrush(QBrush(QColor(59, 130, 246)))
-            painter.setPen(Qt.NoPen)
-            painter.drawRoundedRect(QRectF(13, 13, 10, 10), 1.5, 1.5)
-        painter.end()
-
-
 # ─── Currently Active card ──────────────────────────────────────────────────
 
 class _ActiveCard(_Card):
     """Shows the currently active application with live elapsed timer."""
 
-    stop_clicked = Signal()
-
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setFixedHeight(150)
+        self.setMinimumHeight(190)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 20)
-        layout.setSpacing(8)
+        layout.setContentsMargins(24, 18, 24, 18)
+        layout.setSpacing(6)
 
         # Header row
         hdr_lo = QHBoxLayout()
@@ -368,25 +270,41 @@ class _ActiveCard(_Card):
 
         # Main body row: Icon and text info
         body_row = QHBoxLayout()
-        body_row.setSpacing(14)
+        body_row.setSpacing(12)
+        body_row.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         self._app_icon_label = QLabel()
         self._app_icon_label.setFixedSize(40, 40)
         self._app_icon_label.setStyleSheet(
             f"border-radius: 8px; border: 1px solid {_CARD_BORDER}; background: {_CARD_LIGHTER};"
         )
-        body_row.addWidget(self._app_icon_label)
+        body_row.addWidget(self._app_icon_label, 0, Qt.AlignmentFlag.AlignTop)
 
         v_info = QVBoxLayout()
         v_info.setSpacing(2)
         v_info.setContentsMargins(0, 0, 0, 0)
+        v_info.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        name_row = QHBoxLayout()
+        name_row.setSpacing(8)
 
         self._app_label = QLabel("No active session")
         self._app_label.setStyleSheet(
             f"color: {_TEXT_PRIMARY}; font-size: 18px; font-weight: 800; "
             f"background: transparent; border: none;"
         )
-        v_info.addWidget(self._app_label)
+        name_row.addWidget(self._app_label)
+        name_row.addStretch(1)
+
+        self._category_badge = QLabel("")
+        self._category_badge.setStyleSheet(
+            f"color: {_ACCENT}; font-size: 10px; font-weight: 700; "
+            f"background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); "
+            f"border-radius: 8px; padding: 2px 8px;"
+        )
+        name_row.addWidget(self._category_badge)
+
+        v_info.addLayout(name_row)
 
         self._elapsed_label = QLabel("")
         self._elapsed_label.setStyleSheet(
@@ -396,23 +314,7 @@ class _ActiveCard(_Card):
         v_info.addWidget(self._elapsed_label)
         body_row.addLayout(v_info, 1)
 
-        self._stop_btn = _StopButton()
-        self._stop_btn.clicked.connect(lambda: self.stop_clicked.emit())
-        body_row.addWidget(self._stop_btn, 0, Qt.AlignTop)
-
         layout.addLayout(body_row)
-
-        # Category badge row (below body_row)
-        badge_row = QHBoxLayout()
-        self._category_badge = QLabel("")
-        self._category_badge.setStyleSheet(
-            f"color: {_ACCENT}; font-size: 10px; font-weight: 700; "
-            f"background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); "
-            f"border-radius: 8px; padding: 2px 8px;"
-        )
-        badge_row.addWidget(self._category_badge)
-        badge_row.addStretch(1)
-        layout.addLayout(badge_row)
 
     def _set_icon(self, app_name: str) -> None:
         pixmap = _get_app_icon(app_name, 38)
@@ -420,7 +322,7 @@ class _ActiveCard(_Card):
             self._app_icon_label.setPixmap(pixmap)
         else:
             self._app_icon_label.setText("●")
-            self._app_icon_label.setAlignment(Qt.AlignCenter)
+            self._app_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._app_icon_label.setStyleSheet(
                 f"color: {_ACCENT}; font-size: 20px; background: transparent; border: none;"
             )
@@ -561,7 +463,7 @@ class _AppRow(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setFixedHeight(46)
-        self.setCursor(Qt.PointingHandCursor)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._hovered = False
         self._bar_ratio = 0.0
 
@@ -571,7 +473,7 @@ class _AppRow(QWidget):
 
         self._icon_label = QLabel()
         self._icon_label.setFixedSize(32, 32)
-        self._icon_label.setAlignment(Qt.AlignCenter)
+        self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._icon_label.setStyleSheet("background: transparent; border: none;")
         row.addWidget(self._icon_label)
 
@@ -589,7 +491,7 @@ class _AppRow(QWidget):
 
         self._duration = QLabel("")
         self._duration.setFixedWidth(70)
-        self._duration.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self._duration.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self._duration.setStyleSheet(
             f"color: {_TEXT_SECONDARY}; font-size: 12px; font-weight: 500; "
             f"background: transparent; border: none;"
@@ -621,12 +523,12 @@ class _AppRow(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Hover background
         if self._hovered:
             painter.setBrush(QBrush(QColor(255, 255, 255, 6)))
-            painter.setPen(Qt.NoPen)
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(QRectF(0, 0, self.width(), self.height()), 8, 8)
 
         # Custom progress bar: starts aligned with name text (x=56)
@@ -637,7 +539,7 @@ class _AppRow(QWidget):
 
         # Draw empty track
         painter.setBrush(QBrush(QColor(_CARD_BORDER)))
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(QRectF(x, y, w, h), 2.5, 2.5)
 
         # Draw filled part
@@ -673,7 +575,7 @@ class _TopAppsCard(_Card):
         header_row.addStretch(1)
 
         self._view_all_btn = QPushButton("View All")
-        self._view_all_btn.setCursor(Qt.PointingHandCursor)
+        self._view_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._view_all_btn.setStyleSheet(
             f"QPushButton {{ color: {_ACCENT}; font-size: 11px; font-weight: 600; "
             f"background: transparent; border: none; text-decoration: none; }}"
@@ -709,8 +611,8 @@ class _TopAppsCard(_Card):
         more_layout.setSpacing(0)
         more_layout.addStretch(1)
 
-        self._more_btn = QPushButton("Show More ∨")
-        self._more_btn.setCursor(Qt.PointingHandCursor)
+        self._more_btn = QPushButton("Show More")
+        self._more_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._more_btn.setStyleSheet(
             f"QPushButton {{ color: {_TEXT_SECONDARY}; font-size: 11px; font-weight: 600; "
             f"background: {_CARD_LIGHTER}; border: 1px solid {_CARD_BORDER}; "
@@ -771,7 +673,7 @@ class _WeeklyChart(QWidget):
         self._hovered_index: int = -1
         self.setMinimumHeight(170)
         self.setMouseTracking(True)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     def set_data(self, days: list[DailyUsageSummary], today: date):
         self._days = days
@@ -818,7 +720,7 @@ class _WeeklyChart(QWidget):
         if not self._days:
             return
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         rects = self._bar_rects()
         n = len(self._days)
         usable_w = self.width() - 2 * self._PAD_SIDE
@@ -826,10 +728,10 @@ class _WeeklyChart(QWidget):
 
         label_font = QFont()
         label_font.setPixelSize(10)
-        label_font.setWeight(QFont.Medium)
+        label_font.setWeight(QFont.Weight.Medium)
         value_font = QFont()
         value_font.setPixelSize(10)
-        value_font.setWeight(QFont.Bold)
+        value_font.setWeight(QFont.Weight.Bold)
 
         for i, (day, rect) in enumerate(zip(self._days, rects)):
             is_today = (self._today is not None and day.day == self._today)
@@ -843,7 +745,7 @@ class _WeeklyChart(QWidget):
                 grad.setColorAt(0, QColor(59, 130, 246, 45))
                 grad.setColorAt(1, QColor(59, 130, 246, 0))
                 painter.setBrush(QBrush(grad))
-                painter.setPen(Qt.NoPen)
+                painter.setPen(Qt.PenStyle.NoPen)
                 r = rect.height() * 0.9
                 painter.drawEllipse(QRectF(glow_cx - r, glow_cy - r * 0.3, r * 2, r * 2))
 
@@ -866,7 +768,7 @@ class _WeeklyChart(QWidget):
             if is_today:
                 painter.setPen(QPen(QColor("#93c5fd"), 1.2))
             else:
-                painter.setPen(Qt.NoPen)
+                painter.setPen(Qt.PenStyle.NoPen)
             painter.drawPath(path)
 
             # ── Value label above bar ───────────────────────────────────
@@ -876,7 +778,7 @@ class _WeeklyChart(QWidget):
                 text_color = QColor(_TEXT_PRIMARY) if is_today else (QColor(_TEXT_SECONDARY) if is_hovered else QColor(_TEXT_MUTED))
                 painter.setPen(QPen(text_color))
                 label_rect = QRectF(rect.x() - 10, rect.y() - 18, rect.width() + 20, 16)
-                painter.drawText(label_rect, Qt.AlignCenter, label_text)
+                painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, label_text)
 
             # ── Weekday label below bar ─────────────────────────────────
             painter.setFont(label_font)
@@ -888,7 +790,7 @@ class _WeeklyChart(QWidget):
                 self.height() - self._PAD_BOTTOM + 4,
                 slot_w, 16,
             )
-            painter.drawText(lbl_rect, Qt.AlignCenter, day_label)
+            painter.drawText(lbl_rect, Qt.AlignmentFlag.AlignCenter, day_label)
 
         painter.end()
 
@@ -1032,7 +934,6 @@ class DashboardPage(QWidget):
     date_changed = Signal(int)  # -1 or +1
     reset_date_requested = Signal()
     view_all_requested = Signal()
-    stop_clicked = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -1042,7 +943,7 @@ class DashboardPage(QWidget):
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setStyleSheet(
             f"QScrollArea {{ background: {_BG}; border: none; }}"
             f"QScrollBar:vertical {{ background: {_BG}; width: 5px; margin: 0; }}"
@@ -1068,7 +969,7 @@ class DashboardPage(QWidget):
 
         # Date Button
         self._date_btn = QPushButton("📅 —")
-        self._date_btn.setCursor(Qt.PointingHandCursor)
+        self._date_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._date_btn.setStyleSheet(
             f"QPushButton {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
             f"border-radius: 8px; padding: 7px 14px; color: {_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; }}"
@@ -1081,8 +982,8 @@ class DashboardPage(QWidget):
         self._next_btn = QPushButton(">")
         self._prev_btn.setFixedSize(30, 30)
         self._next_btn.setFixedSize(30, 30)
-        self._prev_btn.setCursor(Qt.PointingHandCursor)
-        self._next_btn.setCursor(Qt.PointingHandCursor)
+        self._prev_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         
         self._prev_btn.setStyleSheet(
             f"QPushButton {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
@@ -1108,7 +1009,7 @@ class DashboardPage(QWidget):
         # View combobox
         self._view_combo = QComboBox()
         self._view_combo.addItems(["Day", "Week"])
-        self._view_combo.setCursor(Qt.PointingHandCursor)
+        self._view_combo.setCursor(Qt.CursorShape.PointingHandCursor)
         self._view_combo.setStyleSheet(
             f"QComboBox {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
             f"border-radius: 8px; padding: 5px 12px; color: {_TEXT_PRIMARY}; font-size: 11px; font-weight: 600; min-width: 80px; }}"
@@ -1121,7 +1022,7 @@ class DashboardPage(QWidget):
         # Reset button
         self._reset_btn = QPushButton("⟲")
         self._reset_btn.setFixedSize(30, 30)
-        self._reset_btn.setCursor(Qt.PointingHandCursor)
+        self._reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._reset_btn.setStyleSheet(
             f"QPushButton {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
             f"border-radius: 8px; color: {_TEXT_PRIMARY}; font-size: 14px; }}"
@@ -1138,7 +1039,6 @@ class DashboardPage(QWidget):
         self._hero_card = _HeroCard()
         top_row.addWidget(self._hero_card, 3)
         self._active_card = _ActiveCard()
-        self._active_card.stop_clicked.connect(self.stop_clicked.emit)
         top_row.addWidget(self._active_card, 2)
         main.addLayout(top_row)
 
