@@ -223,12 +223,12 @@ class _HeroCard(_Card):
 
         # Header Row: Section Label
         hdr_row = QHBoxLayout()
-        section = QLabel("TODAY")
-        section.setStyleSheet(
+        self._section_label = QLabel("TODAY")
+        self._section_label.setStyleSheet(
             f"color: {_ACCENT}; font-size: 10px; font-weight: 700; "
             f"letter-spacing: 0.12em; background: transparent; border: none;"
         )
-        hdr_row.addWidget(section)
+        hdr_row.addWidget(self._section_label)
         hdr_row.addStretch(1)
         layout.addLayout(hdr_row)
 
@@ -239,12 +239,12 @@ class _HeroCard(_Card):
         )
         layout.addWidget(self._time_label)
 
-        subtitle = QLabel("Today's Screen Time")
-        subtitle.setStyleSheet(
+        self._subtitle_label = QLabel("Today's Screen Time")
+        self._subtitle_label.setStyleSheet(
             f"color: {_TEXT_SECONDARY}; font-size: 12px; font-weight: 500; "
             f"background: transparent; border: none;"
         )
-        layout.addWidget(subtitle)
+        layout.addWidget(self._subtitle_label)
         layout.addSpacing(8)
 
         # Trend badge row
@@ -303,6 +303,28 @@ class _HeroCard(_Card):
     def update_data(self, today_secs: int, yesterday_secs: int, snapshot: DashboardSnapshot | None = None) -> None:
         self._today_secs = today_secs
         self._time_label.setText(format_duration_compact(today_secs))
+
+        target_date = snapshot.last_refreshed.date() if snapshot else date.today()
+        today = date.today()
+        diff_days = (today - target_date).days
+
+        if diff_days == 0:
+            section_txt = "TODAY"
+            subtitle_txt = "Today's Screen Time"
+        elif diff_days == 1:
+            section_txt = "YESTERDAY"
+            subtitle_txt = "Yesterday's Screen Time"
+        elif 1 < diff_days < 7:
+            day_name = target_date.strftime('%A').upper()
+            section_txt = day_name
+            subtitle_txt = f"{target_date.strftime('%A')}'s Screen Time"
+        else:
+            formatted_date = target_date.strftime('%B %d, %Y').upper()
+            section_txt = formatted_date
+            subtitle_txt = f"{target_date.strftime('%B %d, %Y')}'s Screen Time"
+
+        self._section_label.setText(section_txt)
+        self._subtitle_label.setText(subtitle_txt)
 
         if snapshot and snapshot.top_apps:
             top_app_name = snapshot.top_apps[0].app_name
