@@ -81,35 +81,16 @@ def _add_shadow(widget: QWidget, blur: int = 24, opacity: int = 40, dy: int = 4)
 
 
 class _AnimatedComboBox(QComboBox):
-    """Combobox that opens its popup directly below the field with a small animation."""
+    """Combobox that opens its popup directly below the field with a smooth fade animation."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._popup_show_anim: QPropertyAnimation | None = None
         self._popup_show_opacity_anim: QPropertyAnimation | None = None
         self._popup_hide_anim: QPropertyAnimation | None = None
         self._popup_opacity_effect: QGraphicsOpacityEffect | None = None
 
-    def _popup_widget(self):
+    def _popup_widget(self) -> QWidget | None:
         return self.view().window() if self.view() else None
-
-    def _apply_popup_geometry(self) -> None:
-        popup = self._popup_widget()
-        if popup is None:
-            return
-
-        view = self.view()
-        top_left = self.mapToGlobal(QPoint(0, self.height()))
-        popup_width = max(self.width(), popup.sizeHint().width())
-        row_height = max(24, view.sizeHintForRow(0) if self.count() else 24)
-        popup_height = min(row_height * max(1, min(self.count(), 6)) + 8, 240)
-        popup.setGeometry(QRect(top_left.x(), top_left.y(), popup_width, popup_height))
-
-    def eventFilter(self, obj, event):
-        popup = self._popup_widget()
-        if obj is popup and event.type() in (QEvent.Type.Show, QEvent.Type.Resize, QEvent.Type.Move):
-            self._apply_popup_geometry()
-        return super().eventFilter(obj, event)
 
     def showPopup(self) -> None:
         super().showPopup()
@@ -117,37 +98,20 @@ class _AnimatedComboBox(QComboBox):
         if popup is None:
             return
 
-        popup.installEventFilter(self)
+        # Ensure rounded corners don't render black margins
+        popup.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        def animate_popup() -> None:
-            popup_widget = self._popup_widget()
-            if popup_widget is None:
-                return
+        # Apply a smooth fade-in animation using opacity effect
+        self._popup_opacity_effect = QGraphicsOpacityEffect(popup)
+        self._popup_opacity_effect.setOpacity(0.0)
+        popup.setGraphicsEffect(self._popup_opacity_effect)
 
-            self._apply_popup_geometry()
-            end_geom = popup_widget.geometry()
-            start_geom = end_geom.adjusted(0, -8, 0, 0)
-            popup_widget.setGeometry(start_geom)
-
-            self._popup_opacity_effect = QGraphicsOpacityEffect(popup_widget)
-            self._popup_opacity_effect.setOpacity(0.0)
-            popup_widget.setGraphicsEffect(self._popup_opacity_effect)
-
-            self._popup_show_anim = QPropertyAnimation(popup_widget, b"geometry", self)
-            self._popup_show_anim.setDuration(220)
-            self._popup_show_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-            self._popup_show_anim.setStartValue(start_geom)
-            self._popup_show_anim.setEndValue(end_geom)
-            self._popup_show_anim.start()
-
-            self._popup_show_opacity_anim = QPropertyAnimation(self._popup_opacity_effect, b"opacity", self)
-            self._popup_show_opacity_anim.setDuration(220)
-            self._popup_show_opacity_anim.setStartValue(0.0)
-            self._popup_show_opacity_anim.setEndValue(1.0)
-            self._popup_show_opacity_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-            self._popup_show_opacity_anim.start()
-
-        QTimer.singleShot(0, animate_popup)
+        self._popup_show_opacity_anim = QPropertyAnimation(self._popup_opacity_effect, b"opacity", self)
+        self._popup_show_opacity_anim.setDuration(150)
+        self._popup_show_opacity_anim.setStartValue(0.0)
+        self._popup_show_opacity_anim.setEndValue(1.0)
+        self._popup_show_opacity_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._popup_show_opacity_anim.start()
 
     def _finish_hide_popup(self) -> None:
         super().hidePopup()
@@ -167,7 +131,7 @@ class _AnimatedComboBox(QComboBox):
             return
 
         self._popup_hide_anim = QPropertyAnimation(effect, b"opacity", self)
-        self._popup_hide_anim.setDuration(180)
+        self._popup_hide_anim.setDuration(120)
         self._popup_hide_anim.setStartValue(effect.opacity())
         self._popup_hide_anim.setEndValue(0.0)
         self._popup_hide_anim.setEasingCurve(QEasingCurve.Type.InCubic)
@@ -1110,6 +1074,9 @@ class DashboardPage(QWidget):
             f"border-radius: 8px; padding: 5px 12px; color: {_TEXT_PRIMARY}; font-size: 11px; font-weight: 600; min-width: 80px; }}"
             f"QComboBox::drop-down {{ border: none; width: 20px; }}"
             f"QComboBox::down-arrow {{ image: none; border: none; }}"
+            f"QComboBox QAbstractItemView {{ background-color: {_CARD}; border: 1px solid {_CARD_BORDER}; "
+            f"border-radius: 8px; selection-background-color: {_CARD_LIGHTER}; selection-color: {_TEXT_PRIMARY}; "
+            f"color: {_TEXT_PRIMARY}; padding: 4px; outline: none; }}"
         )
         self._view_combo.currentTextChanged.connect(self._on_view_changed)
         hdr_row.addWidget(self._view_combo)
