@@ -1,14 +1,14 @@
 """Reports page — historical analytics and data export for Trackora."""
 from __future__ import annotations
-import csv, json, io
+import csv, json, io, os
 from datetime import date, timedelta
-from PySide6.QtCore import Qt, QRectF, QSize, QDate, QByteArray
+from PySide6.QtCore import Qt, QRectF, QSize, QDate, QByteArray, QEasingCurve, QPropertyAnimation
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtGui import (QBrush, QColor, QIcon, QLinearGradient, QPainter,
                             QPainterPath, QPen, QPixmap)
 from PySide6.QtWidgets import (QDateEdit, QFileDialog, QFrame, QGraphicsDropShadowEffect,
-                                QHBoxLayout, QLabel, QScrollArea, QSizePolicy,
-                                QVBoxLayout, QWidget)
+                                QGraphicsOpacityEffect, QHBoxLayout, QLabel, QScrollArea,
+                                QSizePolicy, QVBoxLayout, QWidget)
 from trackora.database.dashboard import DashboardRepository
 from trackora.models.dashboard import ReportsData, AppUsageSummary, DailyUsageSummary
 from typing import TYPE_CHECKING
@@ -19,6 +19,9 @@ _TEXT_SECONDARY = "#8b9bb4"; _TEXT_MUTED = "#566a82"
 _ACCENT = "#3b82f6"; _GREEN = "#34d399"
 _SCALE = 0.80
 _FONT_SCALE = 1.0
+
+_ASSETS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "assets"))
+_CALENDAR_SVG_PATH = os.path.join(_ASSETS_DIR, "calendar.svg").replace("\\", "/")
 
 def _s(px: int) -> int:
     return max(1, int(px * _SCALE))
@@ -132,32 +135,102 @@ class _FilterBtn(QWidget):
     def __init__(self, text, cb, parent=None):
         super().__init__(parent); self._active = False; self._hovered = False; self._text = text; self._cb = cb
         self.setCursor(Qt.CursorShape.PointingHandCursor); self.setFixedHeight(_s(32))
-        lo = QHBoxLayout(self); lo.setContentsMargins(_s(14), 0, _s(14), 0)
-        self._lbl = QLabel(text); lo.addWidget(self._lbl); self._apply_style()
-    def _apply_style(self):
+        
+        # Border/Outline widget (always visible)
+        self._border_widget = QWidget(self)
+        self._border_widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._border_widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self._border_widget.setStyleSheet(
+            f"background: transparent; border: 1px solid {_CARD_BORDER}; border-radius: {_s(8)}px;"
+        )
+        
+        # Animated background box
+        self._hover_bg = QWidget(self)
+        self._hover_bg.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._hover_bg.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self._hover_bg.setObjectName("hoverBg")
+        
+        self._opacity_effect = QGraphicsOpacityEffect(self._hover_bg)
+        self._opacity_effect.setOpacity(0.0)
+        self._hover_bg.setGraphicsEffect(self._opacity_effect)
+        
+        self._anim = QPropertyAnimation(self._opacity_effect, b"opacity", self)
+        self._anim.setDuration(150)
+        self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        
+        # Label
+        lo = QHBoxLayout(self)
+        lo.setContentsMargins(_s(14), 0, _s(14), 0)
+        self._lbl = QLabel(text)
+        self._lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self._lbl.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 12px; font-weight: 600; background: transparent; border: none;")
+        lo.addWidget(self._lbl)
+        
+        # Position layers correctly
+        self._border_widget.lower()
+        self._hover_bg.raise_()
+        self._lbl.raise_()
+        
+        self._update_style(animate=False)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._border_widget.setGeometry(self.rect())
+        self._hover_bg.setGeometry(self.rect())
+
+    def _update_style(self, animate: bool = True):
         if self._active:
-            bg = _ACCENT
-            fg = "#fff"
-            bd = f"1px solid {_ACCENT}"
+            # Active state: Blue background box
+            self._hover_bg.setStyleSheet(
+                f"QWidget#hoverBg {{ background: {_ACCENT}; border: 1px solid {_ACCENT}; border-radius: {_s(8)}px; }}"
+            )
+            self._lbl.setStyleSheet("color: #ffffff; font-size: 12px; font-weight: 600; background: transparent; border: none;")
+            if animate:
+                self._anim.stop()
+                self._anim.setStartValue(self._opacity_effect.opacity())
+                self._anim.setEndValue(1.0)
+                self._anim.start()
+            else:
+                self._opacity_effect.setOpacity(1.0)
         elif self._hovered:
-            bg = _CARD_LIGHTER
-            fg = _TEXT_PRIMARY
-            bd = f"1px solid {_ACCENT}"
+            # Hovered state: Subtle card lighter background box
+            self._hover_bg.setStyleSheet(
+                f"QWidget#hoverBg {{ background: {_CARD_LIGHTER}; border: 1px solid {_ACCENT}; border-radius: {_s(8)}px; }}"
+            )
+            self._lbl.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; background: transparent; border: none;")
+            if animate:
+                self._anim.stop()
+                self._anim.setStartValue(self._opacity_effect.opacity())
+                self._anim.setEndValue(1.0)
+                self._anim.start()
+            else:
+                self._opacity_effect.setOpacity(1.0)
         else:
-            bg = "transparent"
-            fg = _TEXT_SECONDARY
-            bd = f"1px solid {_CARD_BORDER}"
-        self._lbl.setStyleSheet(f"color:{fg};font-size:{_sf(12)};font-weight:600;"
-            f"background:transparent;border:none;")
-        self.setStyleSheet(f"background:{bg};border:{bd};border-radius:{_s(8)}px;")
-    def set_active(self, a): self._active = a; self._apply_style()
+            # Idle state: Fade out the background box
+            self._lbl.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 12px; font-weight: 600; background: transparent; border: none;")
+            if animate:
+                self._anim.stop()
+                self._anim.setStartValue(self._opacity_effect.opacity())
+                self._anim.setEndValue(0.0)
+                self._anim.start()
+            else:
+                self._opacity_effect.setOpacity(0.0)
+
+    def set_active(self, a):
+        if self._active != a:
+            self._active = a
+            self._update_style(animate=True)
+
     def enterEvent(self, event):
         self._hovered = True
-        self._apply_style()
+        self._update_style(animate=True)
+
     def leaveEvent(self, event):
         self._hovered = False
-        self._apply_style()
-    def mousePressEvent(self, e): self._cb(self._text)
+        self._update_style(animate=True)
+
+    def mousePressEvent(self, e):
+        self._cb(self._text)
 
 
 class _TrendChart(QWidget):
@@ -294,6 +367,7 @@ class _TrendChart(QWidget):
 class _AppTableRow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent); self.setFixedHeight(_s(48))
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         lo = QHBoxLayout(self); lo.setContentsMargins(_s(16), 0, _s(16), 0); lo.setSpacing(_s(12))
         self._icon = QLabel(); self._icon.setFixedSize(_s(24), _s(24))
@@ -337,6 +411,7 @@ class _AppTableRow(QWidget):
 class _CategoryRow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent); self.setFixedHeight(_s(44))
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         lo = QHBoxLayout(self); lo.setContentsMargins(_s(16), 0, _s(16), 0); lo.setSpacing(_s(10))
         self._icon = QLabel()
@@ -380,6 +455,7 @@ class _CategoryRow(QWidget):
 class _ExportBtn(QWidget):
     def __init__(self, text, cb, parent=None):
         super().__init__(parent); self._cb = cb; self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFixedHeight(_s(36)); self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         lo = QHBoxLayout(self); lo.setContentsMargins(0,0,0,0)
         lbl = QLabel(text); lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -388,8 +464,8 @@ class _ExportBtn(QWidget):
         lo.addWidget(lbl)
         self.setStyleSheet(f"background:{_ACCENT};border-radius:{_s(8)}px;")
     def mousePressEvent(self, e): self._cb()
-    def enterEvent(self, e): self.setStyleSheet("background:#2563eb;border-radius:8px;")
-    def leaveEvent(self, e): self.setStyleSheet(f"background:{_ACCENT};border-radius:8px;")
+    def enterEvent(self, e): self.setStyleSheet(f"background:#2563eb;border-radius:{_s(8)}px;")
+    def leaveEvent(self, e): self.setStyleSheet(f"background:{_ACCENT};border-radius:{_s(8)}px;")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -705,11 +781,19 @@ class ReportsPage(QWidget):
             QDateEdit::drop-down {{
                 subcontrol-origin: padding;
                 subcontrol-position: top right;
-                width: 26px;
+                width: 28px;
                 border-left: 1px solid {_CARD_BORDER};
                 background: {_CARD_LIGHTER};
                 border-top-right-radius: 7px;
                 border-bottom-right-radius: 7px;
+            }}
+            QDateEdit::drop-down:hover {{
+                background: {_CARD_BORDER};
+            }}
+            QDateEdit::down-arrow {{
+                image: url({_CALENDAR_SVG_PATH});
+                width: 14px;
+                height: 14px;
             }}
             QCalendarWidget QWidget {{
                 background-color: {_CARD};
