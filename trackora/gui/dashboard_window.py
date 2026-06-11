@@ -270,7 +270,7 @@ class _QuoteCard(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         rect = QRectF(0, 0, self.width(), self.height())
         painter.setBrush(QBrush(QColor(255, 255, 255, 4)))
@@ -296,7 +296,7 @@ class _QuoteCard(QWidget):
             orb_grad.setColorAt(0, QColor(59, 130, 246, alpha))
             orb_grad.setColorAt(1, QColor(59, 130, 246, 0))
             painter.setBrush(QBrush(orb_grad))
-            painter.setPen(Qt.NoPen)
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.drawEllipse(QRectF(cx - radius, cy - radius, radius * 2, radius * 2))
             
         painter.end()
