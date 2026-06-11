@@ -158,6 +158,7 @@ class DashboardRepository:
         total_seconds = self._merged_total_seconds(normalized_sessions)
         total_yesterday_seconds = self._merged_total_seconds(normalized_yesterday)
         total_last7days_seconds = sum(day.duration_seconds for day in weekly_days)
+        view_time = datetime.combine(today_local, local_now.time(), tzinfo=local_now.tzinfo)
         return DashboardSnapshot(
             total_today_seconds=total_seconds,
             total_yesterday_seconds=total_yesterday_seconds,
@@ -171,7 +172,7 @@ class DashboardRepository:
             weekly_labels=[day.label for day in weekly_days],
             weekly_values=[round(day.duration_seconds / 3600, 2) for day in weekly_days],
             weekly_days=weekly_days,
-            last_refreshed=local_now,
+            last_refreshed=view_time,
             status_message="Connected to Trackora database",
         )
 
