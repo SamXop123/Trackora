@@ -18,13 +18,14 @@ _CARD_BORDER = "#1c2735"; _TEXT_PRIMARY = "#e6edf5"
 _TEXT_SECONDARY = "#8b9bb4"; _TEXT_MUTED = "#566a82"
 _ACCENT = "#3b82f6"; _GREEN = "#34d399"
 _SCALE = 0.80
+_FONT_SCALE = 1.0
 
 def _s(px: int) -> int:
     return max(1, int(px * _SCALE))
 
 
 def _sf(px: int) -> str:
-    return f"{max(1, int(px * _SCALE))}px"
+    return f"{max(1, int(px * _FONT_SCALE))}px"
 
 _CATEGORY_SVGS = {
     "Browsers": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -129,18 +130,33 @@ class _StatCard(_Card):
 
 class _FilterBtn(QWidget):
     def __init__(self, text, cb, parent=None):
-        super().__init__(parent); self._active = False; self._text = text; self._cb = cb
+        super().__init__(parent); self._active = False; self._hovered = False; self._text = text; self._cb = cb
         self.setCursor(Qt.CursorShape.PointingHandCursor); self.setFixedHeight(_s(32))
         lo = QHBoxLayout(self); lo.setContentsMargins(_s(14), 0, _s(14), 0)
         self._lbl = QLabel(text); lo.addWidget(self._lbl); self._apply_style()
     def _apply_style(self):
-        bg = _ACCENT if self._active else "transparent"
-        fg = "#fff" if self._active else _TEXT_SECONDARY
-        bd = f"1px solid {_ACCENT}" if self._active else f"1px solid {_CARD_BORDER}"
+        if self._active:
+            bg = _ACCENT
+            fg = "#fff"
+            bd = f"1px solid {_ACCENT}"
+        elif self._hovered:
+            bg = _CARD_LIGHTER
+            fg = _TEXT_PRIMARY
+            bd = f"1px solid {_ACCENT}"
+        else:
+            bg = "transparent"
+            fg = _TEXT_SECONDARY
+            bd = f"1px solid {_CARD_BORDER}"
         self._lbl.setStyleSheet(f"color:{fg};font-size:{_sf(12)};font-weight:600;"
             f"background:transparent;border:none;")
         self.setStyleSheet(f"background:{bg};border:{bd};border-radius:{_s(8)}px;")
     def set_active(self, a): self._active = a; self._apply_style()
+    def enterEvent(self, event):
+        self._hovered = True
+        self._apply_style()
+    def leaveEvent(self, event):
+        self._hovered = False
+        self._apply_style()
     def mousePressEvent(self, e): self._cb(self._text)
 
 
@@ -281,6 +297,7 @@ class _AppTableRow(QWidget):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         lo = QHBoxLayout(self); lo.setContentsMargins(_s(16), 0, _s(16), 0); lo.setSpacing(_s(12))
         self._icon = QLabel(); self._icon.setFixedSize(_s(24), _s(24))
+        self._icon.setScaledContents(True)
         self._icon.setStyleSheet("background:transparent;border:none;")
         lo.addWidget(self._icon)
         self._name = QLabel(); self._name.setStyleSheet(
@@ -309,7 +326,7 @@ class _AppTableRow(QWidget):
             self._pct.setStyleSheet(f"color: {_ACCENT}; font-size: {_sf(13)}; font-weight: 700; background: transparent; border: none;")
     def set_data(self, name, dur, pct):
         self._name.setText(name); self._dur.setText(_fmt(dur)); self._pct.setText(f"{pct}%")
-        px = _get_icon(name, 24)
+        px = _get_icon(name, _s(24))
         if px: self._icon.setPixmap(px)
     def enterEvent(self, e):
         self._apply_style(True)
@@ -324,6 +341,7 @@ class _CategoryRow(QWidget):
         lo = QHBoxLayout(self); lo.setContentsMargins(_s(16), 0, _s(16), 0); lo.setSpacing(_s(10))
         self._icon = QLabel()
         self._icon.setFixedSize(_s(20), _s(20))
+        self._icon.setScaledContents(True)
         self._icon.setStyleSheet("background:transparent;border:none;")
         lo.addWidget(self._icon)
         self._name = QLabel(); self._name.setStyleSheet(
@@ -350,7 +368,7 @@ class _CategoryRow(QWidget):
             self._dur.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: {_sf(13)}; font-weight: 600; background: transparent; border: none;")
             self._pct.setStyleSheet(f"color: {_ACCENT}; font-size: {_sf(13)}; font-weight: 700; background: transparent; border: none;")
     def set_data(self, cat, dur, pct):
-        px = _get_category_icon(cat, 20, _ACCENT)
+        px = _get_category_icon(cat, _s(20), _ACCENT)
         self._icon.setPixmap(px)
         self._name.setText(cat); self._dur.setText(_fmt(dur)); self._pct.setText(f"{pct}%")
     def enterEvent(self, e):
