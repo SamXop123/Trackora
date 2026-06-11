@@ -1027,6 +1027,7 @@ class _CalendarPopup(QDialog):
         super().__init__(parent, Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        self._selected_date = current_date
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -1072,9 +1073,13 @@ class _CalendarPopup(QDialog):
         self._calendar.activated.connect(self.accept)
         self._calendar.clicked.connect(self.accept)
 
-    def get_selected_date(self) -> date:
+    def accept(self):
         qd = self._calendar.selectedDate()
-        return date(qd.year(), qd.month(), qd.day())
+        self._selected_date = date(qd.year(), qd.month(), qd.day())
+        super().accept()
+
+    def get_selected_date(self) -> date:
+        return self._selected_date
 
 
 # ═══════════════════════════════════════════════════════════════════════════
