@@ -9,10 +9,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from datetime import date, timedelta
-from PySide6.QtCore import Qt, QRectF, QTimer, QVariantAnimation
-from PySide6.QtGui import QBrush, QColor, QPainter, QPen, QIcon, QPixmap, QLinearGradient, QRadialGradient
+from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QRect, QRectF, QTimer, QVariantAnimation, Qt
+from PySide6.QtGui import QBrush, QColor, QIcon, QLinearGradient, QPainter, QPen, QPixmap, QRadialGradient
 from PySide6.QtWidgets import (
-    QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel,
+    QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel,
     QMainWindow, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget, QPushButton
 )
 
@@ -42,6 +42,101 @@ _NAV_ITEMS: list[tuple[str, str]] = [
     ("Goals",        "◎"),
     ("Reports",      "◷"),
 ]
+
+
+class _ToastPopup(QWidget):
+    """Floating top-right notification toast for short-lived status messages."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setVisible(False)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setFixedWidth(260)
+
+        self._opacity_effect = QGraphicsOpacityEffect(self)
+        self._opacity_effect.setOpacity(0.0)
+        self.setGraphicsEffect(self._opacity_effect)
+
+        self._title = QLabel("Dashboard refreshed", self)
+        self._title.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 11px; font-weight: 700; background: transparent; border: none;"
+        )
+
+        self._message = QLabel("Your dashboard has been updated.", self)
+        self._message.setStyleSheet(
+            "color: #b7f7cf; font-size: 10px; font-weight: 500; background: transparent; border: none;"
+        )
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(2)
+        layout.addWidget(self._title)
+        layout.addWidget(self._message)
+
+        self.setStyleSheet(
+            "QWidget { background: rgba(10, 28, 18, 0.96); border: 1px solid rgba(52, 211, 153, 0.34); "
+            "border-radius: 12px; }"
+        )
+
+        self._fade_in: QPropertyAnimation | None = None
+        self._fade_out: QPropertyAnimation | None = None
+        self._move_in: QPropertyAnimation | None = None
+        self._move_out: QPropertyAnimation | None = None
+        self._hide_timer = QTimer(self)
+        self._hide_timer.setSingleShot(True)
+        self._hide_timer.timeout.connect(self.hide_with_animation)
+
+    def show_message(self, title: str, message: str, timeout_ms: int = 3000) -> None:
+        self._title.setText(title)
+        self._message.setText(message)
+        self.adjustSize()
+        self.setVisible(True)
+        self.raise_()
+
+        final_geom = self.geometry()
+        start_geom = QRect(final_geom.x(), final_geom.y() - 10, final_geom.width(), final_geom.height())
+        self.setGeometry(start_geom)
+
+        self._opacity_effect.setOpacity(0.0)
+        self._fade_in = QPropertyAnimation(self._opacity_effect, b"opacity", self)
+        self._fade_in.setDuration(220)
+        self._fade_in.setStartValue(0.0)
+        self._fade_in.setEndValue(1.0)
+        self._fade_in.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._fade_in.start()
+
+        self._move_in = QPropertyAnimation(self, b"geometry", self)
+        self._move_in.setDuration(220)
+        self._move_in.setStartValue(start_geom)
+        self._move_in.setEndValue(final_geom)
+        self._move_in.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._move_in.start()
+
+        self._hide_timer.start(timeout_ms)
+
+    def hide_with_animation(self) -> None:
+        if not self.isVisible():
+            return
+
+        self._hide_timer.stop()
+        current_geom = self.geometry()
+        end_geom = QRect(current_geom.x(), current_geom.y() - 8, current_geom.width(), current_geom.height())
+
+        self._fade_out = QPropertyAnimation(self._opacity_effect, b"opacity", self)
+        self._fade_out.setDuration(200)
+        self._fade_out.setStartValue(self._opacity_effect.opacity())
+        self._fade_out.setEndValue(0.0)
+        self._fade_out.setEasingCurve(QEasingCurve.Type.InCubic)
+        self._fade_out.finished.connect(lambda: self.setVisible(False))
+        self._fade_out.start()
+
+        self._move_out = QPropertyAnimation(self, b"geometry", self)
+        self._move_out.setDuration(200)
+        self._move_out.setStartValue(current_geom)
+        self._move_out.setEndValue(end_geom)
+        self._move_out.setEasingCurve(QEasingCurve.Type.InCubic)
+        self._move_out.start()
 
 
 class _NavButton(QWidget):
@@ -348,7 +443,31 @@ class MainWindow(QMainWindow):
         self._settings_page.set_repository(self._repository)
         self._stack.addWidget(self._settings_page)         # 6
 
+        self._refresh_toast = _ToastPopup(root)
+        self._position_refresh_toast()
+
         self._stack.setCurrentIndex(0)
+
+    def _position_refresh_toast(self) -> None:
+        if not hasattr(self, "_refresh_toast"):
+            return
+
+        toast = self._refresh_toast
+        toast.adjustSize()
+        x = max(12, self.width() - toast.width() - 18)
+        toast.move(x, 18)
+
+    def _show_refresh_toast(self) -> None:
+        self._position_refresh_toast()
+        self._refresh_toast.show_message(
+            "Dashboard refreshed",
+            "Your dashboard has been updated.",
+            timeout_ms=3000,
+        )
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._position_refresh_toast()
 
     def _on_nav_click(self, index: int):
         if 0 <= index < self._stack.count():
@@ -387,6 +506,7 @@ class MainWindow(QMainWindow):
     def _on_dashboard_reset_date(self):
         self._selected_date = date.today()
         self._refresh_dashboard()
+        self._show_refresh_toast()
 
     def _refresh_dashboard(self):
         from trackora.utils.logging import log_info, log_error
