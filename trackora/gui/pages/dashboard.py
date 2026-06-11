@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from datetime import date, datetime
 
-from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QPoint, QPropertyAnimation, QRect, QRectF, QSize, QTimer, Qt, Signal
+from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QEvent, QPoint, QPropertyAnimation, QRect, QRectF, QSize, QTimer, Qt, Signal
 
 from PySide6.QtGui import (QBrush, QColor, QFont, QIcon, QLinearGradient,
                            QPainter, QPainterPath, QPen, QPixmap, QRadialGradient)
@@ -105,11 +105,19 @@ class _AnimatedComboBox(QComboBox):
         popup_height = min(row_height * max(1, min(self.count(), 6)) + 8, 240)
         popup.setGeometry(QRect(top_left.x(), top_left.y(), popup_width, popup_height))
 
+    def eventFilter(self, obj, event):
+        popup = self._popup_widget()
+        if obj is popup and event.type() in (QEvent.Type.Show, QEvent.Type.Resize, QEvent.Type.Move):
+            self._apply_popup_geometry()
+        return super().eventFilter(obj, event)
+
     def showPopup(self) -> None:
         super().showPopup()
         popup = self._popup_widget()
         if popup is None:
             return
+
+        popup.installEventFilter(self)
 
         def animate_popup() -> None:
             popup_widget = self._popup_widget()
