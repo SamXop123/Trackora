@@ -95,13 +95,14 @@ class _RangePill(QWidget):
         self._callback = callback
         self._active = False
         self._hovered = False
-        self.setCursor(Qt.PointingHandCursor)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFixedHeight(30)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(14, 0, 14, 0)
         self._label = QLabel(label)
-        self._label.setAlignment(Qt.AlignCenter)
+        self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self._label)
         self._apply_style()
 
@@ -148,7 +149,7 @@ class _AppCard(QFrame):
         self._hovered = False
         self._expanded = False
         self._bar_ratio = 0.0
-        self.setCursor(Qt.PointingHandCursor)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setStyleSheet(self._card_css(_CARD))
         _add_shadow(self, blur=16, opacity=30, dy=2)
 
@@ -165,7 +166,7 @@ class _AppCard(QFrame):
         # Icon
         self._icon_label = QLabel()
         self._icon_label.setFixedSize(36, 36)
-        self._icon_label.setAlignment(Qt.AlignCenter)
+        self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._icon_label.setStyleSheet("background: transparent; border: none;")
         row_layout.addWidget(self._icon_label)
 
@@ -191,7 +192,7 @@ class _AppCard(QFrame):
 
         # Duration (right side)
         self._duration = QLabel("")
-        self._duration.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self._duration.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self._duration.setStyleSheet(
             f"color: {_TEXT_PRIMARY}; font-size: 15px; font-weight: 700; "
             f"background: transparent; border: none;"
@@ -290,12 +291,12 @@ class _AppCard(QFrame):
         if bw.width() < 2:
             return
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         pos = bw.mapTo(self, bw.rect().topLeft())
         x, y, w, h = pos.x(), pos.y(), bw.width(), bw.height()
         # Track
         painter.setBrush(QBrush(QColor(_CARD_BORDER)))
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(QRectF(x, y, w, h), 1.5, 1.5)
         # Fill
         fill_w = w * self._bar_ratio
@@ -314,18 +315,18 @@ class _EmptyState(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignCenter)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setSpacing(8)
 
         icon = QLabel("⊞")
-        icon.setAlignment(Qt.AlignCenter)
+        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon.setStyleSheet(
             f"color: {_TEXT_MUTED}; font-size: 32px; background: transparent; border: none;"
         )
         layout.addWidget(icon)
 
         title = QLabel("No application usage tracked yet")
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet(
             f"color: {_TEXT_SECONDARY}; font-size: 14px; font-weight: 500; "
             f"background: transparent; border: none;"
@@ -333,7 +334,7 @@ class _EmptyState(QWidget):
         layout.addWidget(title)
 
         sub = QLabel("Start using apps and Trackora will show your usage here")
-        sub.setAlignment(Qt.AlignCenter)
+        sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sub.setStyleSheet(
             f"color: {_TEXT_MUTED}; font-size: 12px; background: transparent; border: none;"
         )
@@ -363,7 +364,7 @@ class ApplicationsPage(QWidget):
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setStyleSheet(
             f"QScrollArea {{ background: {_BG}; border: none; }}"
             f"QScrollBar:vertical {{ background: {_BG}; width: 5px; margin: 0; }}"
