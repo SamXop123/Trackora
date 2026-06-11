@@ -12,7 +12,7 @@ from PySide6.QtGui import (QBrush, QColor, QFont, QIcon, QLinearGradient,
 
 from PySide6.QtWidgets import (QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel,
                            QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
-                           QStackedWidget, QComboBox, QPushButton)
+                           QStackedWidget, QPushButton)
 
 from ...charts import DailyUsageChart
 from ...models.dashboard import (
@@ -80,63 +80,98 @@ def _add_shadow(widget: QWidget, blur: int = 24, opacity: int = 40, dy: int = 4)
     return None
 
 
-class _AnimatedComboBox(QComboBox):
-    """Combobox that opens its popup directly below the field with a smooth fade animation."""
+class _SegmentedToggle(QWidget):
+    """A premium sliding selector switch for toggling between Day and Week views."""
+    currentTextChanged = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._popup_show_opacity_anim: QPropertyAnimation | None = None
-        self._popup_hide_anim: QPropertyAnimation | None = None
-        self._popup_opacity_effect: QGraphicsOpacityEffect | None = None
+        self.setFixedSize(140, 32)
+        self._current_text = "Day"  # Default active option is "Day"
+        
+        # Outer container frame stylesheet
+        self.setStyleSheet(
+            f"QWidget {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; border-radius: 8px; }}"
+        )
 
-    def _popup_widget(self) -> QWidget | None:
-        return self.view().window() if self.view() else None
+        # Sliding background indicator
+        self._slider = QWidget(self)
+        self._slider.setObjectName("slider")
+        self._slider.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._slider.setStyleSheet(
+            f"QWidget#slider {{ background-color: {_ACCENT}; border: 1px solid {_ACCENT}; border-radius: 6px; }}"
+        )
+        
+        # Buttons
+        self._btn_week = QPushButton("Week", self)
+        self._btn_week.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        self._btn_day = QPushButton("Day", self)
+        self._btn_day.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        # Base styling for buttons
+        btn_style = (
+            "QPushButton { background: transparent; border: none; font-size: 11px; font-weight: 700; }"
+        )
+        self._btn_week.setStyleSheet(btn_style)
+        self._btn_day.setStyleSheet(btn_style)
+        
+        self._btn_week.clicked.connect(lambda: self.setCurrentText("Week"))
+        self._btn_day.clicked.connect(lambda: self.setCurrentText("Day"))
+        
+        # Position elements
+        self._padding = 3
+        self._btn_width = (self.width() - (self._padding * 2)) // 2
+        self._btn_height = self.height() - (self._padding * 2)
+        
+        self._btn_week.setGeometry(self._padding, self._padding, self._btn_width, self._btn_height)
+        self._btn_day.setGeometry(self._padding + self._btn_width, self._padding, self._btn_width, self._btn_height)
+        
+        # Ensure buttons sit on top of the slider
+        self._slider.raise_()
+        self._btn_week.raise_()
+        self._btn_day.raise_()
+        
+        # Place slider at default position
+        self._update_slider_geometry(animate=False)
+        self._update_button_colors()
 
-    def showPopup(self) -> None:
-        super().showPopup()
-        popup = self._popup_widget()
-        if popup is None:
+    def currentText(self) -> str:
+        return self._current_text
+
+    def setCurrentText(self, text: str) -> None:
+        if text not in ("Day", "Week") or self._current_text == text:
             return
+        self._current_text = text
+        self._update_slider_geometry(animate=True)
+        self._update_button_colors()
+        self.currentTextChanged.emit(text)
 
-        # Ensure rounded corners don't render black margins
-        popup.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    def _update_slider_geometry(self, animate: bool = True) -> None:
+        target_x = self._padding if self._current_text == "Week" else (self._padding + self._btn_width)
+        target_geom = QRect(target_x, self._padding, self._btn_width, self._btn_height)
+        
+        if animate:
+            self._anim = QPropertyAnimation(self._slider, b"geometry", self)
+            self._anim.setDuration(200)
+            self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+            self._anim.setStartValue(self._slider.geometry())
+            self._anim.setEndValue(target_geom)
+            self._anim.start()
+        else:
+            self._slider.setGeometry(target_geom)
 
-        # Apply a smooth fade-in animation using opacity effect
-        self._popup_opacity_effect = QGraphicsOpacityEffect(popup)
-        self._popup_opacity_effect.setOpacity(0.0)
-        popup.setGraphicsEffect(self._popup_opacity_effect)
-
-        self._popup_show_opacity_anim = QPropertyAnimation(self._popup_opacity_effect, b"opacity", self)
-        self._popup_show_opacity_anim.setDuration(150)
-        self._popup_show_opacity_anim.setStartValue(0.0)
-        self._popup_show_opacity_anim.setEndValue(1.0)
-        self._popup_show_opacity_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-        self._popup_show_opacity_anim.start()
-
-    def _finish_hide_popup(self) -> None:
-        super().hidePopup()
-
-    def hidePopup(self) -> None:
-        popup = self._popup_widget()
-        if popup is None or not popup.isVisible():
-            super().hidePopup()
-            return
-
-        effect = self._popup_opacity_effect
-        if effect is None:
-            super().hidePopup()
-            return
-
-        if self._popup_hide_anim and self._popup_hide_anim.state() == QAbstractAnimation.State.Running:
-            return
-
-        self._popup_hide_anim = QPropertyAnimation(effect, b"opacity", self)
-        self._popup_hide_anim.setDuration(120)
-        self._popup_hide_anim.setStartValue(effect.opacity())
-        self._popup_hide_anim.setEndValue(0.0)
-        self._popup_hide_anim.setEasingCurve(QEasingCurve.Type.InCubic)
-        self._popup_hide_anim.finished.connect(self._finish_hide_popup)
-        self._popup_hide_anim.start()
+    def _update_button_colors(self) -> None:
+        # Highlight active text with white, inactive with muted text color
+        week_color = "#ffffff" if self._current_text == "Week" else _TEXT_SECONDARY
+        day_color = "#ffffff" if self._current_text == "Day" else _TEXT_SECONDARY
+        
+        self._btn_week.setStyleSheet(
+            f"QPushButton {{ background: transparent; border: none; font-size: 11px; font-weight: 700; color: {week_color}; }}"
+        )
+        self._btn_day.setStyleSheet(
+            f"QPushButton {{ background: transparent; border: none; font-size: 11px; font-weight: 700; color: {day_color}; }}"
+        )
 
 
 # ─── Base card ──────────────────────────────────────────────────────────────
@@ -1065,19 +1100,8 @@ class DashboardPage(QWidget):
 
         hdr_row.addStretch(1)
 
-        # View combobox
-        self._view_combo = _AnimatedComboBox()
-        self._view_combo.addItems(["Day", "Week"])
-        self._view_combo.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._view_combo.setStyleSheet(
-            f"QComboBox {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
-            f"border-radius: 8px; padding: 5px 12px; color: {_TEXT_PRIMARY}; font-size: 11px; font-weight: 600; min-width: 80px; }}"
-            f"QComboBox::drop-down {{ border: none; width: 20px; }}"
-            f"QComboBox::down-arrow {{ image: none; border: none; }}"
-            f"QComboBox QAbstractItemView {{ background-color: {_CARD}; border: 1px solid {_CARD_BORDER}; "
-            f"border-radius: 8px; selection-background-color: {_CARD_LIGHTER}; selection-color: {_TEXT_PRIMARY}; "
-            f"color: {_TEXT_PRIMARY}; padding: 4px; outline: none; }}"
-        )
+        # View segmented toggle
+        self._view_combo = _SegmentedToggle()
         self._view_combo.currentTextChanged.connect(self._on_view_changed)
         hdr_row.addWidget(self._view_combo)
 
