@@ -13,8 +13,6 @@ from typing import Callable, Any
 from PySide6.QtCore import Qt, QTimer, QUrl, QSize, QVariantAnimation, QRectF
 from PySide6.QtGui import QColor, QDesktopServices, QPixmap, QPainter, QBrush, QPen
 from PySide6.QtWidgets import (
-    QButtonGroup,
-    QCheckBox,
     QFrame,
     QGraphicsDropShadowEffect,
     QGraphicsOpacityEffect,
@@ -31,7 +29,7 @@ from PySide6.QtWidgets import (
 
 from trackora.database.dashboard import DashboardRepository
 from trackora.utils.settings import settings_manager
-from trackora.utils.paths import trackora_data_dir, default_database_path, default_state_path
+from trackora.utils.paths import default_database_path, default_state_path
 from trackora.window_state import read_window_state
 from trackora.utils.time import now_utc
 
@@ -68,7 +66,7 @@ class _Card(QFrame):
 
 class _ActionCard(QFrame):
     """A compact card acting as a dashboard button with smooth fade animations."""
-    def __init__(self, title: str, icon: str = "", danger: bool = False, on_click: Callable = None, parent: QWidget | None = None) -> None:
+    def __init__(self, title: str, icon: str = "", danger: bool = False, on_click: Callable | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setFixedHeight(56)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -252,7 +250,7 @@ class _FilterBtn(QWidget):
         
         painter.setPen(text)
         font = self.font()
-        font.setPointSize(9.5)
+        font.setPointSizeF(9.5)
         font.setBold(True)
         font.setFamily("Inter")
         painter.setFont(font)
@@ -285,7 +283,7 @@ class _KVRow(QWidget):
         lo.addWidget(self.k_lbl)
         lo.addWidget(self.v_lbl, 1)
 
-    def set_value(self, value: str, color: str = None) -> None:
+    def set_value(self, value: str, color: str | None = None) -> None:
         self.v_lbl.setText(value)
         if color:
             self.v_lbl.setStyleSheet(f"color: {color}; font-size: 14px; font-weight: 600;")
@@ -545,7 +543,8 @@ class SettingsPage(QWidget):
         idx = list(self.tabs.keys()).index(category)
         widget = self._stack.widget(idx)
         self._stack.setCurrentIndex(idx)
-        self._fade_widget(widget)
+        if widget is not None:
+            self._fade_widget(widget)
 
     def _fade_widget(self, widget: QWidget) -> None:
         eff = QGraphicsOpacityEffect(widget)
@@ -556,7 +555,7 @@ class SettingsPage(QWidget):
         anim.setStartValue(0.0)
         anim.setEndValue(1.0)
         anim.valueChanged.connect(lambda val: eff.setOpacity(val))
-        anim.finished.connect(lambda: widget.setGraphicsEffect(None))
+        anim.finished.connect(lambda: widget.setGraphicsEffect(None))  # type: ignore
         anim.start()
         
         self._page_fade_anim = anim
