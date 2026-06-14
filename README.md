@@ -2,7 +2,7 @@
 
 <br />
 
-<img src="https://raw.githubusercontent.com/SamXop123/Trackora/main/assets/trackora-logo.svg" alt="Trackora" width="80" />
+<img src="https://raw.githubusercontent.com/SamXop123/Trackora/main/assets/trackora_logo.png" alt="Trackora" width="80" />
 
 <br />
 
