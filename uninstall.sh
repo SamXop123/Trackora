@@ -25,40 +25,80 @@ echo -e "${RED}${BOLD}==========================================================
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo -e "[INFO] Running from source directory: ${SRC_DIR}"
 
-# Define target paths
-USER_SITE=$(python3 -m site --user-site)
-TARGET_PKG_DIR="${USER_SITE}/trackora"
+# 2. Determine Python target package directory robustly
+# If python3 is missing/broken, USER_SITE lookup fails, so we search ~/.local/lib/
+USER_SITE=""
+if command -v python3 &>/dev/null; then
+    USER_SITE=$(python3 -m site --user-site 2>/dev/null)
+fi
+
+if [ -z "$USER_SITE" ]; then
+    echo -e "${YELLOW}[WARN] Python 3 not detected or user-site path not found. Scanning local directories...${NC}"
+    # Try finding an installed trackora folder under ~/.local/lib/
+    PKG_CANDIDATE=$(find "${HOME}/.local/lib" -maxdepth 3 -type d -name "trackora" 2>/dev/null | head -n 1)
+    if [ -n "$PKG_CANDIDATE" ]; then
+        TARGET_PKG_DIR="$PKG_CANDIDATE"
+    else
+        # Fall back to a default folder name
+        TARGET_PKG_DIR="${HOME}/.local/lib/python3.14/site-packages/trackora"
+    fi
+else
+    TARGET_PKG_DIR="${USER_SITE}/trackora"
+fi
+
+# Define other target paths
 EXT_UUID="trackora@trackora.dev"
 TARGET_EXT_DIR="${HOME}/.local/share/gnome-shell/extensions/${EXT_UUID}"
 TARGET_SERVICE_FILE="${HOME}/.config/systemd/user/trackora.service"
 DATA_DIR="${HOME}/.local/share/trackora"
+
+# Check systemd command existence for safety
+HAS_SYSTEMCTL=false
+if command -v systemctl &>/dev/null; then
+    HAS_SYSTEMCTL=true
+fi
 
 # ------------------------------------------------------------------------------
 # Step 1: Stop background service
 # ------------------------------------------------------------------------------
 echo -e "\n${BLUE}[1/5] Stopping Trackora background service...${NC}"
 
-# Check and stop service if running
-if systemctl --user is-active --quiet trackora.service &>/dev/null; then
-    echo -e "[INFO] Stopping trackora.service..."
-    systemctl --user stop trackora.service
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✔ Service stopped successfully.${NC}"
+if [ "$HAS_SYSTEMCTL" = true ]; then
+    # Check and stop service if running
+    if systemctl --user is-active --quiet trackora.service &>/dev/null; then
+        echo -e "[INFO] Stopping trackora.service..."
+        systemctl --user stop trackora.service
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✔ Service stopped successfully.${NC}"
+        else
+            echo -e "${YELLOW}Warning: Failed to stop service. Proceeding anyway.${NC}"
+        fi
     else
-        echo -e "${YELLOW}Warning: Failed to stop service. Proceeding anyway.${NC}"
+        echo -e "[INFO] service is not active. Skipping."
     fi
 else
-    echo -e "[INFO] service is not active. Skipping."
+    echo -e "[INFO] systemctl not found. Skipping service stopping phase."
 fi
 
 # ------------------------------------------------------------------------------
 # Step 2: Remove systemd service files
 # ------------------------------------------------------------------------------
 echo -e "\n${BLUE}[2/5] Cleaning up systemd configurations...${NC}"
+
+if [ "$HAS_SYSTEMCTL" = true ]; then
+    # Disable manually enabled service instances to prevent stale default.target.wants symlinks
+    if systemctl --user is-enabled --quiet trackora.service &>/dev/null; then
+        echo -e "[INFO] Service is enabled. Disabling trackora.service to clean up symlinks..."
+        systemctl --user disable trackora.service &>/dev/null
+    fi
+fi
+
 if [ -f "$TARGET_SERVICE_FILE" ]; then
     echo -e "[INFO] Deleting: ${TARGET_SERVICE_FILE}"
     rm -f "$TARGET_SERVICE_FILE"
-    systemctl --user daemon-reload
+    if [ "$HAS_SYSTEMCTL" = true ]; then
+        systemctl --user daemon-reload
+    fi
     echo -e "${GREEN}✔ systemd service configuration removed.${NC}"
 else
     echo -e "[INFO] No systemd unit file found at: ${TARGET_SERVICE_FILE}. Skipping."
