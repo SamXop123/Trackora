@@ -5,15 +5,227 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import subprocess
+import time
 from pathlib import Path
 
 # Scale the UI up by 40% for better legibility on high-DPI screens
 os.environ["QT_SCALE_FACTOR"] = "1.4"
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTextEdit,
+)
 
 from trackora.gui.dashboard_window import MainWindow
 from trackora.utils.paths import default_database_path
+
+# Styling constants matching Trackora's premium dark mode theme
+_BG = "#0d1117"
+_CARD = "#141a23"
+_TEXT_PRIMARY = "#e6edf5"
+_TEXT_SECONDARY = "#8b9bb4"
+_ACCENT = "#3b82f6"
+_RED = "#ef4444"
+_GREEN = "#34d399"
+
+
+def is_service_active() -> bool:
+    """Check if the Trackora background systemd user service is active."""
+    try:
+        res = subprocess.run(
+            ["systemctl", "--user", "is-active", "--quiet", "trackora.service"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return res.returncode == 0
+    except Exception:
+        return False
+
+
+class ServiceStatusDialog(QDialog):
+    """Custom styled dialog shown when the background tracking service is not active."""
+
+    def __init__(self, parent: QDialog | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Trackora Service Not Running")
+        self.setFixedSize(450, 260)
+        self.setWindowFlags(
+            Qt.WindowType.Dialog
+            | Qt.WindowType.CustomizeWindowHint
+            | Qt.WindowType.WindowTitleHint
+            | Qt.WindowType.WindowCloseButtonHint
+        )
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {_BG};
+                border: 1px solid #1c2735;
+            }}
+            QLabel {{
+                color: {_TEXT_PRIMARY};
+            }}
+            QPushButton {{
+                background-color: {_CARD};
+                color: {_TEXT_PRIMARY};
+                border: 1px solid #1c2735;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 13px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #171f2a;
+                border-color: {_ACCENT};
+            }}
+            QPushButton#primaryBtn {{
+                background-color: {_ACCENT};
+                color: #ffffff;
+                border: 1px solid #2563eb;
+            }}
+            QPushButton#primaryBtn:hover {{
+                background-color: #2563eb;
+            }}
+            QTextEdit {{
+                background-color: #090d13;
+                color: {_TEXT_SECONDARY};
+                border: 1px solid #1c2735;
+                border-radius: 4px;
+                font-family: monospace;
+                font-size: 11px;
+            }}
+        """)
+
+        # Main Layout
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        # Header Row
+        header_layout = QHBoxLayout()
+        header_layout.setSpacing(12)
+
+        self.icon_label = QLabel("⚠️")
+        self.icon_label.setStyleSheet("font-size: 28px; background: transparent;")
+        header_layout.addWidget(self.icon_label)
+
+        title_label = QLabel("Trackora Service Not Running")
+        title_label.setStyleSheet("font-size: 16px; font-weight: bold; background: transparent;")
+        header_layout.addWidget(title_label, 1)
+
+        layout.addLayout(header_layout)
+
+        # Body Message Text
+        self.msg_label = QLabel(
+            "Trackora's background tracking service is currently stopped.\n"
+            "Tracking data cannot be collected until the service is running."
+        )
+        self.msg_label.setWordWrap(True)
+        self.msg_label.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 13px; line-height: 1.4;")
+        layout.addWidget(self.msg_label, 1)
+
+        # Log Viewer (Collapsed by default, shown on failure/expand)
+        self.log_viewer = QTextEdit()
+        self.log_viewer.setReadOnly(True)
+        self.log_viewer.setVisible(False)
+        layout.addWidget(self.log_viewer)
+
+        # Buttons Bar Layout
+        self.buttons_layout = QHBoxLayout()
+        self.buttons_layout.setSpacing(12)
+        self.buttons_layout.addStretch()
+
+        self.view_logs_btn = QPushButton("View Logs")
+        self.view_logs_btn.setVisible(False)
+        self.view_logs_btn.clicked.connect(self._toggle_logs)
+        self.buttons_layout.addWidget(self.view_logs_btn)
+
+        self.exit_btn = QPushButton("Exit")
+        self.exit_btn.clicked.connect(self.reject)
+        self.buttons_layout.addWidget(self.exit_btn)
+
+        self.start_btn = QPushButton("Start Service")
+        self.start_btn.setObjectName("primaryBtn")
+        self.start_btn.clicked.connect(self._start_service)
+        self.buttons_layout.addWidget(self.start_btn)
+
+        layout.addLayout(self.buttons_layout)
+
+    def _start_service(self) -> None:
+        """Trigger systemctl start on trackora.service (does not enable on login)."""
+        self.start_btn.setEnabled(False)
+        self.exit_btn.setEnabled(False)
+        self.msg_label.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 13px;")
+        self.msg_label.setText("Attempting to start Trackora service, please wait...")
+        QApplication.processEvents()
+
+        try:
+            # Start service once for the current session (Never use "enable")
+            subprocess.run(
+                ["systemctl", "--user", "start", "trackora.service"],
+                capture_output=True,
+                check=False,
+            )
+
+            # Wait briefly for status propagation
+            time.sleep(1.5)
+            if is_service_active():
+                self.msg_label.setStyleSheet(f"color: {_GREEN}; font-size: 13px;")
+                self.msg_label.setText("✔ Service started successfully! Launching dashboard...")
+                QApplication.processEvents()
+                time.sleep(0.8)
+                self.accept()
+                return
+        except Exception:
+            pass
+
+        # Failure handling
+        self.msg_label.setStyleSheet(f"color: {_RED}; font-size: 13px;")
+        self.msg_label.setText(
+            "Error: Failed to start background tracking service.\n"
+            "Please check systemd configuration or view logs below."
+        )
+        self.icon_label.setText("❌")
+
+        # Fetch recent journalctl logs for failure diagnosing
+        try:
+            res = subprocess.run(
+                ["journalctl", "--user", "-u", "trackora.service", "-n", "20", "--no-pager"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            logs = res.stdout if res.stdout else "No service logs found."
+        except Exception as e:
+            logs = f"Failed to retrieve service logs: {e}"
+
+        self.log_viewer.setPlainText(logs)
+
+        # Expand UI dimensions to fit log viewer
+        self.setFixedSize(500, 420)
+        self.log_viewer.setVisible(True)
+        self.view_logs_btn.setVisible(True)
+        self.view_logs_btn.setText("Hide Logs")
+
+        self.start_btn.setText("Try Again")
+        self.start_btn.setEnabled(True)
+        self.exit_btn.setEnabled(True)
+
+    def _toggle_logs(self) -> None:
+        """Expand or collapse the log viewer frame."""
+        visible = self.log_viewer.isVisible()
+        self.log_viewer.setVisible(not visible)
+        if visible:
+            self.setFixedSize(450, 260)
+            self.view_logs_btn.setText("View Logs")
+        else:
+            self.setFixedSize(500, 420)
+            self.view_logs_btn.setText("Hide Logs")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -49,6 +261,12 @@ def main(argv: list[str] | None = None) -> int:
             families = QFontDatabase.applicationFontFamilies(font_id)
             if families:
                 app.setFont(QFont(families[0], 10))
+
+    # Verification: Verify background tracking service is running
+    if not is_service_active():
+        dialog = ServiceStatusDialog()
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return 0
 
     database_path = args.database.expanduser() if args.database else default_database_path()
     window = MainWindow(
