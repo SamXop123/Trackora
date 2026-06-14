@@ -10,13 +10,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Any
 
-from PySide6.QtCore import Qt, QTimer, QUrl, QSize
-from PySide6.QtGui import QColor, QDesktopServices, QPixmap
+from PySide6.QtCore import Qt, QTimer, QUrl, QSize, QVariantAnimation, QRectF
+from PySide6.QtGui import QColor, QDesktopServices, QPixmap, QPainter, QBrush, QPen
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
     QFrame,
     QGraphicsDropShadowEffect,
+    QGraphicsOpacityEffect,
     QHBoxLayout,
     QLabel,
     QMessageBox,
@@ -24,6 +25,8 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QVBoxLayout,
     QWidget,
+    QSizePolicy,
+    QAbstractButton,
 )
 
 from trackora.database.dashboard import DashboardRepository
@@ -63,76 +66,205 @@ class _Card(QFrame):
         _shadow(self)
 
 
-class _ActionCard(_Card):
-    """A compact card acting as a dashboard button."""
+class _ActionCard(QFrame):
+    """A compact card acting as a dashboard button with smooth fade animations."""
     def __init__(self, title: str, icon: str = "", danger: bool = False, on_click: Callable = None, parent: QWidget | None = None) -> None:
-        bg = _CARD if not danger else "rgba(239, 68, 68, 0.1)"
-        border = _CARD_BORDER if not danger else "rgba(239, 68, 68, 0.4)"
-        super().__init__(bg=bg, border=border, parent=parent)
+        super().__init__(parent)
         self.setFixedHeight(56)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._danger = danger
         self._on_click = on_click
+        self._title = title
+        self._icon = icon
+        
+        self._progress = 0.0
+        self._anim = QVariantAnimation(self)
+        self._anim.setDuration(180)
+        self._anim.setStartValue(0.0)
+        self._anim.setEndValue(0.0)
+        self._anim.valueChanged.connect(self._update_progress)
         
         lo = QHBoxLayout(self)
         lo.setContentsMargins(16, 0, 16, 0)
         lo.setSpacing(12)
         
         if icon:
-            i_lbl = QLabel(icon)
-            color = _RED if danger else _ACCENT
-            i_lbl.setStyleSheet(f"color: {color}; font-size: 18px;")
-            lo.addWidget(i_lbl)
+            self.i_lbl = QLabel(icon)
+            self.i_lbl.setStyleSheet("background: transparent; border: none; font-size: 18px;")
+            lo.addWidget(self.i_lbl)
             
-        t_lbl = QLabel(title)
-        color = _RED if danger else _TEXT_PRIMARY
-        t_lbl.setStyleSheet(f"color: {color}; font-size: 14px; font-weight: 600;")
-        lo.addWidget(t_lbl, 1)
+        self.t_lbl = QLabel(title)
+        self.t_lbl.setStyleSheet("background: transparent; border: none; font-size: 14px; font-weight: 600;")
+        lo.addWidget(self.t_lbl, 1)
+        
+        _shadow(self, blur=12, op=25, dy=1)
+        self._update_colors()
+
+    def _update_progress(self, val: float) -> None:
+        self._progress = val
+        self.update()
+
+    def enterEvent(self, event) -> None:
+        self._anim.stop()
+        self._anim.setStartValue(self._progress)
+        self._anim.setEndValue(1.0)
+        self._anim.start()
+
+    def leaveEvent(self, event) -> None:
+        self._anim.stop()
+        self._anim.setStartValue(self._progress)
+        self._anim.setEndValue(0.0)
+        self._anim.start()
 
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton and self._on_click:
             self._on_click()
-            
-    def enterEvent(self, event) -> None:
-        bg = "rgba(239, 68, 68, 0.2)" if self._danger else _CARD_LIGHTER
-        border = "rgba(239, 68, 68, 0.6)" if self._danger else _ACCENT
-        self.setStyleSheet(f"QFrame#dashCard {{ background:{bg}; border:1px solid {border}; border-radius:12px; }}")
 
-    def leaveEvent(self, event) -> None:
-        bg = "rgba(239, 68, 68, 0.1)" if self._danger else _CARD
-        border = "rgba(239, 68, 68, 0.4)" if self._danger else _CARD_BORDER
-        self.setStyleSheet(f"QFrame#dashCard {{ background:{bg}; border:1px solid {border}; border-radius:12px; }}")
+    def _update_colors(self) -> None:
+        if self._danger:
+            c_text = QColor(_RED)
+            c_icon = QColor(_RED)
+        else:
+            c_text = QColor(_TEXT_PRIMARY)
+            c_icon = QColor(_ACCENT)
+        if hasattr(self, "i_lbl"):
+            self.i_lbl.setStyleSheet(f"color: {c_icon.name()}; background: transparent; border: none; font-size: 18px;")
+        self.t_lbl.setStyleSheet(f"color: {c_text.name()}; background: transparent; border: none; font-size: 14px; font-weight: 600;")
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        if self._danger:
+            c_bg_normal = QColor(239, 68, 68, 25)
+            c_bg_hover = QColor(239, 68, 68, 51)
+            c_border_normal = QColor(239, 68, 68, 102)
+            c_border_hover = QColor(239, 68, 68, 153)
+        else:
+            c_bg_normal = QColor(_CARD)
+            c_bg_hover = QColor(_CARD_LIGHTER)
+            c_border_normal = QColor(_CARD_BORDER)
+            c_border_hover = QColor(_ACCENT)
+            
+        p = self._progress
+        bg = self._blend_colors(c_bg_normal, c_bg_hover, p)
+        border = self._blend_colors(c_border_normal, c_border_hover, p)
+        
+        rect = QRectF(0, 0, self.width(), self.height())
+        painter.setBrush(QBrush(bg))
+        painter.setPen(QPen(border, 1.2))
+        painter.drawRoundedRect(rect.adjusted(0.6, 0.6, -0.6, -0.6), 12, 12)
+        painter.end()
+
+    def _blend_colors(self, c1: QColor, c2: QColor, factor: float) -> QColor:
+        r = int(c1.red() + (c2.red() - c1.red()) * factor)
+        g = int(c1.green() + (c2.green() - c1.green()) * factor)
+        b = int(c1.blue() + (c2.blue() - c1.blue()) * factor)
+        a = int(c1.alpha() + (c2.alpha() - c1.alpha()) * factor)
+        return QColor(r, g, b, a)
 
 
 class _FilterBtn(QWidget):
-    """Horizontal navigation tab button."""
+    """Horizontal navigation tab button with smooth fade transitions."""
     def __init__(self, text: str, cb: Callable, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._active = False
+        self._hovered = False
         self._text = text
         self._cb = cb
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedHeight(32)
+        self.setFixedHeight(34)
+        
+        self._progress = 0.0
+        self._anim = QVariantAnimation(self)
+        self._anim.setDuration(180)
+        self._anim.setStartValue(0.0)
+        self._anim.setEndValue(0.0)
+        self._anim.valueChanged.connect(self._update_progress)
+        
         lo = QHBoxLayout(self)
-        lo.setContentsMargins(16, 0, 16, 0)
+        lo.setContentsMargins(18, 0, 18, 0)
         self._lbl = QLabel(text)
+        self._lbl.setStyleSheet("color: transparent; font-size:13px; font-weight:600; background:transparent; border:none;")
         lo.addWidget(self._lbl)
-        self._apply_style()
 
-    def _apply_style(self) -> None:
-        bg = _ACCENT if self._active else "transparent"
-        fg = "#ffffff" if self._active else _TEXT_SECONDARY
-        bd = f"1px solid {_ACCENT}" if self._active else f"1px solid {_CARD_BORDER}"
-        self._lbl.setStyleSheet(f"color:{fg}; font-size:13px; font-weight:600; background:transparent; border:none;")
-        self.setStyleSheet(f"background:{bg}; border:{bd}; border-radius:8px;")
+    def _update_progress(self, val: float) -> None:
+        self._progress = val
+        self.update()
 
     def set_active(self, a: bool) -> None:
+        if self._active == a:
+            return
         self._active = a
-        self._apply_style()
+        self._start_animation()
+
+    def enterEvent(self, event) -> None:
+        self._hovered = True
+        self._start_animation()
+
+    def leaveEvent(self, event) -> None:
+        self._hovered = False
+        self._start_animation()
 
     def mousePressEvent(self, e) -> None:
         if e.button() == Qt.MouseButton.LeftButton:
             self._cb(self._text)
+
+    def _start_animation(self) -> None:
+        target = 1.0 if self._active else (0.4 if self._hovered else 0.0)
+        self._anim.stop()
+        self._anim.setStartValue(self._progress)
+        self._anim.setEndValue(target)
+        self._anim.start()
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        c_bg_normal = QColor(0, 0, 0, 0)
+        c_bg_hover = QColor(_CARD_LIGHTER)
+        c_bg_active = QColor(_ACCENT)
+        
+        c_border_normal = QColor(_CARD_BORDER)
+        c_border_hover = QColor(_CARD_BORDER)
+        c_border_active = QColor(_ACCENT)
+        
+        c_text_normal = QColor(_TEXT_SECONDARY)
+        c_text_hover = QColor(_TEXT_PRIMARY)
+        c_text_active = QColor("#ffffff")
+        
+        p = self._progress
+        if p <= 0.4:
+            t = p / 0.4
+            bg = self._blend_colors(c_bg_normal, c_bg_hover, t)
+            border = self._blend_colors(c_border_normal, c_border_hover, t)
+            text = self._blend_colors(c_text_normal, c_text_hover, t)
+        else:
+            t = (p - 0.4) / 0.6
+            bg = self._blend_colors(c_bg_hover, c_bg_active, t)
+            border = self._blend_colors(c_border_hover, c_border_active, t)
+            text = self._blend_colors(c_text_hover, c_text_active, t)
+            
+        rect = QRectF(0, 0, self.width(), self.height())
+        painter.setBrush(QBrush(bg))
+        painter.setPen(QPen(border, 1))
+        painter.drawRoundedRect(rect.adjusted(0.5, 0.5, -0.5, -0.5), 8, 8)
+        
+        painter.setPen(text)
+        font = self.font()
+        font.setPointSize(9.5)
+        font.setBold(True)
+        font.setFamily("Inter")
+        painter.setFont(font)
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, self._text)
+        painter.end()
+
+    def _blend_colors(self, c1: QColor, c2: QColor, factor: float) -> QColor:
+        r = int(c1.red() + (c2.red() - c1.red()) * factor)
+        g = int(c1.green() + (c2.green() - c1.green()) * factor)
+        b = int(c1.blue() + (c2.blue() - c1.blue()) * factor)
+        a = int(c1.alpha() + (c2.alpha() - c1.alpha()) * factor)
+        return QColor(r, g, b, a)
 
 
 class _KVRow(QWidget):
@@ -183,20 +315,84 @@ class _ControlRow(QWidget):
         lo.addWidget(widget)
 
 
-def _create_switch(checked: bool, on_change: Callable) -> QCheckBox:
-    cb = QCheckBox()
-    cb.setChecked(checked)
-    cb.toggled.connect(on_change)
-    cb.setCursor(Qt.CursorShape.PointingHandCursor)
-    cb.setStyleSheet(f"""
-        QCheckBox::indicator {{ width: 36px; height: 20px; border-radius: 10px; border: 1px solid {_CARD_BORDER}; background: {_CARD_LIGHTER}; }}
-        QCheckBox::indicator:checked {{ background: {_ACCENT}; border: 1px solid {_ACCENT}; }}
-    """)
-    return cb
+class _Switch(QAbstractButton):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setCheckable(True)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        self._thumb_position = 0.0
+        self._anim = QVariantAnimation(self)
+        self._anim.setDuration(160)
+        self._anim.valueChanged.connect(self._update_thumb)
+        
+    def sizeHint(self) -> QSize:
+        return QSize(38, 20)
+        
+    def _update_thumb(self, val: float) -> None:
+        self._thumb_position = val
+        self.update()
+        
+    def setChecked(self, checked: bool) -> None:
+        super().setChecked(checked)
+        self._anim.stop()
+        self._thumb_position = 1.0 if checked else 0.0
+        self.update()
+        
+    def nextCheckState(self) -> None:
+        super().nextCheckState()
+        self._anim.stop()
+        self._anim.setStartValue(self._thumb_position)
+        self._anim.setEndValue(1.0 if self.isChecked() else 0.0)
+        self._anim.start()
+        
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        rect = QRectF(0, 0, self.width(), self.height())
+        
+        c_bg_unchecked = QColor(_CARD_LIGHTER)
+        c_bg_checked = QColor(_ACCENT)
+        bg_color = self._blend_colors(c_bg_unchecked, c_bg_checked, self._thumb_position)
+        
+        c_border_unchecked = QColor(_CARD_BORDER)
+        c_border_checked = QColor(_ACCENT)
+        border_color = self._blend_colors(c_border_unchecked, c_border_checked, self._thumb_position)
+        
+        painter.setBrush(QBrush(bg_color))
+        painter.setPen(QPen(border_color, 1.2))
+        painter.drawRoundedRect(rect.adjusted(0.6, 0.6, -0.6, -0.6), rect.height() / 2, rect.height() / 2)
+        
+        padding = 2.5
+        radius = (rect.height() - padding * 2) / 2
+        start_x = padding + radius
+        end_x = rect.width() - padding - radius
+        current_x = start_x + (end_x - start_x) * self._thumb_position
+        
+        painter.setBrush(QBrush(QColor("#ffffff")))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(QRectF(current_x - radius, padding, radius * 2, radius * 2))
+        painter.end()
+
+    def _blend_colors(self, c1: QColor, c2: QColor, factor: float) -> QColor:
+        r = int(c1.red() + (c2.red() - c1.red()) * factor)
+        g = int(c1.green() + (c2.green() - c1.green()) * factor)
+        b = int(c1.blue() + (c2.blue() - c1.blue()) * factor)
+        a = int(c1.alpha() + (c2.alpha() - c1.alpha()) * factor)
+        return QColor(r, g, b, a)
+
+
+def _create_switch(checked: bool, on_change: Callable) -> _Switch:
+    s = _Switch()
+    s.setChecked(checked)
+    s.toggled.connect(on_change)
+    return s
 
 
 class _SegmentedControl(QWidget):
-    """A horizontal segmented button group for selections."""
+    """A horizontal segmented button group for selections with hover transitions."""
     def __init__(self, options: list[tuple[str, Any]], current_val: Any, on_change: Callable, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setFixedHeight(36)
@@ -204,7 +400,7 @@ class _SegmentedControl(QWidget):
         
         lo = QHBoxLayout(self)
         lo.setContentsMargins(4, 4, 4, 4)
-        lo.setSpacing(2)
+        lo.setSpacing(4)
         
         self.btns = []
         for text, val in options:
@@ -215,9 +411,29 @@ class _SegmentedControl(QWidget):
             
             if val == current_val:
                 btn.setChecked(True)
-                btn.setStyleSheet(f"background: {_CARD}; color: {_TEXT_PRIMARY}; border-radius: 6px; font-weight: 600; border: 1px solid {_CARD_BORDER};")
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: {_CARD};
+                        color: {_TEXT_PRIMARY};
+                        border-radius: 6px;
+                        font-weight: 600;
+                        border: 1px solid {_CARD_BORDER};
+                    }}
+                """)
             else:
-                btn.setStyleSheet(f"background: transparent; color: {_TEXT_SECONDARY}; border: none; font-weight: 500;")
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: transparent;
+                        color: {_TEXT_SECONDARY};
+                        border: none;
+                        font-weight: 500;
+                    }}
+                    QPushButton:hover {{
+                        background: rgba(255, 255, 255, 0.03);
+                        color: {_TEXT_PRIMARY};
+                        border-radius: 6px;
+                    }}
+                """)
                 
             btn.clicked.connect(lambda checked, b=btn: self._on_btn_clicked(b, on_change))
             self.btns.append(btn)
@@ -227,11 +443,31 @@ class _SegmentedControl(QWidget):
         for btn in self.btns:
             if btn == clicked_btn:
                 btn.setChecked(True)
-                btn.setStyleSheet(f"background: {_CARD}; color: {_TEXT_PRIMARY}; border-radius: 6px; font-weight: 600; border: 1px solid {_CARD_BORDER};")
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: {_CARD};
+                        color: {_TEXT_PRIMARY};
+                        border-radius: 6px;
+                        font-weight: 600;
+                        border: 1px solid {_CARD_BORDER};
+                    }}
+                """)
                 on_change(btn.property("val"))
             else:
                 btn.setChecked(False)
-                btn.setStyleSheet(f"background: transparent; color: {_TEXT_SECONDARY}; border: none; font-weight: 500;")
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: transparent;
+                        color: {_TEXT_SECONDARY};
+                        border: none;
+                        font-weight: 500;
+                    }}
+                    QPushButton:hover {{
+                        background: rgba(255, 255, 255, 0.03);
+                        color: {_TEXT_PRIMARY};
+                        border-radius: 6px;
+                    }}
+                """)
 
 
 class SettingsPage(QWidget):
@@ -307,7 +543,23 @@ class SettingsPage(QWidget):
             btn.set_active(cat == category)
             
         idx = list(self.tabs.keys()).index(category)
+        widget = self._stack.widget(idx)
         self._stack.setCurrentIndex(idx)
+        self._fade_widget(widget)
+
+    def _fade_widget(self, widget: QWidget) -> None:
+        eff = QGraphicsOpacityEffect(widget)
+        widget.setGraphicsEffect(eff)
+        
+        anim = QVariantAnimation(self)
+        anim.setDuration(220)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.valueChanged.connect(lambda val: eff.setOpacity(val))
+        anim.finished.connect(lambda: widget.setGraphicsEffect(None))
+        anim.start()
+        
+        self._page_fade_anim = anim
 
     # ── TABS ─────────────────────────────────────────────────────────────────
 
