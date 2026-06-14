@@ -1,8 +1,7 @@
 __pycache__
 .env
 .DS_Store
-.venv
-.vscode/*
 .vscode
+.venv
 trackora.db
 reboot.md
