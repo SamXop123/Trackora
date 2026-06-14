@@ -3,7 +3,7 @@
 # ==============================================================================
 # Trackora Uninstallation Script
 # ==============================================================================
-# Safely deactivates and disables systemd services, removes installed extensions,
+# Safely deactivates systemd services, removes installed extensions,
 # deletes Python site-packages, and handles user data preservation.
 #
 # Safe, idempotent, and position-independent.
@@ -34,9 +34,9 @@ TARGET_SERVICE_FILE="${HOME}/.config/systemd/user/trackora.service"
 DATA_DIR="${HOME}/.local/share/trackora"
 
 # ------------------------------------------------------------------------------
-# Step 1: Deactivate and disable background service
+# Step 1: Stop background service
 # ------------------------------------------------------------------------------
-echo -e "\n${BLUE}[1/5] Stopping and disabling background systemd service...${NC}"
+echo -e "\n${BLUE}[1/5] Stopping Trackora background service...${NC}"
 
 # Check and stop service if running
 if systemctl --user is-active --quiet trackora.service &>/dev/null; then
@@ -49,19 +49,6 @@ if systemctl --user is-active --quiet trackora.service &>/dev/null; then
     fi
 else
     echo -e "[INFO] service is not active. Skipping."
-fi
-
-# Check and disable service if enabled
-if systemctl --user is-enabled --quiet trackora.service &>/dev/null; then
-    echo -e "[INFO] Disabling trackora.service from startup..."
-    systemctl --user disable trackora.service
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✔ Service disabled successfully.${NC}"
-    else
-        echo -e "${YELLOW}Warning: Failed to disable service. Proceeding anyway.${NC}"
-    fi
-else
-    echo -e "[INFO] service is not enabled. Skipping."
 fi
 
 # ------------------------------------------------------------------------------
