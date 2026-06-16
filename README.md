@@ -189,13 +189,18 @@ Full visibility into the health of the background daemon, database connection, a
 
 | Dashboard | Timeline |
 |:---:|:---:|
-| ![Dashboard Placeholder](assets/screenshots/dashboard.png) | ![Timeline Placeholder](assets/screenshots/timeline.png) |
+| ![Dashboard Placeholder](assets/screenshots/dashboard-week.png) | ![Timeline Placeholder](assets/screenshots/Timeline.png) |
 | *Live activity overview* | *Session breakdown timeline* |
 
 | Insights | Reports |
 |:---:|:---:|
-| ![Insights Placeholder](assets/screenshots/insights.png) | ![Reports Placeholder](assets/screenshots/reports.png) |
+| ![Insights Placeholder](assets/screenshots/insights.png) | ![Reports Placeholder](assets/screenshots/Reports-monthly.png) |
 | *Productivity & habit patterns* | *Custom date range logs* |
+
+| Application | Settings |
+|:---:|:---:|
+| ![Insights Placeholder](assets/screenshots/applications.png) | ![Reports Placeholder](assets/screenshots/settings.png) |
+| *Applications usage breakdown* | *Trackora Settings & Info* |
 
 <br/>
 
