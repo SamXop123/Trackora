@@ -1,18 +1,15 @@
 <div align="center">
 
-<br />
+<img src="https://raw.githubusercontent.com/SamXop123/Trackora/main/assets/trackora_logo.png" alt="Trackora" width="100" />
 
-<img src="https://raw.githubusercontent.com/SamXop123/Trackora/main/assets/trackora_logo.png" alt="Trackora" width="80" />
-
-<br />
+<br/>
 
 # Trackora
-
-### Beautiful screen time & activity tracking for Linux.
+### Premium screen time & app usage tracker for Linux GNOME Wayland
 
 *You work hard. Do you know where the time actually goes?*
 
-<br />
+Trackora is an elegant, privacy-first productivity tool designed for the modern Linux desktop. It runs silently in the background, logging application usage and window focus, and presents your data in a beautiful, analytical dashboard.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-5c6bc0.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux-informational?style=flat-square&color=5c6bc0)](https://github.com/SamXop123/Trackora)
@@ -20,19 +17,18 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square&color=66bb6a)](DEVELOPMENT.md)
 [![Stars](https://img.shields.io/github/stars/SamXop123/Trackora?style=flat-square&color=ffa726)](https://github.com/SamXop123/Trackora/stargazers)
 
-<br />
 
-[**Get Started**](#installation) · [**Features**](#features) · [**Screenshots**](#screenshots) · [**Roadmap**](#roadmap) · [**Contribute**](#contributing)
-
-<br />
-
----
+[**Quick Install**](#installation) • [**Architecture**](#architecture) • [**Features**](#features) • [**Screenshots**](#screenshots) • [**Developer Guide**](DEVELOPMENT.md)
 
 </div>
 
-<br />
+<br/>
 
-## The problem nobody talks about
+---
+
+<br/>
+
+## Why Trackora?
 
 You open your laptop at 9am with a clear plan.
 
@@ -50,146 +46,129 @@ Install it. Use your computer exactly as you always have. Trackora watches quiet
 
 Then, whenever you're curious: *open it, and know.*
 
-<br />
+<br/> 
 
 ---
 
-<br />
-
-## Features
-
-<br />
-
-**`📊` Dashboard** &nbsp;—&nbsp; *Your day at a glance*
-
-The moment you open Trackora, you see today. Not a list of raw data — a composed, readable overview of where your time went. Current app, total screen time, live timeline, weekly rhythm, and your top applications, all in one view.
-
-<br />
-
-**`🕒` Timeline** &nbsp;—&nbsp; *Every session, in order*
-
-Scroll back through your day chronologically. See exactly when you opened what, how long you stayed, and when you switched. Group by application to see fragmented usage consolidated. Navigate hours of data instantly.
-
-<br />
-
-**`📱` Applications** &nbsp;—&nbsp; *The honest usage rankings*
-
-A ranked view of every application you used, sorted by time. See usage duration, session counts, and active time per app. No estimates — exact numbers, pulled straight from your activity history.
-
-<br />
-
-**`💡` Insights** &nbsp;—&nbsp; *Patterns you wouldn't have noticed*
-
-When do you do your best work? Which apps fragment your focus? How often do you switch contexts in an hour? Trackora surfaces the patterns buried in your daily data — peak activity hours, focus metrics, app-switching analytics, and category breakdowns.
-
-<br />
-
-**`📈` Reports** &nbsp;—&nbsp; *Any period, any time*
-
-Zoom out. Compare today to yesterday. Review the last 7 or 30 days. Define a custom date range. Export your data whenever you want. It's your time — you should be able to look at all of it.
-
-<br />
-
-**`⚙️` Settings & Diagnostics** &nbsp;—&nbsp; *Full transparency into the tracker itself*
-
-See tracking status, extension health, database info, and backup tools. Manage or delete your data at any time. Trackora never hides what it's doing.
-
-<br />
-
----
-
-<br />
-
-## Screenshots
-
-<br />
-
-> 📸 &nbsp;Screenshots arriving with v1.0 — [watch the repo](https://github.com/SamXop123/Trackora/subscription) to be notified.
-
-<br />
-
-| Dashboard | Timeline |
-|:---------:|:--------:|
-| *Today's full picture, always up to date* | *Your day, session by session* |
-
-<br />
-
-| Insights | Reports |
-|:--------:|:-------:|
-| *Patterns in your focus and habits* | *Historical analysis, any range* |
-
-<br />
-
----
-
-<br />
-
-## How it works
-
-Trackora is three components working together. You only ever interact with one of them.
-
-```
-┌─────────────────────────────────┐
-│        GNOME Extension          │  ← Watches active windows silently
-└────────────────┬────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────┐
-│    Background Tracking Service  │  ← Runs independently, always on
-└────────────────┬────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────┐
-│         SQLite Database         │  ← Stored locally on your machine
-└────────────────┬────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────┐
-│       Trackora Dashboard        │  ← Open when you want to know
-└─────────────────────────────────┘
-```
-
-The tracking service runs **independently** of the dashboard. Close the Trackora window, shut down the dashboard, go about your day — your activity is still being recorded. When you open Trackora again, your full history is waiting for you.
-
-<br />
-
----
-
-<br />
+<br/>
 
 ## Installation
 
-<br />
+Trackora is currently optimized for **Fedora Linux running GNOME Shell**.
 
-### Fedora *(coming with v1.0)*
+### Prerequisites
+Make sure python3, pip, and systemd are installed.
 
-```bash
-# Package installation instructions arriving with the v1.0 release.
-# Watch this repository to be notified.
-```
-
-<br />
-
-### Manual Installation
+### Installing Trackora
+Clone the repository and run the production installer:
 
 ```bash
 # Clone the repository
 git clone https://github.com/SamXop123/Trackora.git
-
-# Enter the project directory
 cd Trackora
 
-# Run Trackora
-python3 -m trackora
+# Run the installation script
+./install.sh
 ```
 
-> **Requirements:** Python 3.8+, GNOME desktop, SQLite (bundled with Python)
+The installer will:
+1. Verify system environment compatibility.
+2. Validate and install the GNOME extension.
+3. Set up the systemd user service.
+4. Initialize the SQLite database.
+5. Enable and start the tracking service for your current desktop session.
 
-<br />
+### Running the Dashboard
+Launch the PySide6 UI to view your tracking analytics:
+```bash
+python3 -m trackora.gui
+```
+*Note: If tracking does not immediately capture active window titles, log out of your GNOME session and log back in to reload the extension.*
 
 ---
 
-<br />
+#### Uninstallation
+If you wish to remove Trackora, run the uninstaller: `./uninstall.sh`
+
+
+---
+
+<br/>
+
+## Architecture
+
+Trackora consists of three lightweight components working in unison:
+
+```
+┌───────────────────────────────┐
+│     GNOME Shell Extension     │  ← Hooks into shell events to detect window focus changes
+└──────────────┬────────────────┘
+               │ (Writes state file)
+               ▼
+┌───────────────────────────────┐
+│  Background Tracking Service  │  ← Lightweight daemon monitoring focus changes
+└──────────────┬────────────────┘
+               │ (Persists sessions)
+               ▼
+┌───────────────────────────────┐
+│        SQLite Database        │  ← Local database (~/.local/share/trackora/)
+└──────────────┬────────────────┘
+               │ (Queries statistics)
+               ▼
+┌───────────────────────────────┐
+│          PySide6 GUI          │  ← Interactive dashboard launched on demand
+└───────────────────────────────┘
+```
+
+1. **GNOME Shell Extension**: Monitors active window properties and logs them to a transient JSON state file.
+2. **Background Tracking Service**: A systemd user service that polls the state file, filters idle time, and groups sessions.
+3. **PySide6 GUI**: A modern desktop client built with custom dark-themed widgets to view metrics, trends, and history.
+
+---
+
+<br/>
+
+## Features
+
+### 📊 Dashboard
+Your day at a glance. Shows today's accumulated screen time, weekly usage trends, active timeline, and top applications. 
+
+### 🕒 Timeline
+Scroll back through your day chronologically. View exactly when you opened which app, how long you stayed, and when you switched. Focus sessions can be consolidated to group fragmented app usage.
+
+### 📱 Application Analytics
+A ranked ledger of all applications used, sorted by total duration. Includes metrics like session counts, average session length, and frequency.
+
+### 💡 Insights
+Understands your workspace habits. Surfaced insights include peak usage hours, focus metrics, context switching rate, and application categories.
+
+### 📈 Reports
+Review historical data across days, weeks, or custom date ranges. Zoom out to see long-term habits or export raw tables.
+
+### ⚙️ Settings & Diagnostics
+Full visibility into the health of the background daemon, database connection, and file locations. Allows quick database backups or complete data purging.
+
+---
+
+<br/>
+
+## Screenshots
+
+*(Screenshots will be uploaded here in the v1.0.0-beta release assets)*
+
+| Dashboard | Timeline |
+|:---:|:---:|
+| ![Dashboard Placeholder](assets/screenshots/dashboard.png) | ![Timeline Placeholder](assets/screenshots/timeline.png) |
+| *Live activity overview* | *Session breakdown timeline* |
+
+| Insights | Reports |
+|:---:|:---:|
+| ![Insights Placeholder](assets/screenshots/insights.png) | ![Reports Placeholder](assets/screenshots/reports.png) |
+| *Productivity & habit patterns* | *Custom date range logs* |
+
+---
+
+<br/>
 
 ## Privacy
 
@@ -204,37 +183,16 @@ Trackora does **not**:
 
 Everything is stored in a local SQLite database on your own filesystem. You can inspect it, export it, back it up, or delete it at any time from within the app.
 
-<br />
+---
+
+## Planned Features (Roadmap)
+* **v1.1 (Goals & Targets)**: Set daily limits for specific apps or categories and track target completion.
+* **Productivity Scoring**: Rate application usage from productive to distracting to generate a daily score.
+* **Extended Export Formats**: PDF report generation and CSV exports.
 
 ---
 
-<br />
-
-## Roadmap
-
-<br />
-
-**v1.0** &nbsp;`in progress`
-- [x] Dashboard
-- [x] Timeline
-- [x] Applications
-- [x] Insights
-- [x] Reports
-- [x] Settings & Diagnostics
-
-<br />
-
-**v1.1** &nbsp;`planned`
-- [ ] Goals & daily targets
-- [ ] Productivity scoring
-- [ ] Extended analytics
-- [ ] Additional export formats
-
-<br />
-
----
-
-<br />
+<br/>
 
 ## Contributing
 
@@ -244,9 +202,8 @@ Trackora is actively developed and welcomes contributions of all kinds.
 - 💡 **Have an idea?** [Start a discussion](https://github.com/SamXop123/Trackora/discussions)
 - 🔧 **Want to build?** Read [DEVELOPMENT.md](DEVELOPMENT.md) for architecture, setup, and contributor docs, then open a pull request
 
-If Trackora helped you understand your time a little better, **a star means a lot.** It helps other Linux users find the project.
+If Trackora helped you understand your time a little better, **a star ⭐ means a lot.** It helps other Linux users find the project.
 
-<br />
 
 ---
 
@@ -256,7 +213,6 @@ If Trackora helped you understand your time a little better, **a star means a lo
 
 Built for Linux users who want to understand their time.
 
-<br />
 
 *Stop guessing. Start knowing.*
 
