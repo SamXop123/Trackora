@@ -190,22 +190,18 @@ Trackora does **not**:
 
 Everything is stored in a local SQLite database on your own filesystem. You can inspect it, export it, back it up, or delete it at any time from within the app.
 
-<br/>
 
 ---
 
-<br/>
 
-## Planned Features (Roadmap)
+### Planned Features (Roadmap)
 * **v1.1 (Goals & Targets)**: Set daily limits for specific apps or categories and track target completion.
 * **Productivity Scoring**: Rate application usage from productive to distracting to generate a daily score.
 * **Extended Export Formats**: PDF report generation and CSV exports.
 
-<br/>
 
 ---
 
-<br/>
 
 ## Contributing
 
@@ -216,8 +212,6 @@ Trackora is actively developed and welcomes contributions of all kinds.
 - 🔧 **Want to build?** Read [DEVELOPMENT.md](DEVELOPMENT.md) for architecture, setup, and contributor docs, then open a pull request
 
 If Trackora helped you understand your time a little better, **a star ⭐ means a lot.** It helps other Linux users find the project.
-
-<br/>
 
 ---
 
