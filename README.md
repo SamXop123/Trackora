@@ -85,11 +85,12 @@ python3 -m trackora.gui
 ```
 *Note: If tracking does not immediately capture active window titles, log out of your GNOME session and log back in to reload the extension.*
 
----
+<br/>
 
-#### Uninstallation
+#### Uninstallation:
 If you wish to remove Trackora, run the uninstaller: `./uninstall.sh`
 
+<br/>
 
 ---
 
@@ -124,6 +125,8 @@ Trackora consists of three lightweight components working in unison:
 2. **Background Tracking Service**: A systemd user service that polls the state file, filters idle time, and groups sessions.
 3. **PySide6 GUI**: A modern desktop client built with custom dark-themed widgets to view metrics, trends, and history.
 
+<br/>
+
 ---
 
 <br/>
@@ -148,6 +151,8 @@ Review historical data across days, weeks, or custom date ranges. Zoom out to se
 ### ⚙️ Settings & Diagnostics
 Full visibility into the health of the background daemon, database connection, and file locations. Allows quick database backups or complete data purging.
 
+<br/>
+
 ---
 
 <br/>
@@ -166,6 +171,8 @@ Full visibility into the health of the background daemon, database connection, a
 | ![Insights Placeholder](assets/screenshots/insights.png) | ![Reports Placeholder](assets/screenshots/reports.png) |
 | *Productivity & habit patterns* | *Custom date range logs* |
 
+<br/>
+
 ---
 
 <br/>
@@ -183,12 +190,18 @@ Trackora does **not**:
 
 Everything is stored in a local SQLite database on your own filesystem. You can inspect it, export it, back it up, or delete it at any time from within the app.
 
+<br/>
+
 ---
+
+<br/>
 
 ## Planned Features (Roadmap)
 * **v1.1 (Goals & Targets)**: Set daily limits for specific apps or categories and track target completion.
 * **Productivity Scoring**: Rate application usage from productive to distracting to generate a daily score.
 * **Extended Export Formats**: PDF report generation and CSV exports.
+
+<br/>
 
 ---
 
@@ -204,10 +217,11 @@ Trackora is actively developed and welcomes contributions of all kinds.
 
 If Trackora helped you understand your time a little better, **a star ⭐ means a lot.** It helps other Linux users find the project.
 
+<br/>
 
 ---
 
-<br />
+<br/>
 
 <div align="center">
 
