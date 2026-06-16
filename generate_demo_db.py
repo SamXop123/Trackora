@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import sqlite3
 import random
+import argparse
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -218,7 +219,24 @@ def generate_demo_database(db_path: Path, days: int = 30) -> None:
 
 
 if __name__ == "__main__":
-    db_file = Path(__file__).resolve().parent / "demo.db"
-    generate_demo_database(db_file, days=30)
+    parser = argparse.ArgumentParser(description="Generate a realistic developer activity demo database for Trackora.")
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=str,
+        default="demo.db",
+        help="Target SQLite database file path (default: demo.db)"
+    )
+    parser.add_argument(
+        "--days",
+        "-d",
+        type=int,
+        default=30,
+        help="Number of days of data to generate (default: 30)"
+    )
+    args = parser.parse_args()
+
+    db_file = Path(args.output).resolve()
+    generate_demo_database(db_file, days=args.days)
     print("\nTo use this demo database in the Trackora UI, run:")
     print(f"  python3 -m trackora.gui --database {db_file}")
