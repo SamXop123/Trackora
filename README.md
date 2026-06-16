@@ -54,35 +54,61 @@ Then, whenever you're curious: *open it, and know.*
 
 ## Installation
 
-Trackora is currently optimized for **Fedora Linux running GNOME Shell**.
+### Supported Environment
 
-### Prerequisites
-Make sure python3, pip, and systemd are installed.
+Trackora is currently optimized and tested for:
 
-### Installing Trackora
-Clone the repository and run the production installer:
+* Fedora Linux
+* GNOME Desktop
+* Wayland Session
+
+
+### Option 1: Download the Release Package (Recommended)
+
+Download the latest release archive from the GitHub Releases page.
+
+Extract the archive:
 
 ```bash
-# Clone the repository
-git clone https://github.com/SamXop123/Trackora.git
-cd Trackora
+tar -xzf trackora-v1.0.0-beta.tar.gz
 
-# Run the installation script
+cd Trackora
+```
+
+Run the installer:
+
+```bash
+chmod +x install.sh
+
 ./install.sh
 ```
 
-The installer will:
-1. Verify system environment compatibility.
-2. Validate and install the GNOME extension.
-3. Set up the systemd user service.
-4. Initialize the SQLite database.
-5. Enable and start the tracking service for your current desktop session.
+Launch Trackora:
 
-### Running the Dashboard
-Launch the PySide6 UI to view your tracking analytics:
 ```bash
 python3 -m trackora.gui
 ```
+
+### Option 2: Install from Source
+
+```bash
+git clone https://github.com/SamXop123/Trackora.git
+
+cd Trackora
+
+chmod +x install.sh
+
+./install.sh
+```
+
+Launch Trackora:
+
+```bash
+python3 -m trackora.gui
+```
+
+<br/>
+
 *Note: If tracking does not immediately capture active window titles, log out of your GNOME session and log back in to reload the extension.*
 
 <br/>
