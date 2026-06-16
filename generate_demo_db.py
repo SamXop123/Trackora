@@ -214,6 +214,22 @@ def generate_demo_database(db_path: Path, days: int = 30) -> None:
 
         current_dt += timedelta(days=1)
 
+    # Insert an active session at the very end to show "Currently Active" status in the UI
+    # We set last_heartbeat_time to 1 year in the future so that it never goes stale when previewing
+    active_start_dt = end_time_anchor - timedelta(minutes=2, seconds=15)
+    active_start_iso = to_utc_iso(active_start_dt)
+    active_heartbeat_iso = to_utc_iso(end_time_anchor + timedelta(days=365))
+    with conn:
+        conn.execute(
+            """
+            INSERT INTO app_sessions (
+                app_name, window_title, start_time, end_time, duration_seconds, last_heartbeat_time
+            ) VALUES (?, ?, ?, NULL, NULL, ?)
+            """,
+            ("VS Code", "generate_demo_db.py - Trackora - Visual Studio Code", active_start_iso, active_heartbeat_iso)
+        )
+    total_sessions += 1
+
     conn.close()
     print(f"[SUCCESS] Generated {total_sessions} sessions successfully in '{db_path}'.")
 
