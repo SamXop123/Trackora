@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>dev.trackora.Trackora</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Trackora</name>
+  <summary>Privacy-focused activity and screen time tracker for GNOME Wayland</summary>
+  <description>
+    <p>
+      Trackora is a privacy-focused activity and screen time tracker designed for GNOME Shell on Fedora Wayland.
+      It features an active window detector extension, a SQLite-backed backend service, and a premium PySide6 dashboard interface.
+    </p>
+  </description>
+  <launchable type="desktop-id">trackora.desktop</launchable>
+  <url type="homepage">https://github.com/SamXop123/Trackora</url>
+  <provides>
+    <binary>trackora-gui</binary>
+    <binary>trackora-daemon</binary>
+  </provides>
+</component>
