@@ -72,12 +72,42 @@ fi
 echo "Building RPM package..."
 rpmbuild --define "_topdir $(pwd)/rpmbuild" -ba trackora.spec
 
-# Copy output RPM to dist/
+# Normalize the version name for output files (e.g. 1.0.0rc1 -> 1.0.0-rc1)
+FILE_VERSION=$(echo "${VERSION}" | sed 's/rc/-rc/')
+
 mkdir -p dist
-find rpmbuild/RPMS -name "*.rpm" -exec cp {} dist/ \;
+
+# 6. Copy and rename the built RPM
+RPM_FILE=$(find rpmbuild/RPMS -name "*.rpm" | head -n 1)
+if [ -n "${RPM_FILE}" ]; then
+    cp "${RPM_FILE}" "dist/trackora-${FILE_VERSION}.rpm"
+else
+    echo "Error: Built RPM package not found." >&2
+    exit 1
+fi
+
+# 7. Create the release source tarball
+echo "Creating release source archive: dist/trackora-${FILE_VERSION}.tar.gz..."
+RELEASE_TEMP_DIR=$(mktemp -d)
+mkdir -p "${RELEASE_TEMP_DIR}/Trackora"
+
+# Copy all source files cleanly, excluding build artifacts
+rsync -a \
+    --exclude="rpmbuild" \
+    --exclude="dist" \
+    --exclude=".git" \
+    --exclude="*demo.db*" \
+    --exclude="*.pyc" \
+    --exclude="__pycache__" \
+    --exclude=".pytest_cache" \
+    --exclude=".venv" \
+    ./ "${RELEASE_TEMP_DIR}/Trackora/"
+
+tar -czf "dist/trackora-${FILE_VERSION}.tar.gz" -C "${RELEASE_TEMP_DIR}" "Trackora"
+rm -rf "${RELEASE_TEMP_DIR}"
 
 echo "--------------------------------------------------------"
 echo "Build Completed Successfully!"
-echo "RPM packages generated in dist/:"
+echo "Release artifacts generated in dist/:"
 ls -lh dist/
 echo "--------------------------------------------------------"
