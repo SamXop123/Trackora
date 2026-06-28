@@ -7,4 +7,4 @@ Terminal=false
 Type=Application
 Categories=Utility;Qt;
 Keywords=tracker;productivity;activity;time;
-StartupWMClass=Trackora
+StartupWMClass=trackora
