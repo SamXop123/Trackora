@@ -21,6 +21,7 @@ from ...models.dashboard import (
 )
 from ...utils.formatting import format_duration_compact, format_duration_live
 from ...database.dashboard import _get_app_category
+from ...utils.paths import get_asset_path
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -39,8 +40,7 @@ _ACCENT_SOFT = "#2563eb"
 _GREEN = "#34d399"
 _GREEN_DIM = "#065f46"
 
-_ASSETS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "assets"))
-_CALENDAR_SVG_PATH = os.path.join(_ASSETS_DIR, "calendar.svg").replace("\\", "/")
+_CALENDAR_SVG_PATH = str(get_asset_path("calendar.svg")).replace("\\", "/")
 
 # ─── Icon theme lookup ──────────────────────────────────────────────────────
 _ICON_THEME_MAP: dict[str, list[str]] = {
