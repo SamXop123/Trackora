@@ -7,10 +7,32 @@
   <summary>Privacy-focused activity and screen time tracker for GNOME Wayland</summary>
   <description>
     <p>
-      Trackora is a privacy-focused activity and screen time tracker designed for GNOME Shell on Fedora Wayland.
-      It features an active window detector extension, a SQLite-backed backend service, and a premium PySide6 dashboard interface.
+      Trackora is a modern, privacy-first activity and screen time tracker designed specifically for the GNOME desktop. It helps you understand how you spend your time on your computer by securely tracking your active applications and windows, completely offline.
     </p>
+    <p>
+      Key Features:
+    </p>
+    <ul>
+      <li>Automatic Time Tracking: Automatically records your active applications and focused window titles without manual logging.</li>
+      <li>Privacy First: All tracking data is stored locally on your machine in a private database. No cloud services, no tracking servers, and no data sharing.</li>
+      <li>Interactive Dashboard: View beautiful visual charts of your daily, weekly, and monthly computer usage.</li>
+      <li>Productivity Insights: Identify time sinks, track screen time goals, and analyze your productivity patterns over time.</li>
+    </ul>
   </description>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Weekly Usage Dashboard</caption>
+      <image>https://raw.githubusercontent.com/SamXop123/Trackora/main/trackora/assets/screenshots/dashboard-week.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Timeline View</caption>
+      <image>https://raw.githubusercontent.com/SamXop123/Trackora/main/trackora/assets/screenshots/Timeline.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Monthly Reports</caption>
+      <image>https://raw.githubusercontent.com/SamXop123/Trackora/main/trackora/assets/screenshots/Reports-monthly.png</image>
+    </screenshot>
+  </screenshots>
   <launchable type="desktop-id">trackora.desktop</launchable>
   <url type="homepage">https://github.com/SamXop123/Trackora</url>
   <provides>
