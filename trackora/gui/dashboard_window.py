@@ -22,6 +22,7 @@ from trackora.gui.pages import (
     InsightsPage, ReportsPage, SettingsPage, TimelinePage,
 )
 
+from trackora.utils.paths import get_asset_path
 # ── Color tokens ─────────────────────────────────────────────────────────────
 _BG = "#0d1117"
 _SIDEBAR_BG = "#0f1419"
@@ -330,7 +331,7 @@ class _Sidebar(QWidget):
         brand_row.setContentsMargins(0, 0, 0, 0)
 
         brand_icon = QLabel()
-        logo_path = Path(__file__).resolve().parents[2] / "assets" / "trackora_logo.png"
+        logo_path = get_asset_path("trackora_logo.png")
         if logo_path.exists():
             px = QPixmap(str(logo_path))
             brand_icon.setPixmap(px.scaled(26, 26, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
@@ -395,7 +396,7 @@ class MainWindow(QMainWindow):
         self._selected_date = date.today()
 
         self.setWindowTitle("Trackora")
-        logo_path = Path(__file__).resolve().parents[2] / "assets" / "trackora_logo.png"
+        logo_path = get_asset_path("trackora_logo.png")
         if logo_path.exists():
             self.setWindowIcon(QIcon(str(logo_path)))
         self.resize(1280, 820)
