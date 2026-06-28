@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trackora"
+version = "1.0.0b1"
+description = "Privacy-focused Linux activity tracker for GNOME Wayland"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "SamXop123" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Environment :: X11 Applications :: Qt",
+]
+dependencies = [
+    "PySide6>=6.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/SamXop123/Trackora"
+Repository = "https://github.com/SamXop123/Trackora"
+
+[project.scripts]
+trackora-gui = "trackora.gui.app:main"
+trackora-daemon = "trackora.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["trackora*"]
+
+[tool.setuptools.package-data]
+trackora = ["assets/*"]
