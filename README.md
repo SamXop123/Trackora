@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/SamXop123/Trackora/main/assets/trackora_logo.png" alt="Trackora" width="100" />
+<img src="https://raw.githubusercontent.com/SamXop123/Trackora/main/trackora/assets/trackora_logo.png" alt="Trackora" width="100" />
 
 <br/>
 
@@ -63,14 +63,26 @@ Trackora is currently optimized and tested for:
 * Wayland Session
 
 
-### Option 1: Download the Release Package (Recommended)
+### Option 1: Fedora RPM Package (Recommended)
+
+Download the latest native Fedora RPM package (`trackora-1.0.0-rc1.rpm`) from the GitHub Releases page.
+
+Install either by double-clicking the RPM file to open it in GNOME Software, or by running:
+
+```bash
+sudo dnf install ./trackora-1.0.0-rc1.rpm
+```
+
+After installation, launch **Trackora** directly from your GNOME Applications menu. No terminal commands or manual services startup are required for normal usage.
+
+### Option 2: Download the Release Package
 
 Download the latest release archive from the GitHub Releases page.
 
 Extract the archive:
 
 ```bash
-tar -xzf trackora-v1.0.0-beta.tar.gz
+tar -xzf trackora-1.0.0-rc1.tar.gz
 
 cd Trackora
 ```
@@ -89,7 +101,7 @@ Launch Trackora:
 python3 -m trackora.gui
 ```
 
-### Option 2: Install from Source
+### Option 3: Install from Source
 
 ```bash
 git clone https://github.com/SamXop123/Trackora.git
