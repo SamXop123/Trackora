@@ -1,5 +1,5 @@
 Name:           trackora
-Version:        1.0.0b1
+Version:        1.0.0rc1
 Release:        1%{?dist}
 Summary:        Privacy-focused activity and screen time tracker for GNOME Wayland
 
@@ -83,5 +83,8 @@ fi
 %{_datadir}/pixmaps/trackora.png
 
 %changelog
+* Mon Jun 29 2026 SamXop123 <dot_notsam> - 1.0.0rc1-1
+- Release Candidate 1 with full packaging polish and fixes.
+
 * Sun Jun 28 2026 SamXop123 <dot_notsam> - 1.0.0b1-1
 - Initial release for public beta.
