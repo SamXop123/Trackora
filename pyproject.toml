@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trackora"
-version = "1.0.0b1"
+version = "1.0.0rc1"
 description = "Privacy-focused Linux activity tracker for GNOME Wayland"
 readme = "README.md"
 requires-python = ">=3.8"
