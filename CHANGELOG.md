@@ -4,6 +4,30 @@ All notable changes to the Trackora project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-rc1] - 2026-06-29
+
+Trackora is now ready for the v1.0.0 Release Candidate 1 (RC1) release. This release focuses on final release polish, robust Fedora RPM packaging, and standard installation pipelines.
+
+### Packaging
+- Native Fedora RPM package (`trackora-1.0.0-rc1.rpm`) for simple system-wide installation.
+- Clean desktop launcher (`trackora.desktop`) registered in `/usr/share/applications/`.
+- Full GNOME application menu integration with high-quality icons and system categorization.
+- Standardized AppStream metadata (`trackora.metainfo.xml`) supporting software centers.
+- Modern Python packaging with `pyproject.toml` and CLI entry points (`trackora-gui`, `trackora-daemon`).
+- Improved system-wide asset management and resolution helpers.
+
+### Installation
+- Simplified installation via native Fedora software managers.
+- Legacy installation script (`install.sh`) retained for manual or custom environment setups.
+- RPM installation recommended as the primary distribution method.
+
+### Improvements
+- Packaging and dependencies fixes: PySide6 and PyQtGraph dependencies mapped to native Fedora packages.
+- Desktop integration fixes: Wayland window class and name matched with `StartupWMClass` to display correctly in GNOME dock.
+- Runtime dependency fixes: automated PySide6 extension activation and daemon service initialization.
+- Resource path improvements: flexible asset resolution from system, local git repository, or wheel bundle.
+- General stability and error handling improvements.
+
 ---
 
 ## [1.0.0] - Upcoming / In Progress
