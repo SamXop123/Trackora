@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Trackora
+Comment=Privacy-focused activity and screen time tracker
+Exec=trackora-gui
+Icon=trackora
+Terminal=false
+Type=Application
+Categories=Utility;Qt;
+Keywords=tracker;productivity;activity;time;
+StartupWMClass=Trackora
