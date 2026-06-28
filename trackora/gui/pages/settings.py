@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 
 from trackora.database.dashboard import DashboardRepository
 from trackora.utils.settings import settings_manager
-from trackora.utils.paths import default_database_path, default_state_path
+from trackora.utils.paths import default_database_path, default_state_path, get_asset_path
 from trackora.window_state import read_window_state
 from trackora.utils.time import now_utc
 
@@ -841,7 +841,7 @@ class SettingsPage(QWidget):
 
         logo_lo = QHBoxLayout()
         logo_label = QLabel()
-        logo_path = Path(__file__).resolve().parents[3] / "assets" / "trackora_logo.png"
+        logo_path = get_asset_path("trackora_logo.png")
         if logo_path.exists():
             px = QPixmap(str(logo_path))
             logo_label.setPixmap(px.scaled(40, 40, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
