@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from trackora.gui.dashboard_window import MainWindow
-from trackora.utils.paths import default_database_path
+from trackora.utils.paths import default_database_path, get_asset_path
 
 # Styling constants matching Trackora's premium dark mode theme
 _BG = "#0d1117"
@@ -254,7 +254,7 @@ def main(argv: list[str] | None = None) -> int:
     app.setOrganizationName("Trackora")
 
     # Load custom premium 'Inter' font from assets folder
-    font_path = Path(__file__).resolve().parents[2] / "assets" / "Inter.ttf"
+    font_path = get_asset_path("Inter.ttf")
     if font_path.exists():
         font_id = QFontDatabase.addApplicationFont(str(font_path))
         if font_id != -1:
