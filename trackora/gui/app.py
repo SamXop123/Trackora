@@ -49,6 +49,33 @@ def is_service_active() -> bool:
         return False
 
 
+def try_start_service() -> bool:
+    """Try to start and enable the systemd user service automatically."""
+    try:
+        # Enable so it starts on login
+        subprocess.run(
+            ["systemctl", "--user", "enable", "trackora.service"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        # Start the service
+        subprocess.run(
+            ["systemctl", "--user", "start", "trackora.service"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        # Wait a bit for it to spin up
+        for _ in range(5):
+            time.sleep(0.2)
+            if is_service_active():
+                return True
+    except Exception:
+        pass
+    return False
+
+
 class ServiceStatusDialog(QDialog):
     """Custom styled dialog shown when the background tracking service is not active."""
 
@@ -247,11 +274,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    from PySide6.QtGui import QFont, QFontDatabase
+    from PySide6.QtGui import QFont, QFontDatabase, QIcon
 
     app = QApplication(sys.argv if argv is None else [sys.argv[0], *argv])
     app.setApplicationName("Trackora")
     app.setOrganizationName("Trackora")
+    app.setDesktopFileName("trackora")
+
+    # Set application-level window icon
+    logo_path = get_asset_path("trackora_logo.png")
+    if logo_path.exists():
+        app.setWindowIcon(QIcon(str(logo_path)))
 
     # Load custom premium 'Inter' font from assets folder
     font_path = get_asset_path("Inter.ttf")
