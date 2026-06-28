@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (QDateEdit, QFileDialog, QFrame, QGraphicsDropShad
 from trackora.database.dashboard import DashboardRepository
 from trackora.models.dashboard import ReportsData, AppUsageSummary, DailyUsageSummary
 from typing import TYPE_CHECKING
+from trackora.utils.paths import get_asset_path
 
 _BG = "#0d1117"; _CARD = "#141a23"; _CARD_LIGHTER = "#171f2a"
 _CARD_BORDER = "#1c2735"; _TEXT_PRIMARY = "#e6edf5"
@@ -20,8 +21,7 @@ _ACCENT = "#3b82f6"; _GREEN = "#34d399"
 _SCALE = 0.80
 _FONT_SCALE = 1.0
 
-_ASSETS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "assets"))
-_CALENDAR_SVG_PATH = os.path.join(_ASSETS_DIR, "calendar.svg").replace("\\", "/")
+_CALENDAR_SVG_PATH = str(get_asset_path("calendar.svg")).replace("\\", "/")
 
 def _s(px: int) -> int:
     return max(1, int(px * _SCALE))
