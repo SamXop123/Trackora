@@ -32,3 +32,24 @@ def default_database_path() -> Path:
 def default_lock_path() -> Path:
     """Return the singleton process lock path."""
     return trackora_data_dir() / "trackora.lock"
+
+
+def get_asset_path(filename: str) -> Path:
+    """Find the path to an asset, checking the package folder and standard system locations."""
+    # 1. Package assets folder (when bundled inside the trackora package)
+    package_assets = Path(__file__).resolve().parent.parent / "assets" / filename
+    if package_assets.exists():
+        return package_assets
+
+    # 2. Sibling assets directory (fallback for older layouts/dev checkouts)
+    git_assets = Path(__file__).resolve().parents[2] / "assets" / filename
+    if git_assets.exists():
+        return git_assets
+
+    # 3. System shared assets path
+    system_assets = Path("/usr/share/trackora/assets") / filename
+    if system_assets.exists():
+        return system_assets
+
+    return package_assets
+
