@@ -10,3 +10,5 @@ reboot.md
 *.db
 dist/
 build/
+rpmbuild/
+*.egg-info/
