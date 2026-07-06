@@ -356,6 +356,70 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
             </div>
           </motion.div>
         ) : (
+          <motion.div
+            key="conclusion"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              background: "rgba(5, 7, 10, 0.95)",
+              padding: "40px",
+              textAlign: "center",
+              gap: "32px",
+            }}
+          >
+            {/* Fading text nodes */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px", maxWidth: "600px" }}>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1.2, delay: 0.5 }}
+                style={{
+                  fontSize: "18px",
+                  color: "var(--color-text-secondary)",
+                  lineHeight: "1.6",
+                  fontWeight: 400,
+                }}
+              >
+                Today is already fading into a vague memory.
+              </motion.p>
+
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1.2, delay: 2.2 }}
+                style={{
+                  fontSize: "18px",
+                  color: "var(--color-text-secondary)",
+                  lineHeight: "1.6",
+                  fontWeight: 400,
+                }}
+              >
+                You won't remember every tab opened, or every focused moment.
+              </motion.p>
+
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1.2, delay: 3.9 }}
+                style={{
+                  fontSize: "32px",
+                  fontWeight: 800,
+                  color: "var(--color-accent-blue)",
+                  letterSpacing: "-0.02em",
+                  marginTop: "8px",
+                }}
+              >
+                Trackora remembers.
+              </motion.p>
+            </div>
 
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
