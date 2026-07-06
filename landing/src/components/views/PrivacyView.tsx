@@ -134,3 +134,104 @@ export default function PrivacyView({ onComplete }: PrivacyViewProps) {
       {/* Right panel: Database Cylinder & Click-Recovery Test */}
       <div
         style={{
+          width: "48%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "20px",
+          position: "relative",
+        }}
+      >
+        {/* Floating security rings */}
+        <div
+          style={{
+            position: "absolute",
+            width: "280px",
+            height: "280px",
+            borderRadius: "50%",
+            border: "1px dashed rgba(16, 185, 129, 0.06)",
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Database cylinder button */}
+        <motion.button
+          onClick={triggerRecovery}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.98 }}
+          style={{
+            width: "120px",
+            height: "120px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, rgba(10, 15, 24, 0) 70%)",
+            border: "2px solid rgba(16, 185, 129, 0.3)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            cursor: "pointer",
+            outline: "none",
+            boxShadow: "0 0 40px rgba(16, 185, 129, 0.1)",
+          }}
+        >
+          <Database size={28} style={{ color: "var(--color-accent-green)" }} />
+          <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains-mono), monospace", color: "var(--color-accent-green)", fontWeight: 700 }}>
+            {isRecovering ? "SIMULATING..." : "SECURE BOOT"}
+          </span>
+        </motion.button>
+
+        {/* Recovery logs output box */}
+        <div
+          className="glass"
+          style={{
+            width: "300px",
+            height: "130px",
+            borderRadius: "10px",
+            padding: "12px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-end",
+            overflow: "hidden",
+            background: "rgba(10, 15, 24, 0.8)",
+          }}
+        >
+          {logs.length > 0 ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px",
+                fontSize: "9px",
+                fontFamily: "var(--font-jetbrains-mono), monospace",
+                textAlign: "left",
+                color: "var(--color-text-secondary)",
+              }}
+            >
+              {logs.slice(-5).map((log, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    color: log.includes("SUCCESS")
+                      ? "var(--color-accent-green)"
+                      : log.includes("WARNING") || log.includes("INFO")
+                        ? "var(--color-accent-blue)"
+                        : "var(--color-text-secondary)",
+                  }}
+                >
+                  {log}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: "10px", color: "var(--color-text-muted)", fontFamily: "var(--font-jetbrains-mono), monospace", textAlign: "center", paddingBottom: "36px" }}>
+              Tap the database container above to simulate a secure offline boot sequence
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
