@@ -356,6 +356,37 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
             </div>
           </motion.div>
         ) : (
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 5.5 }}
+            >
+              <button
+                onClick={onComplete}
+                style={{
+                  background: "var(--color-accent-blue)",
+                  border: "1px solid rgba(59, 130, 246, 0.3)",
+                  color: "#ffffff",
+                  padding: "12px 28px",
+                  borderRadius: "30px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  letterSpacing: "0.05em",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  boxShadow: "0 4px 20px rgba(59, 130, 246, 0.25)",
+                  outline: "none",
+                  transition: "background 0.2s ease",
+                  marginTop: "16px",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#2563eb";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "var(--color-accent-blue)";
                 }}
               >
                 <span>SEE YOUR HABITS</span>
