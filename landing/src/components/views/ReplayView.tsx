@@ -96,6 +96,39 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
               overflow: "hidden",
             }}
           >
+            {/* Left pane: Active Step Detail */}
+            <div
+              style={{
+                width: "50%",
+                display: "flex",
+                flexDirection: "column",
+                gap: "20px",
+                textAlign: "left",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 800,
+                    color: "var(--color-accent-blue)",
+                    letterSpacing: "0.1em",
+                    fontFamily: "var(--font-jetbrains-mono), monospace",
+                  }}
+                >
+                  WHAT HAPPENED DURING YOUR DAY?
+                </span>
+                <span style={{ color: "var(--color-text-muted)" }}>•</span>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontFamily: "var(--font-jetbrains-mono), monospace",
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  STEP {stepIndex + 1} OF {REPLAY_STEPS.length}
+                </span>
+              </div>
     </div>
   );
 }
