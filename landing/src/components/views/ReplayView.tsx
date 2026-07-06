@@ -172,6 +172,125 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
                 </motion.div>
               </div>
 
+              {/* Description log text */}
+              <div style={{ height: "80px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentStep.title}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "14px",
+                        color: "var(--color-text-primary)",
+                        fontWeight: 600,
+                        fontFamily: "var(--font-jetbrains-mono), monospace",
+                        whiteSpace: "nowrap",
+                        textOverflow: "ellipsis",
+                        overflow: "hidden",
+                        maxWidth: "420px",
+                      }}
+                    >
+                      {currentStep.title}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "6px", lineHeight: "1.5" }}>
+                      {currentStep.desc}
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              {/* Navigation Step Button */}
+              <div>
+                <motion.button
+                  onClick={nextStep}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  style={{
+                    background: stepIndex === REPLAY_STEPS.length - 1 ? "var(--color-accent-blue)" : "rgba(255, 255, 255, 0.03)",
+                    border: "1px solid var(--color-border)",
+                    borderColor: stepIndex === REPLAY_STEPS.length - 1 ? "rgba(59, 130, 246, 0.4)" : "var(--color-border)",
+                    color: "#ffffff",
+                    padding: "10px 20px",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    outline: "none",
+                    transition: "border-color 0.2s ease, background 0.2s ease",
+                  }}
+                >
+                  <span>{stepIndex === REPLAY_STEPS.length - 1 ? "FINISH THE DAY" : "RELIVE THE MOMENT"}</span>
+                  <ArrowRight size={12} />
+                </motion.button>
+              </div>
+            </div>
+
+            {/* Right pane: Chronological Wire Graph */}
+            <div
+              style={{
+                width: "45%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                position: "relative",
+              }}
+            >
+              {/* Continuous wire line */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: "10%",
+                  bottom: "10%",
+                  width: "2px",
+                  background: "rgba(255, 255, 255, 0.03)",
+                  transform: "translateX(-50%)",
+                  zIndex: 1,
+                }}
+              />
+
+              {/* Scrolling progress wire line */}
+              <motion.div
+                animate={{ height: `${(stepIndex / (REPLAY_STEPS.length - 1)) * 80}%` }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: "10%",
+                  width: "2px",
+                  background: "linear-gradient(to bottom, #1d4ed8, #3b82f6)",
+                  boxShadow: "0 0 10px rgba(59, 130, 246, 0.5)",
+                  transform: "translateX(-50%)",
+                  zIndex: 2,
+                  transformOrigin: "top",
+                }}
+              />
+
+              {/* Timeline icons stack */}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "80%",
+                  position: "relative",
+                  zIndex: 3,
+                  width: "100%",
+                }}
+              >
+                {REPLAY_STEPS.map((step, idx) => {
+                  const Icon = step.icon;
+                  const isPassed = idx <= stepIndex;
+                  const isCurrent = idx === stepIndex;
+
     </div>
   );
 }
