@@ -52,11 +52,9 @@ export default function Starfield({ warpActive = false }: StarfieldProps) {
       }
     };
 
-    let mouseVelocity = 0;
-
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      mouseVelocity *= 0.9; // decay velocity
+      ctx.fillStyle = "#ffffff";
 
       stars.forEach((star) => {
         // Drift movement
@@ -77,8 +75,6 @@ export default function Starfield({ warpActive = false }: StarfieldProps) {
         }
 
         // Mouse attraction warp
-        let forceX = 0;
-        let forceY = 0;
         if (mouseRef.current.active) {
           const dx = mouseRef.current.x - star.x;
           const dy = mouseRef.current.y - star.y;
@@ -86,39 +82,22 @@ export default function Starfield({ warpActive = false }: StarfieldProps) {
           if (dist < 180) {
             const force = (180 - dist) / 180;
             // Pull stars slightly towards mouse cursor
-            forceX = dx * force * 0.015;
-            forceY = dy * force * 0.015;
-            star.x += forceX;
-            star.y += forceY;
+            star.x += dx * force * 0.015;
+            star.y += dy * force * 0.015;
           }
         }
 
-        // Draw star with velocity stretch or circular orbit drift
+        // Draw star
         ctx.beginPath();
-        if (warpActive || mouseVelocity > 3) {
-          const lengthFactor = warpActive ? 0.8 : 0.25;
-          const vx = (star.speedX * (warpActive ? 45 : 1)) + (forceX * mouseVelocity * lengthFactor);
-          const vy = (star.speedY * (warpActive ? 45 : 1)) + (forceY * mouseVelocity * lengthFactor);
-          ctx.moveTo(star.x, star.y);
-          ctx.lineTo(star.x - vx * 4, star.y - vy * 4);
-          ctx.strokeStyle = `rgba(248, 250, 252, ${star.opacity * 0.9})`;
-          ctx.lineWidth = star.size * (warpActive ? 0.7 : 0.9);
-          ctx.stroke();
-        } else {
-          ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(248, 250, 252, ${star.opacity})`;
-          ctx.fill();
-        }
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(248, 250, 252, ${star.opacity})`;
+        ctx.fill();
       });
 
       animationFrameId = requestAnimationFrame(draw);
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      const dx = e.clientX - mouseRef.current.x;
-      const dy = e.clientY - mouseRef.current.y;
-      const vel = Math.sqrt(dx * dx + dy * dy);
-      mouseVelocity = Math.min(vel, 35); // Cap velocity impact
       mouseRef.current.x = e.clientX;
       mouseRef.current.y = e.clientY;
       mouseRef.current.active = true;
@@ -126,7 +105,6 @@ export default function Starfield({ warpActive = false }: StarfieldProps) {
 
     const handleMouseLeave = () => {
       mouseRef.current.active = false;
-      mouseVelocity = 0;
     };
 
     window.addEventListener("resize", resizeCanvas);
