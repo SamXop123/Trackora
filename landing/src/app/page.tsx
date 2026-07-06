@@ -131,3 +131,48 @@ export default function Home() {
                 <DashboardView onComplete={() => setActiveView("pipeline")} />
               </motion.div>
             )}
+
+            {activeView === "pipeline" && (
+              <motion.div
+                key="pipeline"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                style={{ width: "100%", height: "100%" }}
+              >
+                <PipelineView onComplete={() => setActiveView("privacy")} />
+              </motion.div>
+            )}
+
+            {activeView === "privacy" && (
+              <motion.div
+                key="privacy"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                style={{ width: "100%", height: "100%" }}
+              >
+                <PrivacyView onComplete={() => setActiveView("download")} />
+              </motion.div>
+            )}
+
+            {activeView === "download" && (
+              <motion.div
+                key="download"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                style={{ width: "100%", height: "100%" }}
+              >
+                <DownloadView />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </AppFrame>
+    </main>
+  );
+}
