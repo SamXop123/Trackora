@@ -59,3 +59,43 @@ const REPLAY_STEPS = [
   },
 ];
 
+export default function ReplayView({ onComplete }: ReplayViewProps) {
+  const [stepIndex, setStepIndex] = useState(0);
+  const [showConclusion, setShowConclusion] = useState(false);
+
+  const nextStep = () => {
+    if (stepIndex < REPLAY_STEPS.length - 1) {
+      setStepIndex((prev) => prev + 1);
+    } else {
+      setShowConclusion(true);
+    }
+  };
+
+  const currentStep = REPLAY_STEPS[stepIndex];
+  const StepIcon = currentStep.icon;
+
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      <AnimatePresence mode="wait">
+        {!showConclusion ? (
+          <motion.div
+            key="replay-flow"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              padding: "40px",
+              gap: "40px",
+              alignItems: "center",
+              justifyContent: "space-between",
+              background: "rgba(10, 15, 24, 0.4)",
+              overflow: "hidden",
+            }}
+          >
+    </div>
+  );
+}
