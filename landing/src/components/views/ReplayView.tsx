@@ -129,6 +129,49 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
                   STEP {stepIndex + 1} OF {REPLAY_STEPS.length}
                 </span>
               </div>
+
+              {/* Big time code */}
+              <div style={{ display: "flex", alignItems: "baseline", gap: "16px" }}>
+                <motion.h1
+                  key={currentStep.time}
+                  initial={{ opacity: 0, x: -15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                  style={{
+                    fontSize: "92px",
+                    fontWeight: 800,
+                    letterSpacing: "-0.05em",
+                    color: "var(--color-text-primary)",
+                    lineHeight: "0.9",
+                  }}
+                >
+                  {currentStep.time}
+                </motion.h1>
+                
+                <motion.div
+                  key={currentStep.app}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5 }}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: "20px",
+                    background: `rgba(${currentStep.color === "#3b82f6" ? "59, 130, 246" : "156, 163, 175"}, 0.1)`,
+                    border: `1px solid ${currentStep.color}33`,
+                    color: currentStep.color,
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontFamily: "var(--font-jetbrains-mono), monospace",
+                  }}
+                >
+                  <StepIcon size={12} />
+                  <span>{currentStep.app.toUpperCase()}</span>
+                </motion.div>
+              </div>
+
     </div>
   );
 }
