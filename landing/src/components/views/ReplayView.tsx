@@ -336,6 +336,35 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
                         <Icon size={14} />
                       </motion.div>
 
+                      {/* Micro time indicator on the right */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: "calc(50% + 28px)",
+                          fontSize: "10px",
+                          fontWeight: isCurrent ? 700 : 500,
+                          color: isCurrent ? "var(--color-text-primary)" : "var(--color-text-muted)",
+                          fontFamily: "var(--font-jetbrains-mono), monospace",
+                        }}
+                      >
+                        {step.time}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+                }}
+              >
+                <span>SEE YOUR HABITS</span>
+                <ArrowRight size={14} />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
