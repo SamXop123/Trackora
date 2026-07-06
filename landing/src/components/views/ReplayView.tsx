@@ -291,6 +291,51 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
                   const isPassed = idx <= stepIndex;
                   const isCurrent = idx === stepIndex;
 
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        position: "relative",
+                      }}
+                    >
+                      {/* Node icon button */}
+                      <motion.div
+                        animate={{
+                          scale: isCurrent ? 1.25 : 1,
+                          backgroundColor: isCurrent 
+                            ? step.color 
+                            : isPassed 
+                              ? "rgba(59, 130, 246, 0.15)" 
+                              : "#0a0f18",
+                          borderColor: isCurrent 
+                            ? "#ffffff" 
+                            : isPassed 
+                              ? step.color 
+                              : "var(--color-border)",
+                          boxShadow: isCurrent 
+                            ? `0 0 20px ${step.color}` 
+                            : "none",
+                        }}
+                        transition={{ duration: 0.3 }}
+                        style={{
+                          width: "36px",
+                          height: "36px",
+                          borderRadius: "50%",
+                          border: "2px solid",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          color: isCurrent ? "#ffffff" : isPassed ? step.color : "var(--color-text-muted)",
+                        }}
+                        onClick={() => setStepIndex(idx)}
+                      >
+                        <Icon size={14} />
+                      </motion.div>
+
     </div>
   );
 }
