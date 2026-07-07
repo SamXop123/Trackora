@@ -40,16 +40,25 @@ jobs:
               body = body[:1500] + "\n\n... (truncated, click link to view full changelog)"
 
           payload = {
+              "username": "Trackora",
+              "avatar_url": "https://raw.githubusercontent.com/SamXop123/Trackora/main/trackora/assets/trackora_logo.png",
+              "content": "📢 @everyone **A new update is here!**",
               "embeds": [{
-                  "title": f"🚀 Trackora Release: {name}",
+                  "title": f"🚀 Release: {name}",
                   "url": url,
-                  "description": body,
-                  "color": 3447003,  # Sleek blue color
+                  "description": body if body else "*No release notes provided.*",
+                  "color": 3899126,  # Trackora Accent Blue (#3b82f6)
+                  "thumbnail": {
+                      "url": "https://raw.githubusercontent.com/SamXop123/Trackora/main/trackora/assets/trackora_logo.png"
+                  },
                   "fields": [
                       {"name": "Version", "value": f"`{tag}`", "inline": True},
-                      {"name": "Releases Page", "value": f"[View on GitHub]({url})", "inline": True}
+                      {"name": "Changelog & Assets", "value": f"[View on GitHub]({url})", "inline": True}
                   ],
-                  "footer": {"text": "Trackora Auto-Announce"}
+                  "footer": {
+                      "text": "Trackora Auto-Announce",
+                      "icon_url": "https://raw.githubusercontent.com/SamXop123/Trackora/main/trackora/assets/trackora_logo.png"
+                  }
               }]
           }
 
