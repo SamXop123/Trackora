@@ -25,6 +25,7 @@ export default function Home() {
   // Scroll-linking navigation
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) return; // Ignore browser zoom scroll wheel gestures
       const now = Date.now();
       if (now - lastScrollTime < 1000) return; // Debounce scroll transitions
 
