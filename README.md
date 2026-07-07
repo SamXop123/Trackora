@@ -65,12 +65,12 @@ Trackora is currently optimized and tested for:
 
 ### Option 1: Fedora RPM Package (Recommended)
 
-Download the latest native Fedora RPM package (`trackora-1.0.0-rc1.rpm`) from the GitHub Releases page.
+Download the latest native Fedora RPM package (`trackora-v1.rpm`) from the GitHub Releases page.
 
 Install either by double-clicking the RPM file to open it in GNOME Software, or by running:
 
 ```bash
-sudo dnf install ./trackora-1.0.0-rc1.rpm
+sudo dnf install ./trackora-v1.rpm
 ```
 
 After installation, launch **Trackora** directly from your GNOME Applications menu. No terminal commands or manual services startup are required for normal usage.
@@ -82,7 +82,7 @@ Download the latest release archive from the GitHub Releases page.
 Extract the archive:
 
 ```bash
-tar -xzf trackora-1.0.0-rc1.tar.gz
+tar -xzf trackora-1.0.0.tar.gz
 
 cd Trackora
 ```
