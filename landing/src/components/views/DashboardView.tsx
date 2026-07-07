@@ -9,16 +9,15 @@ interface DashboardViewProps {
 }
 
 const APPS_METRICS = [
-  { name: "Brave Browser", duration: "2h 18m", pct: 40, color: "#f97316", detail: "Researching reference APIs and design assets." },
-  { name: "Minecraft", duration: "1h 30m", pct: 26, color: "#10b981", detail: "Playing Minecraft. Creative sandbox session." },
-  { name: "VS Code", duration: "56m", pct: 16, color: "#3b82f6", detail: "Writing code. Refining database sync logic." },
-  { name: "YouTube", duration: "46m", pct: 13, color: "#ff0000", detail: "Watching design showcases and keynotes in browser." },
-  { name: "Spotify", duration: "15m", pct: 5, color: "#1db954", detail: "Listening to focus beats and ambient audio." },
+  { name: "Brave", duration: "2h 18m", pct: 42, color: "#f97316", detail: "Researching reference APIs and design assets." },
+  { name: "Minecraft", duration: "1h 30m", pct: 27, color: "#10b981", detail: "Playing Minecraft. Creative sandbox session." },
+  { name: "VS Code", duration: "56m", pct: 17, color: "#3b82f6", detail: "Writing code. Refining database sync logic." },
+  { name: "YouTube", duration: "46m", pct: 14, color: "#ff0000", detail: "Watching design showcases and keynotes in browser." },
 ];
 
 export default function DashboardView({ onComplete }: DashboardViewProps) {
   const [seconds, setSeconds] = useState(0);
-  const [minutes, setMinutes] = useState(45);
+  const [minutes, setMinutes] = useState(30);
   const [hours, setHours] = useState(5);
   const [activeHoverApp, setActiveHoverApp] = useState<number | null>(null);
 
