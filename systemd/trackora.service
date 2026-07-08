@@ -2,7 +2,6 @@
 Description=Trackora background tracking service
 Documentation=file:///usr/share/doc/trackora/systemd-service.md
 After=graphical-session.target
-Wants=graphical-session.target
 PartOf=graphical-session.target
 
 [Service]
@@ -20,4 +19,4 @@ StandardError=journal
 NoNewPrivileges=true
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target
