@@ -30,7 +30,14 @@ Trackora is now ready for the v1.0.0 Release Candidate 1 (RC1) release. This rel
 
 ---
 
-## [1.0.0] - Upcoming / In Progress
+## [1.0.1] - 2026-07-08
+
+### Fixed
+- Fixed a critical bug causing a GNOME login loop on Fedora Wayland. Corrected systemd user service dependencies by removing `Wants=graphical-session.target` and updating the install target to `WantedBy=graphical-session.target`.
+
+---
+
+## [1.0.0] - 2026-07-08
 
 This release marks the first stable public launch of the Trackora suite, including the core background services, compositor extensions, and desktop visualization dashboard.
 
