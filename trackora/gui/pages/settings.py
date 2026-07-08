@@ -32,6 +32,7 @@ from trackora.utils.settings import settings_manager
 from trackora.utils.paths import default_database_path, default_state_path, get_asset_path
 from trackora.window_state import read_window_state
 from trackora.utils.time import now_utc
+from trackora import __version__
 
 _BG = "#0d1117"
 _CARD = "#141a23"
@@ -869,7 +870,7 @@ class SettingsPage(QWidget):
         except Exception:
             os_name = platform.system()
             
-        clo.addWidget(_KVRow("Trackora Version", "v1.0.0"))
+        clo.addWidget(_KVRow("Trackora Version", f"v{__version__}"))
         self._add_separator(clo)
         clo.addWidget(_KVRow("GNOME Version", "45+"))
         self._add_separator(clo)
