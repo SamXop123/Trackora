@@ -39,7 +39,7 @@ RPM so that `python3 -m trackora` resolves from anywhere.
 
 ## Fedora user-service behavior
 
-- Starts on user login
+- Starts automatically when the graphical session is active (GNOME starts)
 - Runs in the background without a terminal
 - Restarts if the tracker process crashes
 - Logs go to `journalctl --user`
@@ -99,7 +99,7 @@ Then the user only needs systemd user commands to enable/start it.
 
 ## Commands
 
-Enable auto-start on login:
+Enable auto-start on graphical session start:
 
 ```bash
 systemctl --user enable trackora.service
