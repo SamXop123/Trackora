@@ -1,5 +1,5 @@
 Name:           trackora
-Version:        1.0.0
+Version:        1.0.1
 Release:        1%{?dist}
 Summary:        Privacy-focused activity and screen time tracker for GNOME Wayland
 
