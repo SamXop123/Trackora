@@ -37,7 +37,15 @@ _GREEN = "#34d399"
 
 
 def is_service_active() -> bool:
-    """Check if the Trackora background systemd user service is active."""
+    """Check if the Trackora background service/daemon is active."""
+    import sys
+    if sys.platform == "win32":
+        try:
+            from windows.daemon import is_service_active_win
+            return is_service_active_win()
+        except Exception:
+            return False
+
     try:
         res = subprocess.run(
             ["systemctl", "--user", "is-active", "--quiet", "trackora.service"],
@@ -50,7 +58,15 @@ def is_service_active() -> bool:
 
 
 def try_start_service() -> bool:
-    """Try to start and enable the systemd user service automatically."""
+    """Try to start the background service/daemon automatically."""
+    import sys
+    if sys.platform == "win32":
+        try:
+            from windows.daemon import try_start_service_win
+            return try_start_service_win()
+        except Exception:
+            return False
+
     try:
         # Enable so it starts on login
         subprocess.run(
@@ -184,7 +200,7 @@ class ServiceStatusDialog(QDialog):
         layout.addLayout(self.buttons_layout)
 
     def _start_service(self) -> None:
-        """Trigger systemctl start on trackora.service (does not enable on login)."""
+        """Trigger start on background service/daemon."""
         self.start_btn.setEnabled(False)
         self.exit_btn.setEnabled(False)
         self.msg_label.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 13px;")
@@ -192,12 +208,16 @@ class ServiceStatusDialog(QDialog):
         QApplication.processEvents()
 
         try:
-            # Start service once for the current session (Never use "enable")
-            subprocess.run(
-                ["systemctl", "--user", "start", "trackora.service"],
-                capture_output=True,
-                check=False,
-            )
+            import sys
+            if sys.platform == "win32":
+                try_start_service()
+            else:
+                # Start service once for the current session (Never use "enable")
+                subprocess.run(
+                    ["systemctl", "--user", "start", "trackora.service"],
+                    capture_output=True,
+                    check=False,
+                )
 
             # Wait briefly for status propagation
             time.sleep(1.5)
@@ -213,21 +233,39 @@ class ServiceStatusDialog(QDialog):
 
         # Failure handling
         self.msg_label.setStyleSheet(f"color: {_RED}; font-size: 13px;")
-        self.msg_label.setText(
-            "Error: Failed to start background tracking service.\n"
-            "Please check systemd configuration or view logs below."
-        )
+        import sys
+        if sys.platform == "win32":
+            self.msg_label.setText(
+                "Error: Failed to start background tracking daemon.\n"
+                "Please view daemon logs below."
+            )
+        else:
+            self.msg_label.setText(
+                "Error: Failed to start background tracking service.\n"
+                "Please check systemd configuration or view logs below."
+            )
         self.icon_label.setText("❌")
 
-        # Fetch recent journalctl logs for failure diagnosing
+        # Fetch recent logs for failure diagnosing
         try:
-            res = subprocess.run(
-                ["journalctl", "--user", "-u", "trackora.service", "-n", "20", "--no-pager"],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            logs = res.stdout if res.stdout else "No service logs found."
+            import sys
+            if sys.platform == "win32":
+                from trackora.utils.paths import default_log_path
+                log_path = default_log_path()
+                if log_path.exists():
+                    content = log_path.read_text(encoding="utf-8")
+                    lines = content.splitlines()[-20:]
+                    logs = "\n".join(lines)
+                else:
+                    logs = "No service logs found."
+            else:
+                res = subprocess.run(
+                    ["journalctl", "--user", "-u", "trackora.service", "-n", "20", "--no-pager"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                logs = res.stdout if res.stdout else "No service logs found."
         except Exception as e:
             logs = f"Failed to retrieve service logs: {e}"
 
