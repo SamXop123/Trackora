@@ -11,20 +11,24 @@ from trackora.utils.lock import TrackoraAlreadyRunningError, TrackoraInstanceLoc
 from trackora.utils.logging import log_error, log_info, log_warning
 from trackora.utils.paths import default_lock_path
 from trackora.utils.time import now_utc
-from trackora.window_state import read_window_state
+from trackora.window_state import WindowStateProvider, get_default_provider
 
 
 def run_tracking_service(
     *,
     interval_sec: float,
-    state_path: Path,
+    state_path: Path | None = None,
     database_path: Path,
     stop_flag: list[bool] | None = None,
     timeout_sec: float = 10.0,
+    provider: WindowStateProvider | None = None,
 ) -> None:
     """Continuously convert focused-window snapshots into durable sessions."""
     if interval_sec <= 0:
         raise ValueError("interval_sec must be positive")
+
+    if provider is None:
+        provider = get_default_provider(state_path)
 
     lock = TrackoraInstanceLock(default_lock_path())
     if not lock.acquire():
@@ -47,7 +51,7 @@ def run_tracking_service(
 
     try:
         while stop_flag is None or not stop_flag[0]:
-            result = read_window_state(state_path)
+            result = provider.get_window_state()
             
             try:
                 if result.state is not None:
