@@ -42,41 +42,7 @@ _GREEN_DIM = "#065f46"
 
 _CALENDAR_SVG_PATH = str(get_asset_path("calendar.svg")).replace("\\", "/")
 
-# ─── Icon theme lookup ──────────────────────────────────────────────────────
-_ICON_THEME_MAP: dict[str, list[str]] = {
-    "VS Code": ["code", "visual-studio-code", "com.visualstudio.code"],
-    "Chrome": ["google-chrome", "chromium"],
-    "Chromium": ["chromium"],
-    "Brave": ["brave-browser"],
-    "Firefox": ["firefox"],
-    "Spotify": ["spotify"],
-    "Discord": ["discord"],
-    "Slack": ["slack"],
-    "Telegram": ["telegram-desktop", "telegram"],
-    "Files": ["org.gnome.Nautilus", "system-file-manager"],
-    "Console": ["org.gnome.Console", "utilities-terminal"],
-    "Settings": ["org.gnome.Settings", "preferences-system"],
-    "Kitty": ["kitty"],
-    "Terminal": ["org.gnome.Console", "utilities-terminal", "gnome-terminal"],
-    "GitHub Desktop": ["github-desktop"],
-    "Cursor": ["co.anysphere.cursor", "cursor"],
-}
-_FALLBACK_ICON = "application-x-executable"
-
-
-def _get_app_icon(app_name: str, size: int = 24) -> QPixmap | None:
-    """Try to load a native Linux theme icon for the app."""
-    candidates = _ICON_THEME_MAP.get(app_name, [app_name.lower().replace(" ", "-")])
-    if isinstance(candidates, str):
-        candidates = [candidates]
-    for name in candidates:
-        icon = QIcon.fromTheme(name)
-        if not icon.isNull():
-            return icon.pixmap(QSize(size, size))
-    fallback = QIcon.fromTheme(_FALLBACK_ICON)
-    if not fallback.isNull():
-        return fallback.pixmap(QSize(size, size))
-    return None
+from trackora.gui.utils import get_app_icon as _get_app_icon
 
 
 def _add_shadow(widget: QWidget, blur: int = 24, opacity: int = 40, dy: int = 4):

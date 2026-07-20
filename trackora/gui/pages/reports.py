@@ -75,17 +75,7 @@ def _get_category_icon(cat: str, size: int, color_hex: str) -> QPixmap:
     painter.end()
     return pixmap
 
-_ICON_MAP = {"VS Code":["code","visual-studio-code"],"Chrome":["google-chrome"],
-    "Brave":["brave-browser"],"Firefox":["firefox"],"Spotify":["spotify"],
-    "Discord":["discord"],"Slack":["slack"],"Terminal":["utilities-terminal"],
-    "Files":["org.gnome.Nautilus"],"Cursor":["co.anysphere.cursor"]}
-
-def _get_icon(name, sz=20):
-    for n in _ICON_MAP.get(name, [name.lower().replace(" ","-")]):
-        ic = QIcon.fromTheme(n)
-        if not ic.isNull(): return ic.pixmap(QSize(sz,sz))
-    fb = QIcon.fromTheme("application-x-executable")
-    return fb.pixmap(QSize(sz,sz)) if not fb.isNull() else None
+from trackora.gui.utils import get_app_icon as _get_icon
 
 def _shadow(w, blur=20, op=35, dy=3):
     s = QGraphicsDropShadowEffect(w); s.setBlurRadius(blur)

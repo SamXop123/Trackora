@@ -38,52 +38,7 @@ _ACCENT = "#3b82f6"
 _ACCENT_SOFT = "#2563eb"
 _GREEN = "#34d399"
 
-# ─── Icon theme lookup (shared) ─────────────────────────────────────────────
-_ICON_THEME_MAP: dict[str, list[str]] = {
-    "VS Code": ["code", "visual-studio-code", "com.visualstudio.code"],
-    "Chrome": ["google-chrome", "chromium"],
-    "Chromium": ["chromium"],
-    "Brave": ["brave-browser"],
-    "Firefox": ["firefox"],
-    "Spotify": ["spotify"],
-    "Discord": ["discord"],
-    "Slack": ["slack"],
-    "Telegram": ["telegram-desktop", "telegram"],
-    "Files": ["org.gnome.Nautilus", "system-file-manager"],
-    "Console": ["org.gnome.Console", "utilities-terminal"],
-    "Settings": ["org.gnome.Settings", "preferences-system"],
-    "Kitty": ["kitty"],
-    "Terminal": ["org.gnome.Console", "utilities-terminal", "gnome-terminal"],
-    "GitHub Desktop": ["github-desktop"],
-    "Cursor": ["co.anysphere.cursor", "cursor"],
-}
-_FALLBACK_ICON = "application-x-executable"
-
-
-_ICON_CACHE: dict[tuple[str, int], QPixmap | None] = {}
-
-
-def _get_app_icon(app_name: str, size: int = 24) -> QPixmap | None:
-    cache_key = (app_name, size)
-    if cache_key in _ICON_CACHE:
-        return _ICON_CACHE[cache_key]
-
-    candidates = _ICON_THEME_MAP.get(app_name, [app_name.lower().replace(" ", "-")])
-    if isinstance(candidates, str):
-        candidates = [candidates]
-    for name in candidates:
-        icon = QIcon.fromTheme(name)
-        if not icon.isNull():
-            pm = icon.pixmap(QSize(size, size))
-            _ICON_CACHE[cache_key] = pm
-            return pm
-    fallback = QIcon.fromTheme(_FALLBACK_ICON)
-    if not fallback.isNull():
-        pm = fallback.pixmap(QSize(size, size))
-        _ICON_CACHE[cache_key] = pm
-        return pm
-    _ICON_CACHE[cache_key] = None
-    return None
+from trackora.gui.utils import get_app_icon as _get_app_icon
 
 
 def _add_shadow(widget: QWidget, blur: int = 20, opacity: int = 35, dy: int = 3):
