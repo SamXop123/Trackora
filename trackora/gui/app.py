@@ -333,16 +333,17 @@ def main(argv: list[str] | None = None) -> int:
             if families:
                 app.setFont(QFont(families[0], 10))
 
-    # Ensure GNOME Shell extension is enabled
-    try:
-        subprocess.run(
-            ["gnome-extensions", "enable", "trackora@trackora.dev"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
-    except Exception:
-        pass
+    # Ensure GNOME Shell extension is enabled (Linux only)
+    if sys.platform != "win32":
+        try:
+            subprocess.run(
+                ["gnome-extensions", "enable", "trackora@trackora.dev"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+        except Exception:
+            pass
 
     # Verification: Verify background tracking service is running (auto-starting if not)
     if not is_service_active():
