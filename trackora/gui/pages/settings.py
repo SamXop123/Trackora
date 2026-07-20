@@ -889,21 +889,32 @@ class SettingsPage(QWidget):
         clo.setContentsMargins(24, 20, 24, 20)
         clo.setSpacing(0)
         
+        import sys
+        is_win = (sys.platform == "win32")
+
         os_name = "Linux"
         try:
-            with open("/etc/os-release") as f:
-                for line in f:
-                    if line.startswith("PRETTY_NAME="):
-                        os_name = line.split("=")[1].strip().strip('"')
-                        break
+            if not is_win:
+                with open("/etc/os-release") as f:
+                    for line in f:
+                        if line.startswith("PRETTY_NAME="):
+                            os_name = line.split("=")[1].strip().strip('"')
+                            break
+            else:
+                os_name = f"{platform.system()} {platform.release()}"
         except Exception:
             os_name = platform.system()
             
         clo.addWidget(_KVRow("Trackora Version", f"v{__version__}"))
         self._add_separator(clo)
-        clo.addWidget(_KVRow("GNOME Version", "45+"))
-        self._add_separator(clo)
-        clo.addWidget(_KVRow("Extension Version", "v1"))
+
+        if is_win:
+            clo.addWidget(_KVRow("Tracking Engine", "Win32 Native"))
+        else:
+            clo.addWidget(_KVRow("GNOME Version", "45+"))
+            self._add_separator(clo)
+            clo.addWidget(_KVRow("Extension Version", "v1"))
+
         self._add_separator(clo)
         clo.addWidget(_KVRow("Python Version", f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"))
         self._add_separator(clo)
