@@ -10,7 +10,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['torch', 'tensorflow', 'pandas', 'scipy', 'matplotlib', 'pygame', 'onnxruntime', 'keras', 'scikit-learn', 'sympy', 'lxml', 'numba', 'llvmlite', 'networkx', 'scikit-image', 'PIL', 'jinja2'],
     noarchive=False,
     optimize=0,
 )
