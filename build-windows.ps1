@@ -13,10 +13,30 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "Cleaning previous build artifacts..." -ForegroundColor Blue
 Remove-Item -Path "build", "dist" -Recurse -ErrorAction SilentlyContinue
 
+# Define modules to exclude to prevent bloating the executable with unrelated global packages
+$excludes = @(
+    "--exclude-module=torch",
+    "--exclude-module=tensorflow",
+    "--exclude-module=pandas",
+    "--exclude-module=scipy",
+    "--exclude-module=matplotlib",
+    "--exclude-module=pygame",
+    "--exclude-module=onnxruntime",
+    "--exclude-module=keras",
+    "--exclude-module=scikit-learn",
+    "--exclude-module=sympy",
+    "--exclude-module=lxml",
+    "--exclude-module=numba",
+    "--exclude-module=llvmlite",
+    "--exclude-module=networkx",
+    "--exclude-module=scikit-image",
+    "--exclude-module=PIL",
+    "--exclude-module=jinja2"
+)
+
 # Build the GUI dashboard
 Write-Host "Building trackora-dashboard.exe..." -ForegroundColor Blue
-# We bundle the assets folder containing fonts and logo matching internal package structure
-python -m PyInstaller --noconfirm --windowed --name="trackora-dashboard" --add-data="trackora/assets;trackora/assets" trackora/gui/app.py
+python -m PyInstaller --noconfirm --windowed --name="trackora-dashboard" --add-data="trackora/assets;trackora/assets" $excludes trackora/gui/app.py
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to build trackora-dashboard.exe"
@@ -25,7 +45,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # Build the background daemon
 Write-Host "Building trackora.exe (daemon)..." -ForegroundColor Blue
-python -m PyInstaller --noconfirm --noconsole --name="trackora" trackora/__main__.py
+python -m PyInstaller --noconfirm --noconsole --name="trackora" $excludes trackora/__main__.py
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to build trackora.exe"
