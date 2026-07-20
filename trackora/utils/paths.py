@@ -15,13 +15,24 @@ def xdg_data_home() -> Path:
 
 
 def trackora_data_dir() -> Path:
-    """Return the Trackora data directory under XDG data home."""
+    """Return the Trackora data directory under XDG data home (or Local AppData on Windows)."""
+    import sys
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA")
+        if base:
+            return Path(base) / "trackora"
+        return Path.home() / "AppData" / "Local" / "trackora"
     return xdg_data_home() / "trackora"
 
 
 def default_state_path() -> Path:
     """Return the extension-written current window JSON path."""
     return trackora_data_dir() / "current_window.json"
+
+
+def default_log_path() -> Path:
+    """Return the log file path for background service diagnostic logs."""
+    return trackora_data_dir() / "trackora.log"
 
 
 def default_database_path() -> Path:
