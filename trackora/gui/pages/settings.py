@@ -669,28 +669,49 @@ class SettingsPage(QWidget):
         self._kv_int.set_value(f"{val} seconds")
 
     def _update_extension_status(self) -> None:
-        res = read_window_state()
+        import sys
+        if sys.platform == "win32":
+            from windows.daemon import is_service_active_win
+            daemon_active = is_service_active_win()
+            if not daemon_active:
+                self._kv_track.set_value("● Disconnected", _RED)
+                self._kv_ext.set_value("● Disconnected", _RED)
+                self._kv_app.set_value("—", _TEXT_MUTED)
+                self._kv_win.set_value("—", _TEXT_MUTED)
+                self._kv_upd.set_value("Daemon not running", _ORANGE)
+                return
+
+            from trackora.window_state import get_default_provider
+            res = get_default_provider().get_window_state()
+        else:
+            res = read_window_state()
+
         state_path = default_state_path()
-        
         now = time.time()
         last_mtime = 0
-        if state_path.exists():
-            last_mtime = os.path.getmtime(state_path)
-            
-        seconds_ago = int(now - last_mtime)
-        
+
+        if sys.platform == "win32":
+            seconds_ago = 0 if (res.state is not None) else 60
+        else:
+            if state_path.exists():
+                last_mtime = os.path.getmtime(state_path)
+            seconds_ago = int(now - last_mtime)
+
         if res.error or not res.state or seconds_ago > 30:
             self._kv_track.set_value("● Disconnected", _RED)
             self._kv_ext.set_value("● Disconnected", _RED)
             self._kv_app.set_value("—", _TEXT_MUTED)
             self._kv_win.set_value("—", _TEXT_MUTED)
             
-            if seconds_ago > 86400:
-                self._kv_upd.set_value("Long time ago", _TEXT_MUTED)
+            if sys.platform == "win32":
+                self._kv_upd.set_value(res.error or "No focused window", _ORANGE)
             else:
-                self._kv_upd.set_value(f"{seconds_ago} seconds ago", _ORANGE)
+                if seconds_ago > 86400:
+                    self._kv_upd.set_value("Long time ago", _TEXT_MUTED)
+                else:
+                    self._kv_upd.set_value(f"{seconds_ago} seconds ago", _ORANGE)
             return
-            
+
         st = res.state
         self._kv_track.set_value("● Active", _GREEN)
         self._kv_ext.set_value("● Connected", _GREEN)
@@ -701,7 +722,7 @@ class SettingsPage(QWidget):
             title = title[:57] + "..."
         self._kv_win.set_value(title)
         
-        if seconds_ago <= 1:
+        if sys.platform == "win32" or seconds_ago <= 1:
             self._kv_upd.set_value("Just now")
         else:
             self._kv_upd.set_value(f"{seconds_ago} seconds ago")
