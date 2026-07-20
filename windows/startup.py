@@ -10,8 +10,10 @@ def set_windows_startup(enabled: bool) -> bool:
     key_name = "TrackoraDaemon"
 
     if getattr(sys, "frozen", False):
-        # Package executable path
-        cmd = f'"{sys.executable}"'
+        # Package executable path for the daemon (living in the same folder)
+        from pathlib import Path
+        daemon_exe = Path(sys.executable).parent / "trackora.exe"
+        cmd = f'"{daemon_exe}"'
     else:
         # Development script launch command
         cmd = f'"{sys.executable}" -m trackora'
