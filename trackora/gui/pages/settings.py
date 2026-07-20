@@ -574,8 +574,16 @@ class SettingsPage(QWidget):
         clo.setContentsMargins(24, 16, 24, 16)
         clo.setSpacing(8)
         
-        # 'Launch on Login' removed: automatic startup is no longer supported.
-        
+        # Launch on Login (Windows only)
+        import sys
+        if sys.platform == "win32":
+            from windows.startup import is_windows_startup_enabled, set_windows_startup
+            clo.addWidget(_ControlRow("Launch on Login", 
+                _create_switch(is_windows_startup_enabled(), set_windows_startup),
+                "Start the background tracking daemon automatically when logging in."
+            ))
+            self._add_separator(clo)
+
         clo.addWidget(_ControlRow("Start Minimized", 
             _create_switch(settings_manager.get("start_minimized"), lambda c: settings_manager.set("start_minimized", c)),
             "Open the application in the background."
