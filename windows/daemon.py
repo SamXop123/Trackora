@@ -28,11 +28,17 @@ def try_start_service_win() -> bool:
     log_path = default_log_path()
     log_path.parent.mkdir(parents=True, exist_ok=True)
     
+    if getattr(sys, "frozen", False):
+        daemon_exe = Path(sys.executable).parent / "trackora.exe"
+        cmd = [str(daemon_exe)]
+    else:
+        cmd = [sys.executable, "-m", "trackora"]
+
     try:
         log_file = log_path.open("a", encoding="utf-8")
         # Start the Python module detached with no command window popping up
         subprocess.Popen(
-            [sys.executable, "-m", "trackora"],
+            cmd,
             stdout=log_file,
             stderr=log_file,
             creationflags=subprocess.CREATE_NO_WINDOW,
