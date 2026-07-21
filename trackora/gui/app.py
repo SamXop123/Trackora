@@ -312,6 +312,28 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    from trackora.utils.lock import TrackoraInstanceLock
+    from trackora.utils.paths import default_gui_lock_path
+
+    # Enforce single-instance lock for the GUI
+    gui_lock = TrackoraInstanceLock(default_gui_lock_path())
+    if not gui_lock.acquire():
+        app = QApplication.instance()
+        if not app:
+            app = QApplication(sys.argv if argv is None else [sys.argv[0], *argv])
+        from PySide6.QtWidgets import QMessageBox
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setWindowTitle("Trackora Already Running")
+        msg.setText("Another instance of the Trackora Dashboard is already running.")
+        msg.setInformativeText("Please check your system tray or task manager.")
+        logo_path = get_asset_path("trackora_logo.png")
+        if logo_path.exists():
+            from PySide6.QtGui import QIcon
+            msg.setWindowIcon(QIcon(str(logo_path)))
+        msg.exec()
+        return 0
+
     from PySide6.QtGui import QFont, QFontDatabase, QIcon
 
     app = QApplication(sys.argv if argv is None else [sys.argv[0], *argv])
