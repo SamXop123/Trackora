@@ -17,13 +17,14 @@ ArchitecturesInstallIn64BitMode=x64
 DisableDirPage=no
 DisableProgramGroupPage=yes
 SetupIconFile=trackora\assets\trackora_logo.ico
+ChangesAssociations=yes
 
 [Files]
 Source: "dist\trackora-dashboard\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\Trackora"; Filename: "{app}\trackora-dashboard.exe"; IconFilename: "{app}\_internal\trackora\assets\trackora_logo.png"
-Name: "{userdesktop}\Trackora"; Filename: "{app}\trackora-dashboard.exe"; IconFilename: "{app}\_internal\trackora\assets\trackora_logo.png"
+Name: "{group}\Trackora"; Filename: "{app}\trackora-dashboard.exe"; IconFilename: "{app}\_internal\trackora\assets\trackora_logo.ico"
+Name: "{userdesktop}\Trackora"; Filename: "{app}\trackora-dashboard.exe"; IconFilename: "{app}\_internal\trackora\assets\trackora_logo.ico"
 
 [Run]
 Filename: "{app}\trackora-dashboard.exe"; Description: "Launch Trackora"; Flags: postinstall nowait
