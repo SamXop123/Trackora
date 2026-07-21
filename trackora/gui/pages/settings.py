@@ -926,8 +926,8 @@ class SettingsPage(QWidget):
         
         act_lo = QHBoxLayout()
         act_lo.setSpacing(16)
-        btn_gh = _ActionCard("GitHub Repository", "🌐", on_click=lambda: QDesktopServices.openUrl(QUrl("https://github.com/trackora/trackora")))
-        btn_docs = _ActionCard("Documentation", "📚", on_click=lambda: QDesktopServices.openUrl(QUrl("https://github.com/trackora/trackora")))
+        btn_gh = _ActionCard("GitHub Repository", "🌐", on_click=lambda: QDesktopServices.openUrl(QUrl("https://github.com/SamXop123/Trackora")))
+        btn_docs = _ActionCard("Documentation", "📚", on_click=lambda: QDesktopServices.openUrl(QUrl("https://github.com/SamXop123/Trackora#readme")))
         act_lo.addWidget(btn_gh)
         act_lo.addWidget(btn_docs)
         
