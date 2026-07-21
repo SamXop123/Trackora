@@ -45,6 +45,11 @@ def default_lock_path() -> Path:
     return trackora_data_dir() / "trackora.lock"
 
 
+def default_gui_lock_path() -> Path:
+    """Return the singleton GUI process lock path."""
+    return trackora_data_dir() / "trackora-gui.lock"
+
+
 def get_asset_path(filename: str) -> Path:
     """Find the path to an asset, checking the package folder and standard system locations."""
     # 1. Package assets folder (when bundled inside the trackora package)
