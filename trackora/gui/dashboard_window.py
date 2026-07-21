@@ -406,6 +406,7 @@ class MainWindow(QMainWindow):
         self._apply_base_style()
         self._start_timers()
         self._refresh_dashboard()
+        self._setup_tray_icon()
 
     def _build_layout(self):
         root = QWidget(self)
@@ -542,3 +543,68 @@ class MainWindow(QMainWindow):
             f"QMainWindow, QWidget {{ background: {_BG}; color: {_TEXT_PRIMARY}; "
             f"font-family: 'Inter', 'Cantarell', 'Segoe UI', sans-serif; }}"
         )
+
+    def _setup_tray_icon(self):
+        from PySide6.QtWidgets import QSystemTrayIcon, QMenu
+        from PySide6.QtGui import QAction
+
+        self._force_quit = False
+
+        # Create tray icon
+        self._tray_icon = QSystemTrayIcon(self)
+        logo_path = get_asset_path("trackora_logo.png")
+        if logo_path.exists():
+            self._tray_icon.setIcon(QIcon(str(logo_path)))
+        else:
+            self._tray_icon.setIcon(self.windowIcon())
+
+        # Create tray context menu
+        self._tray_menu = QMenu(self)
+
+        open_action = QAction("Open Dashboard", self)
+        open_action.triggered.connect(self._restore_window)
+        self._tray_menu.addAction(open_action)
+
+        self._tray_menu.addSeparator()
+
+        quit_action = QAction("Quit Trackora", self)
+        quit_action.triggered.connect(self._quit_application)
+        self._tray_menu.addAction(quit_action)
+
+        self._tray_icon.setContextMenu(self._tray_menu)
+
+        # Handle tray double-click or click
+        self._tray_icon.activated.connect(self._on_tray_activated)
+        self._tray_icon.show()
+
+    def _restore_window(self):
+        self.showNormal()
+        self.activateWindow()
+
+    def _quit_application(self):
+        self._force_quit = True
+        from PySide6.QtWidgets import QApplication
+        QApplication.quit()
+
+    def _on_tray_activated(self, reason):
+        from PySide6.QtWidgets import QSystemTrayIcon
+        if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
+            if self.isVisible() and not self.isMinimized():
+                self.hide()
+            else:
+                self._restore_window()
+
+    def closeEvent(self, event):
+        if self._force_quit:
+            self._tray_icon.hide()
+            event.accept()
+        else:
+            event.ignore()
+            self.hide()
+            from PySide6.QtWidgets import QSystemTrayIcon
+            self._tray_icon.showMessage(
+                "Trackora is still running",
+                "Minimized to the system tray. Trackora is continuing to track your window time in the background.",
+                QSystemTrayIcon.MessageIcon.Information,
+                2000
+            )
