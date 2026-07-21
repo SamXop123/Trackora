@@ -44,6 +44,10 @@ kernel32.CloseHandle.restype = wintypes.BOOL
 class WindowsNativeWindowStateProvider(WindowStateProvider):
     """Native active window provider for Windows using ctypes APIs."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._saved_paths: dict[str, str] = {}
+
     def get_window_state(self) -> WindowStateReadResult:
         if sys.platform != "win32":
             return WindowStateReadResult(state=None, error="Windows tracker can only run on Windows")
@@ -81,6 +85,7 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
                         exe_name = os.path.basename(exe_path)
                         # Strip extension, e.g. "chrome.exe" -> "chrome"
                         app = os.path.splitext(exe_name)[0]
+                        self._save_exe_path(app, exe_path)
                 finally:
                     kernel32.CloseHandle(h_process)
 
@@ -96,3 +101,30 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
 
         except Exception as exc:
             return WindowStateReadResult(state=None, error=f"Win32 API error: {exc}")
+
+    def _save_exe_path(self, app_name: str, exe_path: str) -> None:
+        """Save the resolved executable path mapping to a JSON cache for the GUI icon provider."""
+        if self._saved_paths.get(app_name) == exe_path:
+            return
+
+        self._saved_paths[app_name] = exe_path
+        try:
+            from trackora.utils.paths import trackora_data_dir
+            import json
+            cache_file = trackora_data_dir() / "exe_paths.json"
+
+            cache = {}
+            if cache_file.exists():
+                try:
+                    cache = json.loads(cache_file.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+
+            if cache.get(app_name) != exe_path:
+                cache[app_name] = exe_path
+                cache_file.parent.mkdir(parents=True, exist_ok=True)
+                cache_file.write_text(json.dumps(cache, indent=4), encoding="utf-8")
+
+            self._saved_paths.update(cache)
+        except Exception:
+            pass
