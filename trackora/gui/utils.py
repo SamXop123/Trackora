@@ -41,15 +41,25 @@ def get_app_icon(app_name: str, size: int = 24) -> QPixmap | None:
 
     if sys.platform == "win32":
         # Windows native executable icon extraction
-        exe_path = _find_win32_exe_path(app_name)
+        if app_name.lower() in ("trackora", "trackora dashboard", "trackora-dashboard"):
+            from trackora.utils.paths import get_asset_path
+            logo_path = get_asset_path("trackora_logo.png")
+            exe_path = str(logo_path) if logo_path.exists() else None
+        else:
+            exe_path = _find_win32_exe_path(app_name)
         if exe_path:
             try:
-                from PySide6.QtWidgets import QFileIconProvider
-                from PySide6.QtCore import QFileInfo
-                provider = QFileIconProvider()
-                icon = provider.icon(QFileInfo(exe_path))
-                if not icon.isNull():
-                    pixmap = icon.pixmap(size, size)
+                if exe_path.lower().endswith((".png", ".jpg", ".jpeg")):
+                    icon = QIcon(exe_path)
+                    if not icon.isNull():
+                        pixmap = icon.pixmap(size, size)
+                else:
+                    from PySide6.QtWidgets import QFileIconProvider
+                    from PySide6.QtCore import QFileInfo
+                    provider = QFileIconProvider()
+                    icon = provider.icon(QFileInfo(exe_path))
+                    if not icon.isNull():
+                        pixmap = icon.pixmap(size, size)
             except Exception:
                 pass
     else:
@@ -94,10 +104,18 @@ def _find_win32_exe_path(app_name: str) -> str | None:
         cache_file = trackora_data_dir() / "exe_paths.json"
         if cache_file.exists():
             data = json.loads(cache_file.read_text(encoding="utf-8"))
-            if app_name in data:
-                path = data[app_name]
-                if os.path.exists(path):
-                    return path
+            # Fuzzy match keys: case-insensitive + check space replacement variants
+            target_lower = app_name.lower()
+            variants = {target_lower, target_lower.replace(" ", "-"), target_lower.replace(" ", "_")}
+            for key, val in data.items():
+                if key.lower() in variants:
+                    if os.path.exists(val):
+                        # Special check for UWP app icons!
+                        if "WindowsApps" in val:
+                            uwp_icon = _find_uwp_png_icon(val)
+                            if uwp_icon:
+                                return uwp_icon
+                        return val
     except Exception:
         pass
 
@@ -148,4 +166,33 @@ def _find_win32_exe_path(app_name: str) -> str | None:
     except Exception:
         pass
 
+    return None
+
+
+def _find_uwp_png_icon(exe_path: str) -> str | None:
+    """Scan the UWP package directory for a high-resolution logo PNG."""
+    try:
+        app_dir = os.path.dirname(exe_path)
+        patterns = [
+            "StoreLogo.scale-200.png",
+            "StoreLogo.png",
+            "medtile*.png",
+            "TitleIcon32.scale-200.png",
+            "logo.scale-200.png",
+            "logo.png",
+        ]
+        for root, dirs, files in os.walk(app_dir):
+            depth = root[len(app_dir):].count(os.sep)
+            if depth > 2:
+                continue
+            for file in files:
+                file_lower = file.lower()
+                for p in patterns:
+                    import fnmatch
+                    if fnmatch.fnmatch(file_lower, p.lower()):
+                        full_path = os.path.join(root, file)
+                        if os.path.exists(full_path):
+                            return full_path
+    except Exception:
+        pass
     return None
