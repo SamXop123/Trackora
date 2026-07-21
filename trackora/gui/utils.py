@@ -130,15 +130,7 @@ def _find_win32_exe_path(app_name: str) -> str | None:
     except Exception:
         pass
 
-    # 4. Start Menu shortcuts scan
-    try:
-        path = _find_app_via_shortcuts(app_name)
-        if path:
-            return path
-    except Exception:
-        pass
-
-    # 5. Running processes scan (fuzzy matching)
+    # 4. Running processes scan (fuzzy matching)
     try:
         import psutil
         target = app_name.lower()
@@ -156,39 +148,4 @@ def _find_win32_exe_path(app_name: str) -> str | None:
     except Exception:
         pass
 
-    return None
-
-
-def _find_app_via_shortcuts(app_name: str) -> str | None:
-    """Scan standard Windows Start Menu directories for .lnk files matching app_name and resolve target."""
-    user_appdata = os.environ.get("APPDATA")
-    program_data = os.environ.get("PROGRAMDATA")
-
-    search_dirs = []
-    if user_appdata:
-        search_dirs.append(os.path.join(user_appdata, "Microsoft", "Windows", "Start Menu", "Programs"))
-    if program_data:
-        search_dirs.append(os.path.join(program_data, "Microsoft", "Windows", "Start Menu", "Programs"))
-
-    target_name = app_name.lower()
-
-    for base_dir in search_dirs:
-        if not os.path.exists(base_dir):
-            continue
-
-        for root, _, files in os.walk(base_dir):
-            for file in files:
-                if file.endswith(".lnk"):
-                    name_no_ext = os.path.splitext(file)[0].lower()
-                    if target_name in name_no_ext or name_no_ext in target_name:
-                        full_path = os.path.join(root, file)
-                        try:
-                            import win32com.client
-                            shell = win32com.client.Dispatch("WScript.Shell")
-                            shortcut = shell.CreateShortcut(full_path)
-                            target = shortcut.TargetPath
-                            if target and os.path.exists(target) and target.endswith(".exe"):
-                                return target
-                        except Exception:
-                            pass
     return None
