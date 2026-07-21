@@ -345,19 +345,40 @@ def main(argv: list[str] | None = None) -> int:
         except Exception:
             pass
 
+    print("[DEBUG] Main entrypoint reached", flush=True)
     # Verification: Verify background tracking service is running (auto-starting if not)
-    if not is_service_active():
-        try_start_service()
+    active1 = is_service_active()
+    print(f"[DEBUG] is_service_active 1: {active1}", flush=True)
+    if not active1:
+        started = try_start_service()
+        print(f"[DEBUG] try_start_service result: {started}", flush=True)
 
-    if not is_service_active():
+    # Allow time for status propagation (Windows daemon process startup)
+    if sys.platform == "win32" and not active1:
+        print("[DEBUG] Waiting 1.0 seconds for daemon to initialize...", flush=True)
+        time.sleep(1.0)
+
+    active2 = is_service_active()
+    print(f"[DEBUG] is_service_active 2: {active2}", flush=True)
+    if not active2:
+        print("[DEBUG] Showing ServiceStatusDialog...", flush=True)
         dialog = ServiceStatusDialog()
-        if dialog.exec() != QDialog.DialogCode.Accepted:
+        res = dialog.exec()
+        print(f"[DEBUG] dialog.exec returned: {res}", flush=True)
+        if res != QDialog.DialogCode.Accepted:
+            print("[DEBUG] Dialog not accepted. Exiting with 0.", flush=True)
             return 0
 
+    print("[DEBUG] Initializing MainWindow...", flush=True)
     database_path = args.database.expanduser() if args.database else default_database_path()
+    print(f"[DEBUG] Database path: {database_path}", flush=True)
     window = MainWindow(
         database_path=database_path,
         refresh_seconds=max(args.refresh_seconds, 2),
     )
+    print("[DEBUG] Showing MainWindow...", flush=True)
     window.show()
-    return app.exec()
+    print("[DEBUG] Running app.exec()...", flush=True)
+    ret = app.exec()
+    print(f"[DEBUG] app.exec finished with: {ret}", flush=True)
+    return ret
