@@ -37,7 +37,7 @@ $excludes = @(
 # Build the GUI dashboard
 Write-Host "Building trackora-dashboard.exe..." -ForegroundColor Blue
 # We bundle the assets folder and specify the app icon resource and hidden imports
-python -m PyInstaller --noconfirm --windowed --name="trackora-dashboard" --icon="trackora/assets/trackora_logo.ico" --add-data="trackora/assets;trackora/assets" --hidden-import="windows" --hidden-import="windows.daemon" --hidden-import="windows.startup" --hidden-import="windows.tracker" $excludes trackora/gui/app.py
+python -m PyInstaller --noconfirm --name="trackora-dashboard" --icon="trackora/assets/trackora_logo.ico" --add-data="trackora/assets;trackora/assets" --hidden-import="windows" --hidden-import="windows.daemon" --hidden-import="windows.startup" --hidden-import="windows.tracker" $excludes trackora/gui/app.py
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to build trackora-dashboard.exe"
