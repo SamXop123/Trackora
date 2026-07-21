@@ -85,6 +85,8 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
                         exe_name = os.path.basename(exe_path)
                         # Strip extension, e.g. "chrome.exe" -> "chrome"
                         app = os.path.splitext(exe_name)[0]
+                        if app.lower() == "lockapp":
+                            return WindowStateReadResult(state=None, error=None)
                         self._save_exe_path(app, exe_path)
                 finally:
                     kernel32.CloseHandle(h_process)
