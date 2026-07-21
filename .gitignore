@@ -9,6 +9,7 @@ trackora.db
 reboot.md
 *.db
 dist/
+dist-installer/
 build/
 rpmbuild/
 *.egg-info/
