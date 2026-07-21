@@ -16,7 +16,7 @@ SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64
 DisableDirPage=no
 DisableProgramGroupPage=yes
-SetupIconFile=trackora\assets\Trackora-wallpaper1_logo.png
+SetupIconFile=trackora\assets\trackora_logo.ico
 
 [Files]
 Source: "dist\trackora-dashboard\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
