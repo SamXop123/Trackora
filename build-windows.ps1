@@ -36,7 +36,8 @@ $excludes = @(
 
 # Build the GUI dashboard
 Write-Host "Building trackora-dashboard.exe..." -ForegroundColor Blue
-python -m PyInstaller --noconfirm --windowed --name="trackora-dashboard" --add-data="trackora/assets;trackora/assets" $excludes trackora/gui/app.py
+# We bundle the assets folder and specify the app icon resource
+python -m PyInstaller --noconfirm --windowed --name="trackora-dashboard" --icon="trackora/assets/trackora_logo.ico" --add-data="trackora/assets;trackora/assets" $excludes trackora/gui/app.py
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to build trackora-dashboard.exe"
@@ -45,7 +46,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # Build the background daemon
 Write-Host "Building trackora.exe (daemon)..." -ForegroundColor Blue
-python -m PyInstaller --noconfirm --noconsole --name="trackora" $excludes trackora/__main__.py
+python -m PyInstaller --noconfirm --noconsole --name="trackora" --icon="trackora/assets/trackora_logo.ico" $excludes trackora/__main__.py
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to build trackora.exe"
