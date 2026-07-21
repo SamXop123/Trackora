@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['trackora\\gui\\app.py'],
+    ['trackora\\gui\\__main__.py'],
     pathex=[],
     binaries=[],
     datas=[('trackora/assets', 'trackora/assets')],
