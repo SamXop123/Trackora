@@ -574,13 +574,13 @@ class SettingsPage(QWidget):
         clo.setContentsMargins(24, 16, 24, 16)
         clo.setSpacing(8)
         
-        # Launch on Login (Windows only)
+        # Launch & Auto-Track on Startup (Windows only)
         import sys
         if sys.platform == "win32":
             from windows.startup import is_windows_startup_enabled, set_windows_startup
-            clo.addWidget(_ControlRow("Launch on Login", 
+            clo.addWidget(_ControlRow("Auto-Track on Startup", 
                 _create_switch(is_windows_startup_enabled(), set_windows_startup),
-                "Start the background tracking daemon automatically when logging in."
+                "Automatically start tracking in the background when logging into Windows."
             ))
             self._add_separator(clo)
 
