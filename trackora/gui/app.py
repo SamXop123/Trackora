@@ -310,6 +310,11 @@ def main(argv: list[str] | None = None) -> int:
         default=5,
         help="Dashboard refresh interval in seconds (default: 5).",
     )
+    parser.add_argument(
+        "--minimized",
+        action="store_true",
+        help="Start Trackora minimized in the system tray.",
+    )
     args = parser.parse_args(argv)
 
     from trackora.utils.lock import TrackoraInstanceLock
@@ -398,8 +403,14 @@ def main(argv: list[str] | None = None) -> int:
         database_path=database_path,
         refresh_seconds=max(args.refresh_seconds, 2),
     )
-    print("[DEBUG] Showing MainWindow...", flush=True)
-    window.show()
+    from trackora.config.settings import settings_manager
+    if args.minimized or settings_manager.get("start_minimized"):
+        print("[DEBUG] Starting minimized in system tray...", flush=True)
+        window.hide()
+    else:
+        print("[DEBUG] Showing MainWindow...", flush=True)
+        window.show()
+
     print("[DEBUG] Running app.exec()...", flush=True)
     ret = app.exec()
     print(f"[DEBUG] app.exec finished with: {ret}", flush=True)
