@@ -1,4 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_submodules
+
+hiddenimports = ['windows', 'windows.tracker', 'windows.daemon']
+hiddenimports += collect_submodules('trackora')
 
 
 a = Analysis(
@@ -6,7 +10,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=['windows', 'windows.tracker', 'windows.daemon'],
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
