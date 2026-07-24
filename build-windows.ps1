@@ -37,7 +37,7 @@ $excludes = @(
 # Build the GUI dashboard
 Write-Host "Building trackora-dashboard.exe..." -ForegroundColor Blue
 # We bundle the assets folder and specify the app icon resource and hidden imports
-python -m PyInstaller --noconfirm --windowed --name="trackora-dashboard" --icon="trackora/assets/trackora_logo.ico" --add-data="trackora/assets;trackora/assets" --hidden-import="windows" --hidden-import="windows.daemon" --hidden-import="windows.startup" --hidden-import="windows.tracker" $excludes trackora/gui/__main__.py
+python -m PyInstaller --noconfirm --windowed --name="trackora-dashboard" --icon="trackora/assets/trackora_logo.ico" --add-data="trackora/assets;trackora/assets" --collect-submodules="trackora" --hidden-import="windows" --hidden-import="windows.daemon" --hidden-import="windows.startup" --hidden-import="windows.tracker" $excludes trackora/gui/__main__.py
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to build trackora-dashboard.exe"
@@ -46,7 +46,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # Build the background daemon
 Write-Host "Building trackora.exe (daemon)..." -ForegroundColor Blue
-python -m PyInstaller --noconfirm --noconsole --name="trackora" --icon="trackora/assets/trackora_logo.ico" --hidden-import="windows" --hidden-import="windows.tracker" --hidden-import="windows.daemon" $excludes trackora/__main__.py
+python -m PyInstaller --noconfirm --noconsole --name="trackora" --icon="trackora/assets/trackora_logo.ico" --collect-submodules="trackora" --hidden-import="windows" --hidden-import="windows.tracker" --hidden-import="windows.daemon" $excludes trackora/__main__.py
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to build trackora.exe"

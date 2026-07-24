@@ -403,7 +403,7 @@ def main(argv: list[str] | None = None) -> int:
         database_path=database_path,
         refresh_seconds=max(args.refresh_seconds, 2),
     )
-    from trackora.config.settings import settings_manager
+    from trackora.utils.settings import settings_manager
     if args.minimized or settings_manager.get("start_minimized"):
         print("[DEBUG] Starting minimized in system tray...", flush=True)
         window.hide()
