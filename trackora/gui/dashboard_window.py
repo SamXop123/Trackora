@@ -544,27 +544,8 @@ class MainWindow(QMainWindow):
             f"font-family: 'Inter', 'Cantarell', 'Segoe UI', sans-serif; }}"
         )
 
-    def _create_tray_exit_icon(self) -> QIcon:
-        """Draw a clean, anti-aliased red exit icon for the tray menu."""
-        pixmap = QPixmap(32, 32)
-        pixmap.fill(Qt.GlobalColor.transparent)
-        
-        painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        pen = QPen(QColor("#ef4444"), 3)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        painter.setPen(pen)
-        
-        # Power / exit symbol
-        painter.drawArc(QRectF(6, 6, 20, 20), 45 * 16, 270 * 16)
-        painter.drawLine(16, 4, 16, 16)
-        painter.end()
-        
-        return QIcon(pixmap)
-
     def _setup_tray_icon(self):
-        from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QWidgetAction
+        from PySide6.QtWidgets import QSystemTrayIcon, QMenu
         from PySide6.QtGui import QAction
 
         self._force_quit = False
@@ -577,72 +558,37 @@ class MainWindow(QMainWindow):
         else:
             self._tray_icon.setIcon(self.windowIcon())
 
-        # Create custom styled tray context menu
+        # Create clean, stable tray context menu
         self._tray_menu = QMenu(self)
 
-        # Apply dark mode QSS styling matching Trackora's aesthetic
+        # Compact dark theme QSS matching Trackora's UI
         self._tray_menu.setStyleSheet(f"""
             QMenu {{
-                background-color: #0f141c;
+                background-color: #141a23;
                 border: 1px solid #1f293d;
-                border-radius: 10px;
-                padding: 6px;
+                border-radius: 6px;
+                padding: 3px;
                 font-family: 'Inter', 'Segoe UI', sans-serif;
             }}
             QMenu::item {{
                 background-color: transparent;
                 color: {_TEXT_PRIMARY};
-                padding: 8px 16px 8px 12px;
-                border-radius: 6px;
-                font-size: 13px;
-                font-weight: 600;
-                margin: 2px 2px;
+                padding: 5px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 500;
+                margin: 1px 1px;
             }}
             QMenu::item:selected {{
-                background-color: #1a2436;
-                color: {_ACCENT};
+                background-color: #1e293b;
+                color: #ffffff;
             }}
             QMenu::separator {{
                 height: 1px;
                 background-color: #1f293d;
-                margin: 6px 8px;
+                margin: 3px 4px;
             }}
         """)
-
-        # Header Widget (Brand + Status)
-        header_widget = QWidget()
-        header_lo = QHBoxLayout(header_widget)
-        header_lo.setContentsMargins(10, 8, 10, 8)
-        header_lo.setSpacing(10)
-
-        brand_logo = QLabel()
-        if logo_path.exists():
-            brand_logo.setPixmap(QPixmap(str(logo_path)).scaled(24, 24, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        else:
-            brand_logo.setText("●")
-            brand_logo.setStyleSheet(f"color: {_ACCENT}; font-size: 16px;")
-
-        title_lo = QVBoxLayout()
-        title_lo.setSpacing(1)
-
-        title_lbl = QLabel("Trackora")
-        title_lbl.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 700;")
-
-        status_lbl = QLabel("● Active Tracking")
-        status_lbl.setStyleSheet("color: #34d399; font-size: 11px; font-weight: 600;")
-
-        title_lo.addWidget(title_lbl)
-        title_lo.addWidget(status_lbl)
-
-        header_lo.addWidget(brand_logo)
-        header_lo.addLayout(title_lo)
-        header_lo.addStretch(1)
-
-        header_action = QWidgetAction(self)
-        header_action.setDefaultWidget(header_widget)
-        self._tray_menu.addAction(header_action)
-
-        self._tray_menu.addSeparator()
 
         # Open Dashboard Action
         open_action = QAction("Open Dashboard", self)
@@ -655,13 +601,10 @@ class MainWindow(QMainWindow):
 
         # Quit Trackora Action
         quit_action = QAction("Quit Trackora", self)
-        quit_action.setIcon(self._create_tray_exit_icon())
         quit_action.triggered.connect(self._quit_application)
         self._tray_menu.addAction(quit_action)
 
         self._tray_icon.setContextMenu(self._tray_menu)
-
-        # Handle tray double-click or click
         self._tray_icon.activated.connect(self._on_tray_activated)
         self._tray_icon.show()
 
@@ -676,7 +619,19 @@ class MainWindow(QMainWindow):
 
     def _on_tray_activated(self, reason):
         from PySide6.QtWidgets import QSystemTrayIcon
-        if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
+        from PySide6.QtGui import QCursor
+        import sys
+
+        if reason == QSystemTrayIcon.ActivationReason.Context:
+            if sys.platform == "win32":
+                import ctypes
+                try:
+                    # Bring window handle to foreground so Windows taskbar tray overflow menu stays pinned open
+                    ctypes.windll.user32.SetForegroundWindow(int(self.winId()))
+                except Exception:
+                    pass
+            self._tray_menu.exec(QCursor.pos())
+        elif reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
             if self.isVisible() and not self.isMinimized():
                 self.hide()
             else:
