@@ -544,8 +544,27 @@ class MainWindow(QMainWindow):
             f"font-family: 'Inter', 'Cantarell', 'Segoe UI', sans-serif; }}"
         )
 
+    def _create_tray_exit_icon(self) -> QIcon:
+        """Draw a clean, anti-aliased red exit icon for the tray menu."""
+        pixmap = QPixmap(32, 32)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        pen = QPen(QColor("#ef4444"), 3)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        
+        # Power / exit symbol
+        painter.drawArc(QRectF(6, 6, 20, 20), 45 * 16, 270 * 16)
+        painter.drawLine(16, 4, 16, 16)
+        painter.end()
+        
+        return QIcon(pixmap)
+
     def _setup_tray_icon(self):
-        from PySide6.QtWidgets import QSystemTrayIcon, QMenu
+        from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QWidgetAction
         from PySide6.QtGui import QAction
 
         self._force_quit = False
@@ -558,16 +577,85 @@ class MainWindow(QMainWindow):
         else:
             self._tray_icon.setIcon(self.windowIcon())
 
-        # Create tray context menu
+        # Create custom styled tray context menu
         self._tray_menu = QMenu(self)
 
+        # Apply dark mode QSS styling matching Trackora's aesthetic
+        self._tray_menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: #0f141c;
+                border: 1px solid #1f293d;
+                border-radius: 10px;
+                padding: 6px;
+                font-family: 'Inter', 'Segoe UI', sans-serif;
+            }}
+            QMenu::item {{
+                background-color: transparent;
+                color: {_TEXT_PRIMARY};
+                padding: 8px 16px 8px 12px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 600;
+                margin: 2px 2px;
+            }}
+            QMenu::item:selected {{
+                background-color: #1a2436;
+                color: {_ACCENT};
+            }}
+            QMenu::separator {{
+                height: 1px;
+                background-color: #1f293d;
+                margin: 6px 8px;
+            }}
+        """)
+
+        # Header Widget (Brand + Status)
+        header_widget = QWidget()
+        header_lo = QHBoxLayout(header_widget)
+        header_lo.setContentsMargins(10, 8, 10, 8)
+        header_lo.setSpacing(10)
+
+        brand_logo = QLabel()
+        if logo_path.exists():
+            brand_logo.setPixmap(QPixmap(str(logo_path)).scaled(24, 24, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        else:
+            brand_logo.setText("●")
+            brand_logo.setStyleSheet(f"color: {_ACCENT}; font-size: 16px;")
+
+        title_lo = QVBoxLayout()
+        title_lo.setSpacing(1)
+
+        title_lbl = QLabel("Trackora")
+        title_lbl.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 700;")
+
+        status_lbl = QLabel("● Active Tracking")
+        status_lbl.setStyleSheet("color: #34d399; font-size: 11px; font-weight: 600;")
+
+        title_lo.addWidget(title_lbl)
+        title_lo.addWidget(status_lbl)
+
+        header_lo.addWidget(brand_logo)
+        header_lo.addLayout(title_lo)
+        header_lo.addStretch(1)
+
+        header_action = QWidgetAction(self)
+        header_action.setDefaultWidget(header_widget)
+        self._tray_menu.addAction(header_action)
+
+        self._tray_menu.addSeparator()
+
+        # Open Dashboard Action
         open_action = QAction("Open Dashboard", self)
+        if logo_path.exists():
+            open_action.setIcon(QIcon(str(logo_path)))
         open_action.triggered.connect(self._restore_window)
         self._tray_menu.addAction(open_action)
 
         self._tray_menu.addSeparator()
 
+        # Quit Trackora Action
         quit_action = QAction("Quit Trackora", self)
+        quit_action.setIcon(self._create_tray_exit_icon())
         quit_action.triggered.connect(self._quit_application)
         self._tray_menu.addAction(quit_action)
 
