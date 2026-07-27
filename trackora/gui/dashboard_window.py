@@ -552,6 +552,7 @@ class MainWindow(QMainWindow):
 
         # Create tray icon
         self._tray_icon = QSystemTrayIcon(self)
+        self._tray_icon.setToolTip("Trackora")
         logo_path = get_asset_path("trackora_logo.png")
         if logo_path.exists():
             self._tray_icon.setIcon(QIcon(str(logo_path)))
