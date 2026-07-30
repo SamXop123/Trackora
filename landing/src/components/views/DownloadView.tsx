@@ -15,7 +15,7 @@ export default function DownloadView() {
     }, 2000);
   };
 
-  const dnfCommand = "sudo dnf install ./trackora-1.0.1.rpm";
+  const dnfCommand = "sudo dnf install ./trackora-2.0.0.rpm";
   const sourceCommands = "git clone https://github.com/SamXop123/Trackora.git\ncd Trackora\n./install.sh";
 
   return (
@@ -24,80 +24,87 @@ export default function DownloadView() {
         flex: 1,
         height: "100%",
         display: "flex",
+        flexDirection: "column",
         padding: "32px",
         gap: "24px",
-        alignItems: "center",
-        justifyContent: "space-between",
+        justifyContent: "center",
         background: "rgba(10, 15, 24, 0.4)",
         overflow: "hidden",
       }}
     >
-      {/* Left panel: Linux Release DNF / Source installation */}
-      <div
-        style={{
-          width: "52%",
-          display: "flex",
-          flexDirection: "column",
-          gap: "20px",
-          textAlign: "left",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      {/* Header Title */}
+      <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "6px", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <Download size={16} style={{ color: "var(--color-accent-blue)" }} />
           <span style={{ fontSize: "11px", fontWeight: 800, letterSpacing: "0.1em", color: "var(--color-text-secondary)" }}>
-            HOW DO I START?
+            GET STARTED WITH TRACKORA
           </span>
         </div>
+        <h2 style={{ fontSize: "28px", fontWeight: 800, color: "var(--color-text-primary)", margin: 0 }}>
+          Choose your platform
+        </h2>
+      </div>
 
-        <div>
-          <span
-            style={{
-              fontSize: "10px",
-              fontFamily: "var(--font-jetbrains-mono), monospace",
-              color: "var(--color-accent-green)",
-              fontWeight: 700,
-              background: "rgba(16, 185, 129, 0.08)",
-              padding: "4px 8px",
-              borderRadius: "6px",
-              border: "1px solid rgba(16, 185, 129, 0.2)",
-            }}
-          >
-            v1.0.1 STABLE
-          </span>
-          <h2
-            style={{
-              fontSize: "30px",
-              fontWeight: 800,
-              color: "var(--color-text-primary)",
-              marginTop: "12px",
-              lineHeight: "1.1",
-            }}
-          >
-            Start knowing. Today.
-          </h2>
-        </div>
+      {/* Dual Equal Priority Cards Container */}
+      <div
+        style={{
+          display: "flex",
+          width: "100%",
+          maxWidth: "820px",
+          margin: "0 auto",
+          gap: "20px",
+          alignItems: "stretch",
+          justifyContent: "center",
+        }}
+      >
+        {/* Linux Card */}
+        <motion.div
+          whileHover={{ scale: 1.01 }}
+          className="glass"
+          style={{
+            flex: 1,
+            maxWidth: "390px",
+            borderRadius: "14px",
+            padding: "20px 22px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "14px",
+            border: "1px solid rgba(59, 130, 246, 0.2)",
+            background: "rgba(10, 15, 24, 0.8)",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
+            textAlign: "left",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--color-border)", paddingBottom: "8px" }}>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-primary)", fontFamily: "var(--font-jetbrains-mono), monospace" }}>
+              LINUX (GNOME WAYLAND)
+            </span>
+            <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--color-accent-green)", fontFamily: "var(--font-jetbrains-mono), monospace" }}>
+              STABLE
+            </span>
+          </div>
 
-        {/* Direct RPM Download Button */}
-        <div style={{ margin: "4px 0" }}>
+          {/* Linux Primary Download Button */}
           <motion.a
-            href="/trackora-1.0.1.rpm"
+            href="/trackora-2.0.0.rpm"
             download
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             style={{
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
-              gap: "10px",
+              justifyContent: "center",
+              gap: "8px",
               background: "var(--color-accent-blue)",
               border: "1px solid rgba(59, 130, 246, 0.3)",
               color: "#ffffff",
-              padding: "12px 24px",
+              padding: "10px 18px",
               borderRadius: "8px",
               cursor: "pointer",
               fontSize: "12px",
               fontWeight: 700,
-              letterSpacing: "0.05em",
-              boxShadow: "0 4px 20px rgba(59, 130, 246, 0.2)",
+              letterSpacing: "0.03em",
+              boxShadow: "0 4px 16px rgba(59, 130, 246, 0.2)",
               outline: "none",
               textDecoration: "none",
               transition: "background 0.2s ease",
@@ -110,161 +117,200 @@ export default function DownloadView() {
             }}
           >
             <Download size={14} />
-            <span>DOWNLOAD NATIVE RPM (v1.0.1)</span>
+            <span>DOWNLOAD FOR LINUX</span>
           </motion.a>
-        </div>
 
-        {/* Option A: DNF installation */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--color-text-secondary)" }}>
-            DNF INSTALL (FEDORA LINUX)
-          </div>
-          
-          <div
-            className="glass"
-            style={{
-              background: "rgba(5, 7, 10, 0.6)",
-              borderRadius: "8px",
-              padding: "10px 14px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontFamily: "var(--font-jetbrains-mono), monospace",
-              fontSize: "11px",
-              color: "var(--color-text-primary)",
-            }}
-          >
-            <span>{dnfCommand}</span>
-            <button
-              onClick={() => copyToClipboard(dnfCommand, "dnf")}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: copiedText === "dnf" ? "var(--color-accent-green)" : "var(--color-text-secondary)",
-                cursor: "pointer",
-                outline: "none",
-              }}
-            >
-              {copiedText === "dnf" ? <Check size={14} /> : <Copy size={14} />}
-            </button>
-          </div>
-        </div>
-
-        {/* Option B: Source installation */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--color-text-secondary)" }}>
-            BUILD FROM SOURCE (ANY COMPOSITOR)
-          </div>
-
-          <div
-            className="glass"
-            style={{
-              background: "rgba(5, 7, 10, 0.6)",
-              borderRadius: "8px",
-              padding: "10px 14px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              fontFamily: "var(--font-jetbrains-mono), monospace",
-              fontSize: "11px",
-              color: "var(--color-text-primary)",
-            }}
-          >
-            <pre style={{ margin: 0, textAlign: "left", lineHeight: "1.4" }}>
-              {sourceCommands}
-            </pre>
-            <button
-              onClick={() => copyToClipboard(sourceCommands, "source")}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: copiedText === "source" ? "var(--color-accent-green)" : "var(--color-text-secondary)",
-                cursor: "pointer",
-                outline: "none",
-                marginTop: "2px",
-              }}
-            >
-              {copiedText === "source" ? <Check size={14} /> : <Copy size={14} />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Right panel: Windows Support Card */}
-      <div
-        style={{
-          width: "44%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <motion.div
-          whileHover={{ scale: 1.03 }}
-          className="glass"
-          style={{
-            width: "100%",
-            maxWidth: "280px",
-            borderRadius: "14px",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px",
-            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
-            border: "1px solid rgba(59, 130, 246, 0.15)",
-            background: "rgba(10, 15, 24, 0.8)",
-          }}
-        >
-          {/* Mock Windows Header */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--color-border)", paddingBottom: "10px" }}>
-            <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--color-text-secondary)", fontFamily: "var(--font-jetbrains-mono), monospace" }}>
-              COMING NEXT
-            </span>
-            <div style={{ display: "flex", gap: "6px" }}>
-              <div style={{ width: "8px", height: "1px", background: "var(--color-text-muted)" }} />
-              <div style={{ width: "8px", height: "8px", border: "1px solid var(--color-text-muted)" }} />
-              <div style={{ width: "8px", height: "8px", background: "var(--color-text-muted)" }} />
+          {/* DNF Command */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--color-text-secondary)" }}>
+              FEDORA INSTALL (DNF)
             </div>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", textAlign: "left" }}>
             <div
               style={{
-                fontSize: "9px",
+                background: "rgba(5, 7, 10, 0.6)",
+                borderRadius: "6px",
+                padding: "8px 10px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
                 fontFamily: "var(--font-jetbrains-mono), monospace",
-                color: "var(--color-accent-blue)",
-                fontWeight: 700,
-                background: "rgba(59, 130, 246, 0.08)",
-                padding: "3px 6px",
-                borderRadius: "4px",
-                width: "fit-content",
+                fontSize: "10.5px",
+                color: "var(--color-text-primary)",
               }}
             >
-              IN DEVELOPMENT
+              <span>{dnfCommand}</span>
+              <button
+                onClick={() => copyToClipboard(dnfCommand, "dnf")}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: copiedText === "dnf" ? "var(--color-accent-green)" : "var(--color-text-secondary)",
+                  cursor: "pointer",
+                  outline: "none",
+                }}
+              >
+                {copiedText === "dnf" ? <Check size={14} /> : <Copy size={14} />}
+              </button>
             </div>
-            <h3 style={{ fontSize: "16px", color: "var(--color-text-primary)" }}>
-              Windows Support
-            </h3>
-            <p style={{ fontSize: "11px", color: "var(--color-text-secondary)", lineHeight: "1.4" }}>
-              Track hours, focus, and habits natively on Windows. Launching in version 2.0.
-            </p>
+          </div>
+
+          {/* Source Build Command */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--color-text-secondary)" }}>
+              BUILD FROM SOURCE
+            </div>
+            <div
+              style={{
+                background: "rgba(5, 7, 10, 0.6)",
+                borderRadius: "6px",
+                padding: "8px 10px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                fontFamily: "var(--font-jetbrains-mono), monospace",
+                fontSize: "10.5px",
+                color: "var(--color-text-primary)",
+              }}
+            >
+              <pre style={{ margin: 0, textAlign: "left", lineHeight: "1.3" }}>
+                {sourceCommands}
+              </pre>
+              <button
+                onClick={() => copyToClipboard(sourceCommands, "source")}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: copiedText === "source" ? "var(--color-accent-green)" : "var(--color-text-secondary)",
+                  cursor: "pointer",
+                  outline: "none",
+                  marginTop: "2px",
+                }}
+              >
+                {copiedText === "source" ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+            </div>
           </div>
 
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "8px",
+              gap: "6px",
               fontSize: "10px",
               color: "var(--color-text-muted)",
               fontFamily: "var(--font-jetbrains-mono), monospace",
               borderTop: "1px solid var(--color-border)",
-              paddingTop: "12px",
+              paddingTop: "8px",
+              marginTop: "auto",
+            }}
+          >
+            <Terminal size={12} style={{ color: "var(--color-accent-blue)" }} />
+            <span>LINUX GNOME DESKTOP</span>
+          </div>
+        </motion.div>
+
+        {/* Windows Card */}
+        <motion.div
+          whileHover={{ scale: 1.01 }}
+          className="glass"
+          style={{
+            flex: 1,
+            maxWidth: "390px",
+            borderRadius: "14px",
+            padding: "20px 22px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "14px",
+            border: "1px solid rgba(59, 130, 246, 0.2)",
+            background: "rgba(10, 15, 24, 0.8)",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
+            textAlign: "left",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--color-border)", paddingBottom: "8px" }}>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-primary)", fontFamily: "var(--font-jetbrains-mono), monospace" }}>
+              WINDOWS (10 / 11)
+            </span>
+            <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--color-accent-green)", fontFamily: "var(--font-jetbrains-mono), monospace" }}>
+              STABLE
+            </span>
+          </div>
+
+          {/* Windows Download Button */}
+          <motion.a
+            href="/TrackoraSetup-2.0.0.exe"
+            download
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              background: "var(--color-accent-blue)",
+              border: "1px solid rgba(59, 130, 246, 0.3)",
+              color: "#ffffff",
+              padding: "10px 18px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontSize: "12px",
+              fontWeight: 700,
+              letterSpacing: "0.03em",
+              boxShadow: "0 4px 16px rgba(59, 130, 246, 0.2)",
+              outline: "none",
+              textDecoration: "none",
+              transition: "background 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#2563eb";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "var(--color-accent-blue)";
+            }}
+          >
+            <Download size={14} />
+            <span>DOWNLOAD FOR WINDOWS</span>
+          </motion.a>
+
+          {/* Windows Features List */}
+          <div
+            style={{
+              background: "rgba(5, 7, 10, 0.6)",
+              borderRadius: "6px",
+              padding: "10px 12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              fontSize: "11px",
+              color: "var(--color-text-secondary)",
+              lineHeight: "1.4",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Cpu size={14} style={{ color: "var(--color-accent-blue)" }} />
+              <span>Automatic background screen time & app focus tracking</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Terminal size={14} style={{ color: "var(--color-accent-green)" }} />
+              <span>System tray minimize & optional startup autostart setting</span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "10px",
+              color: "var(--color-text-muted)",
+              fontFamily: "var(--font-jetbrains-mono), monospace",
+              borderTop: "1px solid var(--color-border)",
+              paddingTop: "8px",
+              marginTop: "auto",
             }}
           >
             <Cpu size={12} style={{ color: "var(--color-accent-blue)" }} />
-            <span>X64 & ARM64 SUPPORT</span>
+            <span>WINDOWS 10 & 11 SUPPORTED</span>
           </div>
         </motion.div>
       </div>
