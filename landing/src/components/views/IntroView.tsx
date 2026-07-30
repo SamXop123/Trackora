@@ -66,12 +66,48 @@ export default function IntroView({ onStartReplay, onNavigateDownload }: IntroVi
 
         {/* CTA Buttons Row */}
         <div style={{ display: "flex", gap: "16px", marginTop: "24px" }}>
-          {/* Start Replay Button */}
+          {/* Left: DOWNLOAD Button */}
+          <motion.button
+            onClick={onNavigateDownload}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 1.1, ease: [0.16, 1, 0.3, 1] }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.98 }}
+            style={{
+              background: "var(--color-accent-blue)",
+              border: "1px solid rgba(59, 130, 246, 0.3)",
+              color: "#ffffff",
+              padding: "12px 28px",
+              borderRadius: "30px",
+              cursor: "pointer",
+              fontSize: "12px",
+              fontWeight: 700,
+              letterSpacing: "0.05em",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              boxShadow: "0 4px 20px rgba(59, 130, 246, 0.25)",
+              outline: "none",
+              transition: "background 0.2s ease, box-shadow 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#2563eb";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "var(--color-accent-blue)";
+            }}
+          >
+            <Download size={14} />
+            <span>DOWNLOAD</span>
+          </motion.button>
+
+          {/* Right: REPLAY YOUR DAY Button */}
           <motion.button
             onClick={onStartReplay}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 1, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.8, delay: 1.2, ease: [0.16, 1, 0.3, 1] }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.98 }}
             style={{
@@ -102,42 +138,6 @@ export default function IntroView({ onStartReplay, onNavigateDownload }: IntroVi
           >
             <span>REPLAY YOUR DAY</span>
             <ArrowRight size={14} style={{ color: "var(--color-accent-blue)" }} />
-          </motion.button>
-
-          {/* Linux RPM Download Button - Navigates to download view */}
-          <motion.button
-            onClick={onNavigateDownload}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 1.2, ease: [0.16, 1, 0.3, 1] }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.98 }}
-            style={{
-              background: "var(--color-accent-blue)",
-              border: "1px solid rgba(59, 130, 246, 0.3)",
-              color: "#ffffff",
-              padding: "12px 24px",
-              borderRadius: "30px",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontWeight: 700,
-              letterSpacing: "0.05em",
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              boxShadow: "0 4px 20px rgba(59, 130, 246, 0.25)",
-              outline: "none",
-              transition: "background 0.2s ease, box-shadow 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#2563eb";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "var(--color-accent-blue)";
-            }}
-          >
-            <Download size={14} />
-            <span>DOWNLOAD FOR LINUX</span>
           </motion.button>
         </div>
       </div>
