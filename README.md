@@ -5,15 +5,16 @@
 <br/>
 
 # Trackora
-### Premium screen time & app usage tracker for Linux GNOME Wayland
+### Premium screen time & app usage tracker for Linux GNOME Wayland *(now also available on Windows)*
 
 *You work hard. Do you know where the time actually goes?*
 
-Trackora is an elegant, privacy-first productivity tool designed for the modern Linux desktop. It runs silently in the background, logging application usage and window focus, and presents your data in a beautiful, analytical dashboard.
+Trackora is an elegant, privacy-first productivity tool designed primarily for the modern Linux desktop (GNOME Wayland), and expanded to Windows 10/11. It runs silently in the background, logging application usage and window focus, and presents your data in a beautiful, analytical dashboard.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-5c6bc0.svg?style=flat-square)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Linux-informational?style=flat-square&color=5c6bc0)](https://github.com/SamXop123/Trackora)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-informational?style=flat-square&color=5c6bc0)](https://github.com/SamXop123/Trackora)
 [![GNOME](https://img.shields.io/badge/GNOME-Extension-informational?style=flat-square&color=4db6ac)](https://extensions.gnome.org)
+[![Version](https://img.shields.io/badge/Version-v2.0.0-3b82f6.svg?style=flat-square)](https://github.com/SamXop123/Trackora/releases)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square&color=66bb6a)](DEVELOPMENT.md)
 [![Stars](https://img.shields.io/github/stars/SamXop123/Trackora?style=flat-square&color=ffa726)](https://github.com/SamXop123/Trackora/stargazers)
 
@@ -54,79 +55,52 @@ Then, whenever you're curious: *open it, and know.*
 
 ## Installation
 
-### Supported Environment
+---
 
-Trackora is currently optimized and tested for:
+### 🐧 Linux (Fedora & GNOME Desktop)
 
-* Fedora Linux
-* GNOME Desktop
-* Wayland Session
+#### Option 1: Fedora RPM Package (Recommended)
 
+Download the native Fedora RPM package (`trackora-2.0.0.rpm`) from the latest [Trackora GitHub Releases](https://github.com/SamXop123/Trackora/releases).
 
-### Option 1: Fedora RPM Package (Recommended)
-
-Download the latest native Fedora RPM package (`trackora-v1.rpm`) from the GitHub Releases page.
-
-Install either by double-clicking the RPM file to open it in GNOME Software, or by running:
+Install either by double-clicking the RPM file in GNOME Software, or by running:
 
 ```bash
-sudo dnf install ./trackora-v1.rpm
+sudo dnf install ./trackora-2.0.0.rpm
 ```
 
-After installation, launch **Trackora** directly from your GNOME Applications menu. No terminal commands or manual services startup are required for normal usage.
+After installation, launch **Trackora** directly from your GNOME Applications menu.
 
-### Option 2: Download the Release Package
-
-Download the latest release archive from the GitHub Releases page.
-
-Extract the archive:
-
-```bash
-tar -xzf trackora-1.0.0.tar.gz
-
-cd Trackora
-```
-
-Run the installer:
-
-```bash
-chmod +x install.sh
-
-./install.sh
-```
-
-Launch Trackora:
-
-```bash
-python3 -m trackora.gui
-```
-
-### Option 3: Install from Source
+#### Option 2: Build & Install from Source
 
 ```bash
 git clone https://github.com/SamXop123/Trackora.git
-
 cd Trackora
-
 chmod +x install.sh
-
 ./install.sh
 ```
-
-Launch Trackora:
-
-```bash
-python3 -m trackora.gui
-```
-
 <br/>
 
 *Note: If tracking does not immediately capture active window titles, log out of your GNOME session and log back in to reload the extension.*
 
-<br/>
+
 
 #### Uninstallation:
 If you wish to remove Trackora, run the uninstaller: `./uninstall.sh`
+
+<br>
+
+---
+
+### 🪟 Windows (10 & 11)
+
+Download **`TrackoraSetup.exe`** from the latest [GitHub Releases](https://github.com/SamXop123/Trackora/releases).
+
+1. Double-click **`TrackoraSetup.exe`** to run the installation wizard.
+2. Launch **Trackora** from your Start Menu or Desktop shortcut.
+3. Trackora will run silently in the background, minimize to the system tray on close `(X)`, and can optionally auto-start on Windows login.
+
+
 
 <br/>
 
@@ -197,21 +171,19 @@ Full visibility into the health of the background daemon, database connection, a
 
 ## Screenshots
 
-*(Screenshots will be uploaded here in the v1.0.0-beta release assets)*
-
 | Dashboard | Timeline |
 |:---:|:---:|
-| ![Dashboard Placeholder](assets/screenshots/dashboard-week.png) | ![Timeline Placeholder](assets/screenshots/Timeline.png) |
+| ![Dashboard Overview](trackora/assets/screenshots/dashboard-week.png) | ![Timeline Breakdown](trackora/assets/screenshots/Timeline.png) |
 | *Live activity overview* | *Session breakdown timeline* |
 
 | Insights | Reports |
 |:---:|:---:|
-| ![Insights Placeholder](assets/screenshots/insights.png) | ![Reports Placeholder](assets/screenshots/Reports-monthly.png) |
+| ![Insights Analytics](trackora/assets/screenshots/insights.png) | ![Reports Summary](trackora/assets/screenshots/Reports-monthly.png) |
 | *Productivity & habit patterns* | *Custom date range logs* |
 
 | Application | Settings |
 |:---:|:---:|
-| ![Insights Placeholder](assets/screenshots/applications.png) | ![Reports Placeholder](assets/screenshots/settings.png) |
+| ![Applications Usage](trackora/assets/screenshots/applications.png) | ![Settings Page](trackora/assets/screenshots/settings.png) |
 | *Applications usage breakdown* | *Trackora Settings & Info* |
 
 <br/>
@@ -238,7 +210,7 @@ Everything is stored in a local SQLite database on your own filesystem. You can 
 
 
 ### Planned Features (Roadmap)
-* **v1.1 (Goals & Targets)**: Set daily limits for specific apps or categories and track target completion.
+* **v2.1 (Goals & Targets)**: Set daily limits for specific apps or categories and track target completion.
 * **Productivity Scoring**: Rate application usage from productive to distracting to generate a daily score.
 * **Extended Export Formats**: PDF report generation and CSV exports.
 
