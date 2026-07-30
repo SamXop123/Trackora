@@ -4,6 +4,27 @@ All notable changes to the Trackora project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-07-28
+
+This major release introduces full native support for Microsoft Windows (10/11), bringing Trackora's premium screen time and productivity tracking to Windows alongside Linux GNOME Wayland.
+
+### Added (Windows Native Support)
+- **Native Win32 Tracking Engine (`windows/tracker.py`)**:
+  - Direct Win32 API window focus tracking using `GetForegroundWindow`, `GetWindowThreadProcessId`, and process executable path resolution.
+  - Smart Windows Lock Screen & Sleep filtering (ignores `LockApp.exe` so lock screen / sleep mode is recorded as idle time).
+- **Windows System Tray Integration (`trackora/gui/dashboard_window.py`)**:
+  - System tray icon with custom dark-themed context menu ("Open Dashboard", "Quit Trackora") and hover tooltip.
+  - Window close `(X)` minimizes silently to the system tray so background tracking continues uninterrupted.
+  - Native `SetForegroundWindow` taskbar focus retention keeping the Windows tray overflow panel open while interacting with options.
+- **Single-Instance Protection (`trackora-gui.lock`)**:
+  - Advisory lock file preventing multiple GUI windows from opening simultaneously; automatically restores existing dashboard window if launched twice.
+- **Auto-Track on Startup Toggle**:
+  - Windows Registry autostart management (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`) with customizable toggle in the Settings tab.
+- **High-Resolution App Icon Extraction (`trackora/gui/utils.py`)**:
+  - Fuzzy case-insensitive process path resolution and recursive UWP PNG asset extractor for Windows Store apps (WhatsApp, Photos, etc.).
+- **Standalone Windows Installer Packaging**:
+  - Automated compilation pipeline (`build-windows.ps1` and `build-installer.iss`) building a standalone, zero-dependency `TrackoraSetup.exe`.
+
 ---
 
 ## [1.0.1] - 2026-07-08
