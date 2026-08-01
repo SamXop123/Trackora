@@ -23,6 +23,9 @@ user32.GetWindowTextLengthW.restype = ctypes.c_int
 user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
 user32.GetWindowTextW.restype = ctypes.c_int
 
+user32.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+user32.GetClassNameW.restype = ctypes.c_int
+
 user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
 user32.GetWindowThreadProcessId.restype = wintypes.DWORD
 
@@ -58,7 +61,28 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
             if not hwnd:
                 return WindowStateReadResult(state=None, error="No active window focused")
 
-            # 2. Query window title
+            # 2. Query window class name to detect desktop shell focus
+            class_name = ""
+            class_buf = ctypes.create_unicode_buffer(256)
+            if user32.GetClassNameW(hwnd, class_buf, 256) > 0:
+                class_name = class_buf.value
+
+            if class_name in ("Progman", "WorkerW"):
+                state = WindowState(
+                    app="Desktop",
+                    title="Desktop",
+                    timestamp=to_storage_timestamp(now_utc())
+                )
+                return WindowStateReadResult(state=state, error=None)
+            elif class_name in ("Shell_TrayWnd", "Shell_SecondaryTrayWnd"):
+                state = WindowState(
+                    app="Desktop",
+                    title="Taskbar",
+                    timestamp=to_storage_timestamp(now_utc())
+                )
+                return WindowStateReadResult(state=state, error=None)
+
+            # 3. Query window title
             length = user32.GetWindowTextLengthW(hwnd)
             if length > 0:
                 buf = ctypes.create_unicode_buffer(length + 1)
@@ -67,11 +91,11 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
             else:
                 title = ""
 
-            # 3. Query associated Process ID
+            # 4. Query associated Process ID
             pid = ctypes.c_ulong()
             user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
 
-            # 4. Open process to retrieve its executable filename
+            # 5. Open process to retrieve its executable filename
             PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
             h_process = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
             app = "Unknown"
@@ -87,6 +111,10 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
                         app = os.path.splitext(exe_name)[0]
                         if app.lower() == "lockapp":
                             return WindowStateReadResult(state=None, error=None)
+                        if app.lower() == "explorer" and class_name in ("Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd"):
+                            app = "Desktop"
+                            if not title:
+                                title = "Desktop"
                         self._save_exe_path(app, exe_path)
                 finally:
                     kernel32.CloseHandle(h_process)
