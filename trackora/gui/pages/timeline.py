@@ -537,7 +537,7 @@ class TimelinePage(QWidget):
             sessions = merge_consecutive_sessions(sessions, descending=True)
 
         current_sig = tuple(
-            (s.session_id, s.app_name, s.duration_seconds, s.start_time)
+            (s.app_name, s.window_title, s.duration_seconds, s.start_time)
             for s in sessions
         )
         if getattr(self, "_last_sessions_sig", None) == current_sig:
