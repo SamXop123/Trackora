@@ -30,12 +30,15 @@ _FALLBACK_ICON = "application-x-executable"
 
 # In-memory cache for resolved icons to avoid heavy scans
 _ICON_CACHE: dict[str, QPixmap] = {}
+_MISSING_ICON_CACHE: set[str] = set()
 
 def get_app_icon(app_name: str, size: int = 24) -> QPixmap | None:
     """Retrieve application icon in a platform-aware way (icon theme on Linux, shell executable icon on Windows)."""
     cache_key = f"{app_name}_{size}"
     if cache_key in _ICON_CACHE:
         return _ICON_CACHE[cache_key]
+    if cache_key in _MISSING_ICON_CACHE:
+        return None
 
     pixmap = None
 
@@ -71,23 +74,10 @@ def get_app_icon(app_name: str, size: int = 24) -> QPixmap | None:
                 pixmap = icon.pixmap(QSize(size, size))
                 break
 
-    # Final fallback if nothing found
-    if pixmap is None:
-        try:
-            if sys.platform == "win32":
-                from PySide6.QtWidgets import QFileIconProvider
-                provider = QFileIconProvider()
-                icon = provider.icon(QFileIconProvider.IconType.File)
-            else:
-                icon = QIcon.fromTheme(_FALLBACK_ICON)
-            
-            if not icon.isNull():
-                pixmap = icon.pixmap(QSize(size, size))
-        except Exception:
-            pass
-
     if pixmap is not None:
         _ICON_CACHE[cache_key] = pixmap
+    else:
+        _MISSING_ICON_CACHE.add(cache_key)
 
     return pixmap
 
@@ -145,24 +135,6 @@ def _find_win32_exe_path(app_name: str) -> str | None:
                             return val
                 except OSError:
                     continue
-    except Exception:
-        pass
-
-    # 4. Running processes scan (fuzzy matching)
-    try:
-        import psutil
-        target = app_name.lower()
-        for proc in psutil.process_iter(['name', 'exe']):
-            try:
-                pname = proc.info['name']
-                if pname:
-                    pname_no_ext = pname.lower().split('.')[0]
-                    if target in pname_no_ext or pname_no_ext in target or pname.lower() == target:
-                        exe = proc.info['exe']
-                        if exe and os.path.exists(exe):
-                            return exe
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
     except Exception:
         pass
 
