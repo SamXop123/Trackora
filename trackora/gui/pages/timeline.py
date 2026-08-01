@@ -400,6 +400,7 @@ class TimelinePage(QWidget):
         self._entry_widgets: list[QWidget] = []
         self._render_queue: list[tuple[str, Any, Any]] = []
         self._rendered_count = 0
+        self._last_sessions_sig: tuple | None = None
 
         # Scroll area
         self._scroll = QScrollArea(self)
@@ -531,6 +532,22 @@ class TimelinePage(QWidget):
             return
 
         sessions = self._repository.load_timeline_sessions()
+
+        if not self._detailed_toggle.is_checked():
+            sessions = merge_consecutive_sessions(sessions, descending=True)
+
+        current_sig = tuple(
+            (s.session_id, s.app_name, s.duration_seconds, s.start_time)
+            for s in sessions
+        )
+        if getattr(self, "_last_sessions_sig", None) == current_sig:
+            return
+
+        self._last_sessions_sig = current_sig
+
+        scrollbar = self._scroll.verticalScrollBar()
+        saved_scroll = scrollbar.value()
+
         self._clear_feed()
 
         if not sessions:
@@ -539,10 +556,6 @@ class TimelinePage(QWidget):
             return
 
         self._empty_state.setVisible(False)
-
-        if not self._detailed_toggle.is_checked():
-            sessions = merge_consecutive_sessions(sessions, descending=True)
-
         self._update_summary(sessions)
 
         # Build render queue
@@ -568,11 +581,14 @@ class TimelinePage(QWidget):
                 is_last_in_group = (i == len(group) - 1) and (hour == sorted_hours[-1])
                 self._render_queue.append(('session', session, is_last_in_group))
 
-        # Scroll to top first to prevent immediate scroll triggers during rendering
-        self._scroll.verticalScrollBar().setValue(0)
-
         # Initial batch loading
         self._load_next_batch(initial=True)
+
+        # If user was scrolled down, load enough items to restore scroll position cleanly
+        if saved_scroll > 0:
+            while self._rendered_count < len(self._render_queue) and scrollbar.maximum() < saved_scroll + 200:
+                self._load_next_batch()
+            scrollbar.setValue(min(saved_scroll, scrollbar.maximum()))
 
     def _on_scroll(self, value):
         """Trigger loading more items when the user scrolls near the bottom."""
@@ -638,6 +654,7 @@ class TimelinePage(QWidget):
             self._chip_most_used.set_value("—")
 
     def _on_toggle_detailed(self, checked: bool):
+        self._last_sessions_sig = None
         self.refresh_data()
 
 
