@@ -474,6 +474,10 @@ class MainWindow(QMainWindow):
 
     def _on_nav_click(self, index: int):
         if 0 <= index < self._stack.count():
+            # Reset timeline pagination to default 50 sessions when navigating away or switching tabs
+            if index != 1 or self._stack.currentIndex() != 1:
+                self._timeline_page.reset_pagination()
+
             self._stack.setCurrentIndex(index)
             self._sidebar.set_active(index)
             # Refresh page data when navigating
@@ -627,13 +631,13 @@ class MainWindow(QMainWindow):
             if sys.platform == "win32":
                 import ctypes
                 try:
-                    # Bring window handle to foreground so Windows taskbar tray overflow menu stays pinned open
+                    # Bring window handle to foreground so tray menu receives focus
                     ctypes.windll.user32.SetForegroundWindow(int(self.winId()))
                 except Exception:
                     pass
-            self._tray_menu.exec(QCursor.pos())
+            self._tray_menu.popup(QCursor.pos())
         elif reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
-            if self.isVisible() and not self.isMinimized():
+            if self.isVisible() and not self.isMinimized() and self.isActiveWindow():
                 self.hide()
             else:
                 self._restore_window()
