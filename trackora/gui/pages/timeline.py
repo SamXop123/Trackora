@@ -9,14 +9,14 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime
 
-from PySide6.QtCore import Qt, QRectF, QSize
+from PySide6.QtCore import Qt, QRectF, QSize, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import (
     QBrush, QColor, QIcon, QLinearGradient, QPainter, QPen, QPixmap,
     QRadialGradient,
 )
 from PySide6.QtWidgets import (
     QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel,
-    QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
+    QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
 )
 
 from ...models.dashboard import TimelineSession
@@ -39,6 +39,13 @@ _ACCENT_SOFT = "#2563eb"
 _GREEN = "#34d399"
 
 from trackora.gui.utils import get_app_icon as _get_app_icon
+
+_LOCAL_ICON_CACHE: dict[str, QPixmap | None] = {}
+
+def _get_cached_app_icon(app_name: str) -> QPixmap | None:
+    if app_name not in _LOCAL_ICON_CACHE:
+        _LOCAL_ICON_CACHE[app_name] = _get_app_icon(app_name, 28)
+    return _LOCAL_ICON_CACHE[app_name]
 
 
 def _add_shadow(widget: QWidget, blur: int = 20, opacity: int = 35, dy: int = 3):
@@ -179,7 +186,6 @@ class _TimelineEntryCard(QFrame):
         self.setFrameShape(QFrame.Shape.NoFrame)
         self._hovered = False
         self.setStyleSheet(self._css(_CARD))
-        _add_shadow(self, blur=12, opacity=22, dy=2)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(16, 12, 18, 12)
@@ -256,16 +262,23 @@ class _TimelineEntryCard(QFrame):
         self._subtitle.setText(title)
         self._subtitle.setVisible(bool(title))
 
-        # Icon
-        pixmap = _get_app_icon(session.app_name, 28)
+        # Icon (cached lookup)
+        pixmap = _get_cached_app_icon(session.app_name)
         if pixmap:
             self._icon_label.setPixmap(pixmap)
         else:
-            self._icon_label.setText("●")
+            letter = session.app_name[0].upper() if session.app_name else "●"
+            self._icon_label.setText(letter)
             self._icon_label.setStyleSheet(
-                f"color: {_ACCENT}; font-size: 16px; "
+                f"color: {_ACCENT}; font-size: 13px; font-weight: 700; "
                 f"background: {_CARD_BORDER}; border-radius: 8px; border: none;"
             )
+
+    def update_session_time(self, duration_seconds: int, start_time: datetime, end_time: datetime):
+        self._duration.setText(_format_duration_smart(duration_seconds))
+        start_str = _format_time_12h(start_time)
+        end_str = _format_time_12h(end_time)
+        self._time_range.setText(f"{start_str} → {end_str}")
 
     def enterEvent(self, event):
         self._hovered = True
@@ -349,9 +362,12 @@ class _TimelineEntryRow(QWidget):
         layout.addWidget(self._connector)
 
         # Card
-        card = _TimelineEntryCard()
-        card.set_data(session)
-        layout.addWidget(card, 1)
+        self._card = _TimelineEntryCard()
+        self._card.set_data(session)
+        layout.addWidget(self._card, 1)
+
+    def update_session_time(self, duration_seconds: int, start_time: datetime, end_time: datetime):
+        self._card.update_session_time(duration_seconds, start_time, end_time)
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -422,6 +438,19 @@ class TimelinePage(QWidget):
         page_layout = QVBoxLayout(self)
         page_layout.setContentsMargins(0, 0, 0, 0)
         page_layout.addWidget(self._scroll)
+
+        # Floating Back to Top button
+        self._back_to_top_btn = QPushButton("▲ TOP", self)
+        self._back_to_top_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._back_to_top_btn.setStyleSheet(
+            f"QPushButton {{ background: {_CARD_LIGHTER}; border: 1px solid {_ACCENT}; "
+            f"color: {_TEXT_PRIMARY}; font-size: 11px; font-weight: 700; border-radius: 16px; "
+            f"padding: 6px 12px; letter-spacing: 0.05em; }}"
+            f"QPushButton:hover {{ background: {_ACCENT}; color: #ffffff; }}"
+        )
+        _add_shadow(self._back_to_top_btn, blur=14, opacity=40, dy=2)
+        self._back_to_top_btn.clicked.connect(self._scroll_to_top)
+        self._back_to_top_btn.hide()
 
         main = QVBoxLayout(self._container)
         main.setContentsMargins(32, 20, 32, 32)
@@ -519,14 +548,39 @@ class TimelinePage(QWidget):
         self._empty_state.setVisible(False)
         main.addWidget(self._empty_state)
 
+        # Show More Button Container (Compact 130px centered button)
+        self._show_more_container = QWidget()
+        sm_layout = QHBoxLayout(self._show_more_container)
+        sm_layout.setContentsMargins(0, 12, 0, 12)
+        sm_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._show_more_btn = QPushButton("Show More")
+        self._show_more_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._show_more_btn.setFixedSize(130, 34)
+        self._show_more_btn.setStyleSheet(
+            f"QPushButton {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
+            f"color: {_ACCENT}; font-size: 12px; font-weight: 600; border-radius: 6px; }}"
+            f"QPushButton:hover {{ background: {_CARD_LIGHTER}; border-color: {_ACCENT}; color: #ffffff; }}"
+        )
+        self._show_more_btn.clicked.connect(self._on_show_more_clicked)
+        sm_layout.addWidget(self._show_more_btn)
+        self._show_more_container.hide()
+        main.addWidget(self._show_more_container)
+
         main.addStretch(1)
         self._main_layout = main
+        self._limit = 50
 
     def set_repository(self, repo: DashboardRepository):
         """Called by MainWindow to inject the shared repository."""
         self._repository = repo
 
-    def refresh_data(self):
+    def reset_pagination(self):
+        """Reset pagination to default 50 sessions when navigating pages."""
+        self._limit = 50
+        self._last_structure_sig = None
+
+    def refresh_data(self, force: bool = False):
         """Reload timeline sessions from the database."""
         if self._repository is None:
             return
@@ -536,94 +590,118 @@ class TimelinePage(QWidget):
         if not self._detailed_toggle.is_checked():
             sessions = merge_consecutive_sessions(sessions, descending=True)
 
-        current_sig = tuple(
-            (s.app_name, s.window_title, s.duration_seconds, s.start_time)
-            for s in sessions
-        )
-        if getattr(self, "_last_sessions_sig", None) == current_sig:
+        total_sessions = len(sessions)
+        displayed_sessions = sessions[:self._limit]
+
+        # Structural signature: app_name, window_title, start_time, and limit
+        structure_sig = tuple(
+            (s.app_name, s.window_title, s.start_time)
+            for s in displayed_sessions
+        ) + (self._limit,)
+
+        # If structure is unchanged during polling tick, update active top session in-place with zero lag!
+        if not force and getattr(self, "_last_structure_sig", None) == structure_sig:
+            self._update_summary(sessions)
+            if displayed_sessions and getattr(self, "_first_session_row", None):
+                active_s = displayed_sessions[0]
+                self._first_session_row.update_session_time(
+                    active_s.duration_seconds,
+                    active_s.start_time,
+                    active_s.end_time
+                )
             return
 
-        self._last_sessions_sig = current_sig
+        self._last_structure_sig = structure_sig
 
         scrollbar = self._scroll.verticalScrollBar()
         saved_scroll = scrollbar.value()
 
+        self.setUpdatesEnabled(False)
         self._clear_feed()
+        self._first_session_row = None
 
         if not sessions:
             self._update_summary([])
             self._empty_state.setVisible(True)
+            self._show_more_container.hide()
+            self.setUpdatesEnabled(True)
             return
 
         self._empty_state.setVisible(False)
         self._update_summary(sessions)
 
-        # Build render queue
-        self._render_queue = []
-        self._rendered_count = 0
-
-        # Group sessions by hour (local time), sorted newest hour first
+        # Group displayed sessions by hour (local time), sorted newest hour first
         hour_groups: dict[int, list[TimelineSession]] = defaultdict(list)
-        for session in sessions:
+        for session in displayed_sessions:
             local_start = session.start_time.astimezone()
             hour_groups[local_start.hour].append(session)
 
         sorted_hours = sorted(hour_groups.keys(), reverse=True)
 
         for hour in sorted_hours:
-            self._render_queue.append(('header', _hour_label(hour), None))
+            header = _HourHeader(_hour_label(hour))
+            self._feed_layout.addWidget(header)
+            self._entry_widgets.append(header)
 
             group = hour_groups[hour]
-            # Sort sessions within hour: newest first
             group.sort(key=lambda s: s.start_time, reverse=True)
 
             for i, session in enumerate(group):
                 is_last_in_group = (i == len(group) - 1) and (hour == sorted_hours[-1])
-                self._render_queue.append(('session', session, is_last_in_group))
-
-        # Initial batch loading
-        self._load_next_batch(initial=True)
-
-        # If user was scrolled down, load enough items to restore scroll position cleanly
-        if saved_scroll > 0:
-            while self._rendered_count < len(self._render_queue) and scrollbar.maximum() < saved_scroll + 200:
-                self._load_next_batch()
-            scrollbar.setValue(min(saved_scroll, scrollbar.maximum()))
-
-    def _on_scroll(self, value):
-        """Trigger loading more items when the user scrolls near the bottom."""
-        scrollbar = self._scroll.verticalScrollBar()
-        # If we are close to the bottom (less than 150px remaining)
-        if value > scrollbar.maximum() - 150:
-            self._load_next_batch()
-
-    def _load_next_batch(self, initial=False):
-        """Render a small slice of items from the render queue."""
-        if not self._render_queue:
-            return
-
-        batch_size = 100 if initial else 50
-        end_idx = min(self._rendered_count + batch_size, len(self._render_queue))
-
-        if self._rendered_count >= len(self._render_queue):
-            return
-
-        # Suspend paint updates during batch layout insertions for maximum performance
-        self.setUpdatesEnabled(False)
-
-        for idx in range(self._rendered_count, end_idx):
-            item_type, data, extra = self._render_queue[idx]
-            if item_type == 'header':
-                header = _HourHeader(data)
-                self._feed_layout.addWidget(header)
-                self._entry_widgets.append(header)
-            elif item_type == 'session':
-                row = _TimelineEntryRow(data, is_last=extra)
+                row = _TimelineEntryRow(session, is_last=is_last_in_group)
+                if self._first_session_row is None:
+                    self._first_session_row = row
                 self._feed_layout.addWidget(row)
                 self._entry_widgets.append(row)
 
-        self._rendered_count = end_idx
+        if total_sessions > self._limit:
+            self._show_more_container.show()
+        else:
+            self._show_more_container.hide()
+
         self.setUpdatesEnabled(True)
+
+        if saved_scroll > 0:
+            scrollbar.setValue(min(saved_scroll, scrollbar.maximum()))
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, "_back_to_top_btn"):
+            btn_w, btn_h = 76, 32
+            self._back_to_top_btn.setGeometry(
+                self.width() - btn_w - 24,
+                self.height() - btn_h - 24,
+                btn_w,
+                btn_h
+            )
+            self._back_to_top_btn.raise_()
+
+    def _scroll_to_top(self):
+        """Smoothly scroll to top using QPropertyAnimation."""
+        scrollbar = self._scroll.verticalScrollBar()
+        if scrollbar.value() == 0:
+            return
+        if not hasattr(self, "_scroll_anim"):
+            self._scroll_anim = QPropertyAnimation(scrollbar, b"value", self)
+            self._scroll_anim.setDuration(250)
+            self._scroll_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._scroll_anim.stop()
+        self._scroll_anim.setStartValue(scrollbar.value())
+        self._scroll_anim.setEndValue(0)
+        self._scroll_anim.start()
+
+    def _on_scroll(self, value):
+        """Toggle Back to Top button based on scroll position."""
+        if hasattr(self, "_back_to_top_btn"):
+            if value > 250:
+                self._back_to_top_btn.show()
+                self._back_to_top_btn.raise_()
+            else:
+                self._back_to_top_btn.hide()
+
+    def _on_show_more_clicked(self):
+        self._limit += 50
+        self.refresh_data(force=True)
 
     def _clear_feed(self):
         """Remove all dynamically created timeline entries."""
