@@ -36,7 +36,11 @@ COPY trackora trackora/
 
 RUN pip install --no-cache-dir -e .
 
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 ENV DISPLAY=:0
 ENV QT_X11_NO_MITSHM=1
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["trackora-gui"]
