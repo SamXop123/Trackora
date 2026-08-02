@@ -59,7 +59,12 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
             # 1. Fetch active window handle
             hwnd = user32.GetForegroundWindow()
             if not hwnd:
-                return WindowStateReadResult(state=None, error="No active window focused")
+                state = WindowState(
+                    app="Desktop",
+                    title="Desktop",
+                    timestamp=to_storage_timestamp(now_utc())
+                )
+                return WindowStateReadResult(state=state, error=None)
 
             # 2. Query window class name to detect desktop shell focus
             class_name = ""
@@ -67,14 +72,17 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
             if user32.GetClassNameW(hwnd, class_buf, 256) > 0:
                 class_name = class_buf.value
 
-            if class_name in ("Progman", "WorkerW"):
+            desktop_classes = ("Progman", "WorkerW", "SHELLDLL_DefView", "SysListView32")
+            taskbar_classes = ("Shell_TrayWnd", "Shell_SecondaryTrayWnd")
+
+            if class_name in desktop_classes:
                 state = WindowState(
                     app="Desktop",
                     title="Desktop",
                     timestamp=to_storage_timestamp(now_utc())
                 )
                 return WindowStateReadResult(state=state, error=None)
-            elif class_name in ("Shell_TrayWnd", "Shell_SecondaryTrayWnd"):
+            elif class_name in taskbar_classes:
                 state = WindowState(
                     app="Desktop",
                     title="Taskbar",
@@ -111,10 +119,10 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
                         app = os.path.splitext(exe_name)[0]
                         if app.lower() == "lockapp":
                             return WindowStateReadResult(state=None, error=None)
-                        if app.lower() == "explorer" and class_name in ("Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd"):
-                            app = "Desktop"
-                            if not title:
-                                title = "Desktop"
+                        if app.lower() == "explorer":
+                            if class_name not in ("CabinetWClass", "ExploreWClass") or title in ("", "Desktop", "Program Manager"):
+                                app = "Desktop"
+                                title = "Desktop" if class_name not in taskbar_classes else "Taskbar"
                         self._save_exe_path(app, exe_path)
                 finally:
                     kernel32.CloseHandle(h_process)
