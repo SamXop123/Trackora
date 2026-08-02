@@ -99,10 +99,62 @@ def get_app_icon(app_name: str, size: int = 24) -> QPixmap | None:
     return pixmap
 
 
+_WIN_APP_ALIASES: dict[str, list[str]] = {
+    "vs code": ["code", "code.exe", "vscode", "visual studio code"],
+    "vscode": ["code", "code.exe", "vs code"],
+    "visual studio code": ["code", "code.exe", "vscode"],
+    "code": ["code", "code.exe", "vscode", "vs code"],
+    "chrome": ["chrome", "chrome.exe", "google chrome"],
+    "firefox": ["firefox", "firefox.exe"],
+    "brave": ["brave", "brave.exe", "brave-browser"],
+    "spotify": ["spotify", "spotify.exe"],
+    "discord": ["discord", "discord.exe"],
+    "slack": ["slack", "slack.exe"],
+    "telegram": ["telegram", "telegram.exe"],
+}
+
+
 def _find_win32_exe_path(app_name: str) -> str | None:
-    """Find Windows executable path for app_name via cache, registry, Start Menu shortcuts, or processes."""
+    """Find Windows executable path for app_name via aliases, known paths, cache, registry, or Start Menu shortcuts."""
     if not app_name:
         return None
+
+    app_lower = app_name.lower().strip()
+
+    # 0. Check direct known installation paths for common desktop apps
+    known_paths = {
+        "vs code": [
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Microsoft VS Code", "Code.exe"),
+            os.path.join(os.environ.get("ProgramFiles", ""), "Microsoft VS Code", "Code.exe"),
+            os.path.join(os.environ.get("ProgramFiles(x86)", ""), "Microsoft VS Code", "Code.exe"),
+        ],
+        "vscode": [
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Microsoft VS Code", "Code.exe"),
+            os.path.join(os.environ.get("ProgramFiles", ""), "Microsoft VS Code", "Code.exe"),
+        ],
+        "visual studio code": [
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Microsoft VS Code", "Code.exe"),
+            os.path.join(os.environ.get("ProgramFiles", ""), "Microsoft VS Code", "Code.exe"),
+        ],
+        "chrome": [
+            os.path.join(os.environ.get("ProgramFiles", ""), "Google", "Chrome", "Application", "chrome.exe"),
+            os.path.join(os.environ.get("ProgramFiles(x86)", ""), "Google", "Chrome", "Application", "chrome.exe"),
+        ],
+        "edge": [
+            os.path.join(os.environ.get("ProgramFiles(x86)", ""), "Microsoft", "Edge", "Application", "msedge.exe"),
+            os.path.join(os.environ.get("ProgramFiles", ""), "Microsoft", "Edge", "Application", "msedge.exe"),
+        ],
+    }
+
+    if app_lower in known_paths:
+        for p in known_paths[app_lower]:
+            if p and os.path.exists(p):
+                return p
+
+    # Build search variants including aliases
+    search_names = {app_lower, app_lower.replace(" ", "-"), app_lower.replace(" ", "_")}
+    if app_lower in _WIN_APP_ALIASES:
+        search_names.update(_WIN_APP_ALIASES[app_lower])
 
     # 1. Check daemon's JSON path cache
     try:
@@ -111,13 +163,9 @@ def _find_win32_exe_path(app_name: str) -> str | None:
         cache_file = trackora_data_dir() / "exe_paths.json"
         if cache_file.exists():
             data = json.loads(cache_file.read_text(encoding="utf-8"))
-            # Fuzzy match keys: case-insensitive + check space replacement variants
-            target_lower = app_name.lower()
-            variants = {target_lower, target_lower.replace(" ", "-"), target_lower.replace(" ", "_")}
             for key, val in data.items():
-                if key.lower() in variants:
-                    if os.path.exists(val):
-                        # Special check for UWP app icons!
+                if key.lower() in search_names:
+                    if val and os.path.exists(val):
                         if "WindowsApps" in val:
                             uwp_icon = _find_uwp_png_icon(val)
                             if uwp_icon:
@@ -133,7 +181,6 @@ def _find_win32_exe_path(app_name: str) -> str | None:
         "cmd": os.path.join(os.environ.get("windir", "C:\\Windows\\System32"), "cmd.exe"),
         "powershell": os.path.join(os.environ.get("windir", "C:\\Windows\\System32\\WindowsPowerShell\\v1.0"), "powershell.exe"),
     }
-    app_lower = app_name.lower()
     if app_lower in sys_fallbacks:
         path = sys_fallbacks[app_lower]
         if os.path.exists(path):
@@ -142,16 +189,36 @@ def _find_win32_exe_path(app_name: str) -> str | None:
     # 3. Registry App Paths
     try:
         import winreg
-        for name in (app_name, f"{app_name}.exe"):
-            for root in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
-                key_path = f"Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\{name}"
-                try:
-                    with winreg.OpenKey(root, key_path) as key:
-                        val, _ = winreg.QueryValueEx(key, "")
-                        if val and os.path.exists(val):
-                            return val
-                except OSError:
-                    continue
+        for sname in search_names:
+            for name in (sname, f"{sname}.exe"):
+                for root in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+                    key_path = f"Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\{name}"
+                    try:
+                        with winreg.OpenKey(root, key_path) as key:
+                            val, _ = winreg.QueryValueEx(key, "")
+                            if val and os.path.exists(val):
+                                return val
+                    except OSError:
+                        continue
+    except Exception:
+        pass
+
+    # 4. Start Menu shortcuts scan
+    try:
+        start_menu_dirs = [
+            os.path.join(os.environ.get("APPDATA", ""), "Microsoft", "Windows", "Start Menu", "Programs"),
+            os.path.join(os.environ.get("ALLUSERSPROFILE", ""), "Microsoft", "Windows", "Start Menu", "Programs"),
+        ]
+        for sm_dir in start_menu_dirs:
+            if not os.path.exists(sm_dir):
+                continue
+            for root_dir, _, files in os.walk(sm_dir):
+                for f in files:
+                    if f.lower().endswith(".lnk"):
+                        fname_lower = os.path.splitext(f.lower())[0]
+                        if fname_lower in search_names or any(alias in fname_lower for alias in search_names):
+                            shortcut_path = os.path.join(root_dir, f)
+                            return shortcut_path
     except Exception:
         pass
 
