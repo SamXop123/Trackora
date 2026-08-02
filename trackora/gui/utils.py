@@ -42,7 +42,24 @@ def get_app_icon(app_name: str, size: int = 24) -> QPixmap | None:
 
     pixmap = None
 
-    if sys.platform == "win32":
+    if app_name.lower() == "desktop":
+        if sys.platform == "win32":
+            try:
+                from PySide6.QtWidgets import QFileIconProvider
+                provider = QFileIconProvider()
+                icon = provider.icon(QFileIconProvider.IconType.Desktop)
+                if not icon.isNull():
+                    pixmap = icon.pixmap(size, size)
+            except Exception:
+                pass
+        else:
+            candidates = ["user-desktop", "desktop", "preferences-desktop-wallpaper", "preferences-desktop"]
+            for name in candidates:
+                icon = QIcon.fromTheme(name)
+                if not icon.isNull():
+                    pixmap = icon.pixmap(QSize(size, size))
+                    break
+    elif sys.platform == "win32":
         # Windows native executable icon extraction
         if app_name.lower() in ("trackora", "trackora dashboard", "trackora-dashboard"):
             from trackora.utils.paths import get_asset_path
