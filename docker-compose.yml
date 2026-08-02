@@ -12,7 +12,11 @@ services:
       - WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-}
       - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/tmp}
     volumes:
+      # Forward X11 GUI display socket (Linux hosts & Windows WSL2/WSLg)
       - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      # Optional DBus system bus forwarding for Linux window tracking
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
+      # Persist Trackora database & user session data
       - trackora-data:/root/.local/share/trackora
     extra_hosts:
       - "host.docker.internal:host-gateway"
