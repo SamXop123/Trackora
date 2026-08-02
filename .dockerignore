@@ -1,0 +1,13 @@
+.git
+.gitignore
+node_modules
+landing/node_modules
+landing/.next
+dist
+rpmbuild
+scratch
+*.pyc
+__pycache__
+.venv
+.pytest_cache
+*.db
