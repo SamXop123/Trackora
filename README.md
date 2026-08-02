@@ -85,6 +85,18 @@ chmod +x install.sh
 
 
 
+#### Option 3: Docker (Cross-Platform)
+
+Run Trackora in a container with GUI display forwarding on Linux or Windows (WSL2 / WSLg / X11):
+
+```bash
+# Allow X11 display forwarding (Linux)
+xhost +local:docker
+
+# Build and start container
+docker compose up --build -d
+```
+
 #### Uninstallation:
 If you wish to remove Trackora, run the uninstaller: `./uninstall.sh`
 
