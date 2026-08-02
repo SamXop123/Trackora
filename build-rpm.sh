@@ -50,15 +50,26 @@ trap 'rm -rf "${TEMP_DIR}"' EXIT
 
 mkdir -p "${TEMP_DIR}/trackora-${VERSION}"
 
-# Copy all source files cleanly excluding build artifacts
-rsync -a \
-    --exclude="rpmbuild" \
-    --exclude="dist" \
-    --exclude=".git" \
-    --exclude="*demo.db*" \
-    --exclude="*.pyc" \
-    --exclude="__pycache__" \
-    ./ "${TEMP_DIR}/trackora-${VERSION}/"
+# Copy all source files cleanly excluding build artifacts and heavy web dependencies
+EXCLUDES=(
+    --exclude="rpmbuild"
+    --exclude="dist"
+    --exclude=".git"
+    --exclude="scratch"
+    --exclude="*demo.db*"
+    --exclude="*.pyc"
+    --exclude="__pycache__"
+    --exclude=".pytest_cache"
+    --exclude=".venv"
+    --exclude="node_modules"
+    --exclude="landing/node_modules"
+    --exclude="landing/.next"
+    --exclude="landing/public/*.rpm"
+    --exclude="landing/public/*.tar.gz"
+    --exclude="landing/public/*.exe"
+)
+
+rsync -a "${EXCLUDES[@]}" ./ "${TEMP_DIR}/trackora-${VERSION}/"
 
 tar -czf "rpmbuild/SOURCES/trackora-${VERSION}.tar.gz" -C "${TEMP_DIR}" "trackora-${VERSION}"
 
@@ -96,16 +107,7 @@ RELEASE_TEMP_DIR=$(mktemp -d)
 mkdir -p "${RELEASE_TEMP_DIR}/Trackora"
 
 # Copy all source files cleanly, excluding build artifacts
-rsync -a \
-    --exclude="rpmbuild" \
-    --exclude="dist" \
-    --exclude=".git" \
-    --exclude="*demo.db*" \
-    --exclude="*.pyc" \
-    --exclude="__pycache__" \
-    --exclude=".pytest_cache" \
-    --exclude=".venv" \
-    ./ "${RELEASE_TEMP_DIR}/Trackora/"
+rsync -a "${EXCLUDES[@]}" ./ "${RELEASE_TEMP_DIR}/Trackora/"
 
 tar -czf "dist/trackora-${FILE_VERSION}.tar.gz" -C "${RELEASE_TEMP_DIR}" "Trackora"
 cp "dist/trackora-${FILE_VERSION}.tar.gz" "landing/public/trackora-${FILE_VERSION}.tar.gz"
