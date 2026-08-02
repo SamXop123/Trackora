@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  trackora:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trackora
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - QT_X11_NO_MITSHM=1
+      - WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-}
+      - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/tmp}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - trackora-data:/root/.local/share/trackora
+    network_mode: host
+    restart: unless-stopped
+
+volumes:
+  trackora-data:
+    name: trackora-data
