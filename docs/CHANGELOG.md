@@ -4,6 +4,23 @@ All notable changes to the Trackora project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-08-02
+
+This minor release brings Timeline pagination, high-performance icon caching, system tray fixes for Windows, desktop tracking enhancements across Linux & Windows, and general Quality of Life (QoL) improvements.
+
+### Added & Improved
+- **Timeline Pagination & UX Polish**:
+  - Pagination controls for Timeline entries with optimized database queries.
+  - Smooth timeline scrolling fixes and responsive layouts.
+- **Icon Caching Engine**:
+  - Dynamic application icon caching to reduce I/O overhead and instantly load application icons across dashboard pages.
+- **Windows System Tray & Focus Fixes**:
+  - Enhanced tray menu interactions and active window focus handling.
+- **Desktop Tracking & Platform QoLs**:
+  - Refined desktop tracking accuracy for Linux (GNOME Wayland) and Windows 10/11.
+
+---
+
 ## [2.0.0] - 2026-07-28
 
 This major release introduces full native support for Microsoft Windows (10/11), bringing Trackora's premium screen time and productivity tracking to Windows alongside Linux GNOME Wayland.
