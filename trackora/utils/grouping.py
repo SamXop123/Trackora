@@ -5,7 +5,8 @@ from trackora.models.dashboard import TimelineSession
 
 def merge_consecutive_sessions(
     sessions: list[TimelineSession],
-    descending: bool = False
+    descending: bool = False,
+    max_gap_seconds: float = 60.0,
 ) -> list[TimelineSession]:
     """
     Merge chronologically consecutive sessions belonging to the same application.
@@ -14,6 +15,9 @@ def merge_consecutive_sessions(
     - Earliest start_time as start
     - Latest end_time as end
     - Empty/cleared window title (since multiple window titles are merged)
+
+    If a time gap between adjacent sessions exceeds `max_gap_seconds` (e.g. idle gap,
+    computer lock, or excluded application session), they are NOT merged.
     """
     if not sessions:
         return []
@@ -27,11 +31,14 @@ def merge_consecutive_sessions(
     for s in sorted_sessions:
         if not current_group:
             current_group.append(s)
-        elif s.app_name == current_group[0].app_name:
-            current_group.append(s)
         else:
-            merged.append(_merge_group(current_group))
-            current_group = [s]
+            prev = current_group[-1]
+            gap = (s.start_time - prev.end_time).total_seconds()
+            if s.app_name == current_group[0].app_name and gap <= max_gap_seconds:
+                current_group.append(s)
+            else:
+                merged.append(_merge_group(current_group))
+                current_group = [s]
             
     if current_group:
         merged.append(_merge_group(current_group))
