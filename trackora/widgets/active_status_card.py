@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from trackora.models.dashboard import ActiveAppStatus
 from trackora.utils.formatting import format_duration_live
+from trackora.utils.settings import settings_manager
 
 
 class ActiveStatusCard(QWidget):
@@ -65,6 +66,18 @@ class ActiveStatusCard(QWidget):
 
     def update_status(self, active: ActiveAppStatus | None) -> None:
         """Refresh the card content."""
+        if settings_manager.is_tracking_paused():
+            rem = settings_manager.get_pause_remaining_seconds()
+            self._app_label.setText("⏸️ Tracking Paused")
+            self._window_label.setText("Tracking is temporarily suspended across all apps.")
+            if rem == float("inf"):
+                self._duration_label.setText("Paused until manually resumed")
+            elif rem is not None:
+                self._duration_label.setText(f"Paused ({format_duration_live(int(rem))} remaining)")
+            else:
+                self._duration_label.setText("Paused")
+            return
+
         self._active_status = active
         if active is None:
             self._app_label.setText("No active session")
@@ -80,6 +93,18 @@ class ActiveStatusCard(QWidget):
 
     def tick(self) -> None:
         """Advance the displayed timer locally between database refreshes."""
+        if settings_manager.is_tracking_paused():
+            rem = settings_manager.get_pause_remaining_seconds()
+            self._app_label.setText("⏸️ Tracking Paused")
+            self._window_label.setText("Tracking is temporarily suspended across all apps.")
+            if rem == float("inf"):
+                self._duration_label.setText("Paused until manually resumed")
+            elif rem is not None:
+                self._duration_label.setText(f"Paused ({format_duration_live(int(rem))} remaining)")
+            else:
+                self._duration_label.setText("Paused")
+            return
+
         if self._active_status is None:
             return
 
