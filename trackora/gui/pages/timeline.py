@@ -26,6 +26,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from ...database.dashboard import DashboardRepository
 
+__all__ = ["TimelinePage"]
+
 # ─── Color tokens (identical to dashboard) ──────────────────────────────────
 _BG = "#0d1117"
 _CARD = "#141a23"
@@ -575,7 +577,7 @@ class TimelinePage(QWidget):
         """Called by MainWindow to inject the shared repository."""
         self._repository = repo
 
-    def reset_pagination(self):
+    def reset_pagination(self) -> None:
         """Reset pagination to default 50 sessions when navigating pages."""
         self._limit = 50
         self._last_structure_sig = None
