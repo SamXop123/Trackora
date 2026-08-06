@@ -902,7 +902,7 @@ class SettingsPage(QWidget):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    background-color: {_CARD_BG};
+                    background-color: {_CARD};
                     color: {_TEXT_PRIMARY};
                     border: 1px solid {_CARD_BORDER};
                     border-radius: 6px;
@@ -911,7 +911,7 @@ class SettingsPage(QWidget):
                     font-weight: 500;
                 }}
                 QPushButton:hover {{
-                    background-color: {_NAV_HOVER_BG};
+                    background-color: {_CARD_LIGHTER};
                     border-color: {_ACCENT};
                 }}
             """)
