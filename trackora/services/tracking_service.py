@@ -10,6 +10,7 @@ from trackora.tracker import SessionTracker
 from trackora.utils.lock import TrackoraAlreadyRunningError, TrackoraInstanceLock
 from trackora.utils.logging import log_error, log_info, log_warning
 from trackora.utils.paths import default_lock_path
+from trackora.utils.settings import settings_manager
 from trackora.utils.time import now_utc
 from trackora.window_state import WindowStateProvider, get_default_provider
 
@@ -46,7 +47,7 @@ def run_tracking_service(
         log_info(f"Recovered {recovered} stale {noun} safely")
         log_info("Database updated")
 
-    tracker = SessionTracker(store, timeout_seconds=timeout_sec)
+    tracker = SessionTracker(store, timeout_seconds=timeout_sec, settings_mgr=settings_manager)
     last_error: str | None = None
 
     try:
