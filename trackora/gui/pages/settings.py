@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -811,9 +812,37 @@ class SettingsPage(QWidget):
         layout.addWidget(sep)
 
     def _build_tracking_tab(self) -> QWidget:
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet(f"""
+            QScrollArea {{
+                background: transparent;
+                border: none;
+            }}
+            QScrollBar:vertical {{
+                background: {_BG};
+                width: 6px;
+                margin: 0;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {_CARD_BORDER};
+                border-radius: 3px;
+                min-height: 30px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {_TEXT_MUTED};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0;
+            }}
+        """)
+
         w = QWidget()
+        w.setStyleSheet("background: transparent;")
         lo = QVBoxLayout(w)
-        lo.setContentsMargins(0, 0, 0, 0)
+        lo.setContentsMargins(0, 0, 10, 0)
         lo.setSpacing(24)
 
         # Primary Status Card
@@ -993,7 +1022,8 @@ class SettingsPage(QWidget):
         self._render_excluded_apps_list()
 
         lo.addStretch(1)
-        return w
+        scroll.setWidget(w)
+        return scroll
 
     def _render_excluded_apps_list(self) -> None:
         if not hasattr(self, "_excluded_list_layout"):
