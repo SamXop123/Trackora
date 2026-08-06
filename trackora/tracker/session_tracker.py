@@ -8,17 +8,32 @@ from trackora.database import SQLiteSessionStore
 from trackora.models.session import ActiveSession
 from trackora.models.window_state import WindowState
 from trackora.utils.logging import log_info, log_warning
+from trackora.utils.settings import SettingsManager, settings_manager
 from trackora.utils.time import duration_seconds, now_utc, parse_timestamp, to_storage_timestamp
 
 
 class SessionTracker:
     """Turn sequential window snapshots into app session records using a simple state machine."""
 
-    def __init__(self, store: SQLiteSessionStore, timeout_seconds: float = 10.0) -> None:
+    def __init__(
+        self,
+        store: SQLiteSessionStore,
+        timeout_seconds: float = 10.0,
+        settings_mgr: SettingsManager | None = None,
+    ) -> None:
         self._store = store
         self._active_session: ActiveSession | None = None
         self.timeout_seconds = timeout_seconds
         self._is_idle: bool = True
+        self._settings_mgr = settings_mgr
+
+    def _is_excluded_app(self, app_name: str, window_title: str = "") -> bool:
+        mgr = self._settings_mgr or settings_manager
+        return mgr.is_application_excluded(app_name, window_title)
+
+    def _is_tracking_paused(self) -> bool:
+        mgr = self._settings_mgr or settings_manager
+        return mgr.is_tracking_paused()
 
     def process_window_state(self, state: WindowState) -> None:
         """Open or rotate sessions when the focused window changes."""
@@ -30,11 +45,27 @@ class SessionTracker:
             self.process_idle_tick()
             return
 
+        # Check if tracking is paused
+        if self._is_tracking_paused():
+            if self._active_session is not None:
+                log_info("Tracking is paused; ending active session immediately")
+                self._end_session(event_at)
+                self._is_idle = True
+            return
+
         app_name = state.app.strip() or "Unknown"
         window_title = state.title.strip()
 
+        # Check if the application is in the excluded applications list
+        if self._is_excluded_app(app_name, window_title):
+            if self._active_session is not None:
+                log_info(f"Active app switched to excluded app '{app_name}'; ending active session immediately")
+                self._end_session(event_at)
+                self._is_idle = True
+            return
+
         if self._active_session is None:
-            # Tracker was idle, now resumes
+            # Tracker was idle (or tracking excluded app), now resumes
             log_info("tracker resumed")
             self._start_session(app_name, window_title, event_at)
             self._is_idle = False
