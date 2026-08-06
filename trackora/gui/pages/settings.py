@@ -25,6 +25,10 @@ from PySide6.QtWidgets import (
     QWidget,
     QSizePolicy,
     QAbstractButton,
+    QDialog,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
 )
 
 from trackora.database.dashboard import DashboardRepository
@@ -33,6 +37,201 @@ from trackora.utils.paths import default_database_path, default_state_path, get_
 from trackora.window_state import read_window_state
 from trackora.utils.time import now_utc
 from trackora import __version__
+
+_BG = "#0d1117"
+_CARD = "#141a23"
+_CARD_LIGHTER = "#171f2a"
+_CARD_BORDER = "#1c2735"
+_TEXT_PRIMARY = "#e6edf5"
+_TEXT_SECONDARY = "#8b9bb4"
+_TEXT_MUTED = "#566a82"
+_ACCENT = "#3b82f6"
+_RED = "#ef4444"
+_GREEN = "#34d399"
+_ORANGE = "#f59e0b"
+
+
+class AddExcludedAppDialog(QDialog):
+    """Searchable dialog for selecting applications detected by Trackora to exclude."""
+
+    def __init__(self, detected_apps: list[str], already_excluded: list[str], parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Add Excluded Application")
+        self.setFixedSize(460, 420)
+        self.setWindowFlags(
+            Qt.WindowType.Dialog
+            | Qt.WindowType.CustomizeWindowHint
+            | Qt.WindowType.WindowTitleHint
+            | Qt.WindowType.WindowCloseButtonHint
+        )
+        self.selected_app: str | None = None
+        self._already_excluded = {a.casefold() for a in already_excluded}
+
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {_BG};
+                border: 1px solid {_CARD_BORDER};
+            }}
+            QLabel {{
+                color: {_TEXT_PRIMARY};
+            }}
+            QLineEdit {{
+                background-color: {_CARD_LIGHTER};
+                color: {_TEXT_PRIMARY};
+                border: 1px solid {_CARD_BORDER};
+                border-radius: 8px;
+                padding: 8px 12px;
+                font-size: 13px;
+            }}
+            QLineEdit:focus {{
+                border-color: {_ACCENT};
+            }}
+            QListWidget {{
+                background-color: {_CARD};
+                color: {_TEXT_PRIMARY};
+                border: 1px solid {_CARD_BORDER};
+                border-radius: 8px;
+                padding: 4px;
+            }}
+            QListWidget::item {{
+                padding: 10px 14px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 500;
+            }}
+            QListWidget::item:hover {{
+                background-color: {_CARD_LIGHTER};
+            }}
+            QListWidget::item:selected {{
+                background-color: {_ACCENT};
+                color: #ffffff;
+                font-weight: 600;
+            }}
+            QPushButton {{
+                background-color: {_CARD};
+                color: {_TEXT_PRIMARY};
+                border: 1px solid {_CARD_BORDER};
+                border-radius: 6px;
+                padding: 8px 18px;
+                font-size: 13px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {_CARD_LIGHTER};
+                border-color: {_ACCENT};
+            }}
+            QPushButton#primaryBtn {{
+                background-color: {_ACCENT};
+                color: #ffffff;
+                border: 1px solid #2563eb;
+            }}
+            QPushButton#primaryBtn:hover {{
+                background-color: #2563eb;
+            }}
+            QPushButton#primaryBtn:disabled {{
+                background-color: {_CARD_BORDER};
+                color: {_TEXT_MUTED};
+                border-color: {_CARD_BORDER};
+            }}
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(14)
+
+        header = QLabel("Select an Application to Exclude")
+        header.setStyleSheet("font-size: 16px; font-weight: bold; background: transparent;")
+        layout.addWidget(header)
+
+        sub = QLabel("Select from applications previously detected by Trackora:")
+        sub.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 12px; background: transparent;")
+        layout.addWidget(sub)
+
+        # Search bar
+        self.search_box = QLineEdit()
+        self.search_box.setPlaceholderText("🔍 Search applications...")
+        self.search_box.textChanged.connect(self._filter_list)
+        layout.addWidget(self.search_box)
+
+        # List widget
+        self.list_widget = QListWidget()
+        self.list_widget.itemSelectionChanged.connect(self._on_selection_changed)
+        self.list_widget.itemDoubleClicked.connect(self._on_item_double_clicked)
+        layout.addWidget(self.list_widget)
+
+        # Filter out already excluded apps
+        self._all_apps = [a for a in detected_apps if a.casefold() not in self._already_excluded]
+        self._populate_list(self._all_apps)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(10)
+        btn_layout.addStretch()
+
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(self.cancel_btn)
+
+        self.add_btn = QPushButton("Add Application")
+        self.add_btn.setObjectName("primaryBtn")
+        self.add_btn.setEnabled(False)
+        self.add_btn.clicked.connect(self._on_add_clicked)
+        btn_layout.addWidget(self.add_btn)
+
+        layout.addLayout(btn_layout)
+
+    def _populate_list(self, apps: list[str], query: str = "") -> None:
+        self.list_widget.clear()
+        q = query.strip()
+
+        # If user typed text that isn't an exact match in already excluded apps
+        if q and q.casefold() not in self._already_excluded:
+            exact_match = any(a.casefold() == q.casefold() for a in apps)
+            if not exact_match:
+                custom_item = QListWidgetItem(f'➕ Add custom application "{q}"')
+                custom_item.setData(Qt.ItemDataRole.UserRole, q)
+                self.list_widget.addItem(custom_item)
+
+        if not apps and not q:
+            item = QListWidgetItem("No matching applications found")
+            item.setFlags(Qt.ItemFlag.NoItemFlags)
+            self.list_widget.addItem(item)
+            return
+
+        for app in apps:
+            item = QListWidgetItem(app)
+            item.setData(Qt.ItemDataRole.UserRole, app)
+            self.list_widget.addItem(item)
+
+    def _filter_list(self, query: str) -> None:
+        q = query.strip().casefold()
+        if not q:
+            filtered = self._all_apps
+        else:
+            filtered = [a for a in self._all_apps if q in a.casefold()]
+        self._populate_list(filtered, query)
+
+    def _on_selection_changed(self) -> None:
+        selected = self.list_widget.selectedItems()
+        if selected and (selected[0].flags() & Qt.ItemFlag.ItemIsSelectable):
+            val = selected[0].data(Qt.ItemDataRole.UserRole)
+            if val:
+                self.add_btn.setEnabled(True)
+                self.selected_app = str(val)
+                return
+        self.add_btn.setEnabled(False)
+        self.selected_app = None
+
+    def _on_item_double_clicked(self, item: QListWidgetItem) -> None:
+        if item.flags() & Qt.ItemFlag.ItemIsSelectable:
+            val = item.data(Qt.ItemDataRole.UserRole)
+            if val:
+                self.selected_app = str(val)
+                self.accept()
+
+    def _on_add_clicked(self) -> None:
+        if self.selected_app:
+            self.accept()
 
 _BG = "#0d1117"
 _CARD = "#141a23"
@@ -661,8 +860,202 @@ class SettingsPage(QWidget):
         clo2.addWidget(_ControlRow("Polling Interval", seg, "Frequency at which the daemon fetches new window states."))
         
         lo.addWidget(card2)
+
+        # Pause Tracking Card
+        pause_card = _Card()
+        p_lo = QVBoxLayout(pause_card)
+        p_lo.setContentsMargins(24, 20, 24, 20)
+        p_lo.setSpacing(14)
+
+        p_hdr = QHBoxLayout()
+        p_vlo = QVBoxLayout()
+        p_vlo.setSpacing(2)
+
+        p_title = QLabel("Pause Tracking")
+        p_title.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 15px; font-weight: 700; background: transparent;")
+        p_vlo.addWidget(p_title)
+
+        p_sub = QLabel("Temporarily suspend session tracking across all applications.")
+        p_sub.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 12px; background: transparent;")
+        p_vlo.addWidget(p_sub)
+
+        p_hdr.addLayout(p_vlo, 1)
+
+        self._pause_status_lbl = QLabel("🟢 Tracking Active")
+        self._pause_status_lbl.setStyleSheet("color: #34d399; font-size: 13px; font-weight: 600; background: transparent;")
+        p_hdr.addWidget(self._pause_status_lbl)
+
+        p_lo.addLayout(p_hdr)
+
+        p_btn_row = QHBoxLayout()
+        p_btn_row.setSpacing(10)
+
+        pause_options = [
+            ("15 min", 15),
+            ("30 min", 30),
+            ("1 hour", 60),
+            ("Until resumed", None),
+        ]
+
+        for label, minutes in pause_options:
+            btn = QPushButton(f"⏱ {label}" if minutes else f"♾ {label}")
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {_CARD_BG};
+                    color: {_TEXT_PRIMARY};
+                    border: 1px solid {_CARD_BORDER};
+                    border-radius: 6px;
+                    padding: 8px 14px;
+                    font-size: 13px;
+                    font-weight: 500;
+                }}
+                QPushButton:hover {{
+                    background-color: {_NAV_HOVER_BG};
+                    border-color: {_ACCENT};
+                }}
+            """)
+            btn.clicked.connect(lambda _, m=minutes: self._on_pause_requested(m))
+            p_btn_row.addWidget(btn)
+
+        self._resume_btn = QPushButton("▶ Resume Tracking")
+        self._resume_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._resume_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #10b981;
+                color: #ffffff;
+                border: 1px solid #059669;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #059669;
+            }
+        """)
+        self._resume_btn.clicked.connect(self._on_resume_requested)
+        p_btn_row.addWidget(self._resume_btn)
+
+        p_lo.addLayout(p_btn_row)
+        lo.addWidget(pause_card)
+
+        # Excluded Applications Card
+        card3 = _Card()
+        clo3 = QVBoxLayout(card3)
+        clo3.setContentsMargins(24, 20, 24, 20)
+        clo3.setSpacing(16)
+
+        ex_hdr_layout = QHBoxLayout()
+        ex_hdr_layout.setSpacing(12)
+
+        ex_vlo = QVBoxLayout()
+        ex_vlo.setSpacing(2)
+
+        ex_title = QLabel("Excluded Applications")
+        ex_title.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 15px; font-weight: 700; background: transparent;")
+        ex_vlo.addWidget(ex_title)
+
+        ex_sub = QLabel("Applications in this list will never be tracked.")
+        ex_sub.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 12px; background: transparent;")
+        ex_vlo.addWidget(ex_sub)
+
+        ex_hdr_layout.addLayout(ex_vlo, 1)
+
+        self._add_app_btn = QPushButton("+ Add Application")
+        self._add_app_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._add_app_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {_ACCENT};
+                color: #ffffff;
+                border: 1px solid #2563eb;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: #2563eb;
+            }}
+        """)
+        self._add_app_btn.clicked.connect(self._on_add_excluded_app)
+        ex_hdr_layout.addWidget(self._add_app_btn)
+
+        clo3.addLayout(ex_hdr_layout)
+        self._add_separator(clo3)
+
+        self._excluded_list_layout = QVBoxLayout()
+        self._excluded_list_layout.setSpacing(8)
+        clo3.addLayout(self._excluded_list_layout)
+
+        lo.addWidget(card3)
+
+        self._render_excluded_apps_list()
+
         lo.addStretch(1)
         return w
+
+    def _render_excluded_apps_list(self) -> None:
+        if not hasattr(self, "_excluded_list_layout"):
+            return
+            
+        while self._excluded_list_layout.count():
+            item = self._excluded_list_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        excluded_apps = settings_manager.get_excluded_applications()
+        if not excluded_apps:
+            empty_lbl = QLabel("No applications excluded.")
+            empty_lbl.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 13px; font-style: italic; padding: 6px 0;")
+            self._excluded_list_layout.addWidget(empty_lbl)
+            return
+
+        for app in excluded_apps:
+            row_widget = QWidget()
+            r_lo = QHBoxLayout(row_widget)
+            r_lo.setContentsMargins(0, 4, 0, 4)
+
+            app_lbl = QLabel(app)
+            app_lbl.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 14px; font-weight: 600;")
+            r_lo.addWidget(app_lbl, 1)
+
+            rem_btn = QPushButton("Remove")
+            rem_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            rem_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: transparent;
+                    color: {_RED};
+                    border: 1px solid rgba(239, 68, 68, 0.4);
+                    border-radius: 6px;
+                    padding: 4px 12px;
+                    font-size: 12px;
+                    font-weight: 600;
+                }}
+                QPushButton:hover {{
+                    background: rgba(239, 68, 68, 0.15);
+                    border-color: {_RED};
+                }}
+            """)
+            rem_btn.clicked.connect(lambda _, a=app: self._on_remove_excluded_app(a))
+            r_lo.addWidget(rem_btn)
+
+            self._excluded_list_layout.addWidget(row_widget)
+
+    def _on_add_excluded_app(self) -> None:
+        detected = []
+        if self._repository:
+            detected = self._repository.get_all_detected_applications()
+        already = settings_manager.get_excluded_applications()
+        
+        dialog = AddExcludedAppDialog(detected, already, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.selected_app:
+            settings_manager.add_excluded_application(dialog.selected_app)
+            self._render_excluded_apps_list()
+
+    def _on_remove_excluded_app(self, app_name: str) -> None:
+        settings_manager.remove_excluded_application(app_name)
+        self._render_excluded_apps_list()
 
     def _on_interval_changed(self, val: int) -> None:
         settings_manager.set("tracking_interval_seconds", val)
@@ -722,10 +1115,37 @@ class SettingsPage(QWidget):
             title = title[:57] + "..."
         self._kv_win.set_value(title)
         
-        if sys.platform == "win32" or seconds_ago <= 1:
-            self._kv_upd.set_value("Just now")
+        self._update_pause_ui()
+
+        if settings_manager.is_tracking_paused():
+            self._kv_track.set_value("● Paused", _ORANGE)
+
+    def _on_pause_requested(self, minutes: int | None) -> None:
+        settings_manager.pause_tracking(minutes)
+        self._update_pause_ui()
+
+    def _on_resume_requested(self) -> None:
+        settings_manager.resume_tracking()
+        self._update_pause_ui()
+
+    def _update_pause_ui(self) -> None:
+        if not hasattr(self, "_pause_status_lbl"):
+            return
+        if settings_manager.is_tracking_paused():
+            rem = settings_manager.get_pause_remaining_seconds()
+            if rem == float("inf"):
+                self._pause_status_lbl.setText("⏸️ Paused (Until Resumed)")
+            elif rem is not None:
+                from trackora.utils.formatting import format_duration_live
+                self._pause_status_lbl.setText(f"⏸️ Paused ({format_duration_live(int(rem))} remaining)")
+            else:
+                self._pause_status_lbl.setText("⏸️ Tracking Paused")
+            self._pause_status_lbl.setStyleSheet("color: #f59e0b; font-size: 13px; font-weight: 600; background: transparent;")
+            self._resume_btn.setVisible(True)
         else:
-            self._kv_upd.set_value(f"{seconds_ago} seconds ago")
+            self._pause_status_lbl.setText("🟢 Tracking Active")
+            self._pause_status_lbl.setStyleSheet("color: #34d399; font-size: 13px; font-weight: 600; background: transparent;")
+            self._resume_btn.setVisible(False)
 
     def _build_data_tab(self) -> QWidget:
         w = QWidget()
