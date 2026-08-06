@@ -23,6 +23,7 @@ from trackora.gui.pages import (
 )
 
 from trackora.utils.paths import get_asset_path
+from trackora.utils.settings import settings_manager
 # ── Color tokens ─────────────────────────────────────────────────────────────
 _BG = "#0d1117"
 _SIDEBAR_BG = "#0f1419"
@@ -601,6 +602,21 @@ class MainWindow(QMainWindow):
             open_action.setIcon(QIcon(str(logo_path)))
         open_action.triggered.connect(self._restore_window)
         self._tray_menu.addAction(open_action)
+
+        self._tray_menu.addSeparator()
+
+        # Pause Tracking Submenu
+        pause_menu = self._tray_menu.addMenu("⏸ Pause Tracking")
+        pause_menu.setStyleSheet(self._tray_menu.styleSheet())
+
+        for label, minutes in [("15 Minutes", 15), ("30 Minutes", 30), ("1 Hour", 60), ("Until Resumed", None)]:
+            act = QAction(f"Pause for {label}" if minutes else "Pause Until Resumed", self)
+            act.triggered.connect(lambda _, m=minutes: settings_manager.pause_tracking(m))
+            pause_menu.addAction(act)
+
+        resume_action = QAction("▶ Resume Tracking", self)
+        resume_action.triggered.connect(lambda: settings_manager.resume_tracking())
+        self._tray_menu.addAction(resume_action)
 
         self._tray_menu.addSeparator()
 
