@@ -10,6 +10,7 @@ from pathlib import Path
 from trackora.services import run_tracking_service
 from trackora.utils.lock import TrackoraAlreadyRunningError
 from trackora.utils.paths import default_database_path, default_state_path
+from trackora.window_state import get_default_provider
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -73,12 +74,12 @@ def main(argv: list[str] | None = None) -> int:
 
     signal.signal(signal.SIGINT, _handle_sigint)
 
-    from trackora.window_state import get_default_provider
     provider = get_default_provider(state_path)
 
     try:
         run_tracking_service(
             interval_sec=float(args.interval),
+            state_path=state_path,
             database_path=database_path,
             stop_flag=stop,
             timeout_sec=float(args.timeout),
@@ -88,3 +89,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[Trackora] {exc}", file=sys.stderr)
         return 3
     return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
