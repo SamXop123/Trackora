@@ -997,3 +997,25 @@ class DashboardRepository:
             return True
         except Exception:
             return False
+
+    def get_all_detected_applications(self) -> list[str]:
+        """Return sorted list of all unique application names ever recorded in app_sessions."""
+        if not self._database_path.exists():
+            return []
+        try:
+            with sqlite3.connect(self._database_path, timeout=2.0) as conn:
+                rows = conn.execute(
+                    "SELECT DISTINCT app_name FROM app_sessions WHERE app_name IS NOT NULL AND app_name != ''"
+                ).fetchall()
+                
+                apps_set: set[str] = set()
+                for row in rows:
+                    raw_name = str(row[0] or "").strip()
+                    if raw_name:
+                        norm_name = normalize_app_name(raw_name)
+                        apps_set.add(norm_name)
+                        apps_set.add(raw_name)
+                
+                return sorted(list(apps_set), key=lambda s: s.lower())
+        except Exception:
+            return []
