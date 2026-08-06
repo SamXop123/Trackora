@@ -10,7 +10,7 @@ from pathlib import Path
 
 from datetime import date, timedelta
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QRect, QRectF, QTimer, QVariantAnimation, Qt
-from PySide6.QtGui import QBrush, QColor, QIcon, QLinearGradient, QPainter, QPen, QPixmap, QRadialGradient
+from PySide6.QtGui import QAction, QBrush, QColor, QIcon, QLinearGradient, QPainter, QPen, QPixmap, QRadialGradient
 from PySide6.QtWidgets import (
     QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel,
     QMainWindow, QSizePolicy, QStackedWidget, QVBoxLayout, QWidget, QPushButton
@@ -596,6 +596,17 @@ class MainWindow(QMainWindow):
             }}
         """)
 
+        self._tray_menu.aboutToShow.connect(self._update_tray_menu)
+        self._update_tray_menu()
+
+        self._tray_icon.setContextMenu(self._tray_menu)
+        self._tray_icon.activated.connect(self._on_tray_activated)
+        self._tray_icon.show()
+
+    def _update_tray_menu(self):
+        self._tray_menu.clear()
+        logo_path = get_asset_path("trackora_logo.png")
+
         # Open Dashboard Action
         open_action = QAction("Open Dashboard", self)
         if logo_path.exists():
@@ -605,18 +616,35 @@ class MainWindow(QMainWindow):
 
         self._tray_menu.addSeparator()
 
-        # Pause Tracking Submenu
-        pause_menu = self._tray_menu.addMenu("⏸ Pause Tracking")
-        pause_menu.setStyleSheet(self._tray_menu.styleSheet())
+        if settings_manager.is_tracking_paused():
+            rem = settings_manager.get_pause_remaining_seconds()
+            if rem == float("inf"):
+                status_text = "⏸️ Tracking Paused (Until Resumed)"
+            elif rem is not None:
+                from trackora.utils.formatting import format_duration_live
+                status_text = f"⏸️ Tracking Paused ({format_duration_live(int(rem))} remaining)"
+            else:
+                status_text = "⏸️ Tracking Paused"
 
-        for label, minutes in [("15 Minutes", 15), ("30 Minutes", 30), ("1 Hour", 60), ("Until Resumed", None)]:
-            act = QAction(f"Pause for {label}" if minutes else "Pause Until Resumed", self)
-            act.triggered.connect(lambda _, m=minutes: settings_manager.pause_tracking(m))
-            pause_menu.addAction(act)
+            status_act = QAction(status_text, self)
+            status_act.setEnabled(False)
+            self._tray_menu.addAction(status_act)
 
-        resume_action = QAction("▶ Resume Tracking", self)
-        resume_action.triggered.connect(lambda: settings_manager.resume_tracking())
-        self._tray_menu.addAction(resume_action)
+            resume_action = QAction("▶ Resume Tracking", self)
+            resume_action.triggered.connect(self._on_tray_resume)
+            self._tray_menu.addAction(resume_action)
+        else:
+            status_act = QAction("🟢 Tracking Active", self)
+            status_act.setEnabled(False)
+            self._tray_menu.addAction(status_act)
+
+            pause_menu = self._tray_menu.addMenu("⏸ Pause Tracking")
+            pause_menu.setStyleSheet(self._tray_menu.styleSheet())
+
+            for label, minutes in [("15 Minutes", 15), ("30 Minutes", 30), ("1 Hour", 60), ("Until Resumed", None)]:
+                act = QAction(f"Pause for {label}" if minutes else "Pause Until Resumed", self)
+                act.triggered.connect(lambda _, m=minutes: self._on_tray_pause(m))
+                pause_menu.addAction(act)
 
         self._tray_menu.addSeparator()
 
@@ -625,9 +653,13 @@ class MainWindow(QMainWindow):
         quit_action.triggered.connect(self._quit_application)
         self._tray_menu.addAction(quit_action)
 
-        self._tray_icon.setContextMenu(self._tray_menu)
-        self._tray_icon.activated.connect(self._on_tray_activated)
-        self._tray_icon.show()
+    def _on_tray_pause(self, minutes: int | None):
+        settings_manager.pause_tracking(minutes)
+        self._refresh_dashboard()
+
+    def _on_tray_resume(self):
+        settings_manager.resume_tracking()
+        self._refresh_dashboard()
 
     def _restore_window(self):
         self.showNormal()

@@ -59,8 +59,10 @@ class SettingsManager:
             # Safely extract known keys
             config_dict = asdict(self.config)
             for k, v in data.items():
-                if k in config_dict and isinstance(v, type(config_dict[k])):
-                    setattr(self.config, k, v)
+                if k in config_dict:
+                    current_val = config_dict[k]
+                    if current_val is None or v is None or isinstance(v, type(current_val)):
+                        setattr(self.config, k, v)
         except (OSError, json.JSONDecodeError):
             pass
 

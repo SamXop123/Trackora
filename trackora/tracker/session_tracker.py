@@ -82,6 +82,13 @@ class SessionTracker:
     def process_idle_tick(self) -> None:
         """Handle periodic ticks when no valid or fresh window state is available."""
         now = now_utc()
+        if self._is_tracking_paused():
+            if self._active_session is not None:
+                log_info("Tracking is paused; ending active session immediately")
+                self._end_session(self._active_session.last_heartbeat_at)
+                self._is_idle = True
+            return
+
         if self._active_session is not None:
             gap = duration_seconds(self._active_session.last_heartbeat_at, now)
             if gap > self.timeout_seconds:
