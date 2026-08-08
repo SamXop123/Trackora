@@ -39,7 +39,8 @@ echo "Syncing version ${VERSION} to ${SPEC_SRC}..."
 sed -i "s/^Version:.*/Version:        ${VERSION}/" "${SPEC_SRC}"
 
 # 3. Create clean RPM build environment
-echo "Setting up rpmbuild directories..."
+echo "Setting up clean rpmbuild directories..."
+rm -rf rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 cp "${SPEC_SRC}" rpmbuild/SPECS/trackora.spec
 
@@ -92,7 +93,10 @@ mkdir -p dist
 mkdir -p landing/public
 
 # 6. Copy and rename the built RPM
-RPM_FILE=$(find rpmbuild/RPMS -name "*.rpm" | head -n 1)
+RPM_FILE=$(find rpmbuild/RPMS -name "trackora-${FILE_VERSION}*.rpm" | head -n 1)
+if [ -z "${RPM_FILE}" ]; then
+    RPM_FILE=$(find rpmbuild/RPMS -name "*.rpm" | head -n 1)
+fi
 if [ -n "${RPM_FILE}" ]; then
     cp "${RPM_FILE}" "dist/trackora-${FILE_VERSION}.rpm"
     cp "${RPM_FILE}" "landing/public/trackora-${FILE_VERSION}.rpm"
