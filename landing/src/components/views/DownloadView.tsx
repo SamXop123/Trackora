@@ -238,7 +238,7 @@ export default function DownloadView() {
 
           {/* Windows Download Button */}
           <motion.a
-            href="/TrackoraSetup-2.1.0.exe"
+            href="/TrackoraSetup.exe"
             download
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
