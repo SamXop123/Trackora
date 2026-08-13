@@ -51,6 +51,19 @@ class LASTINPUTINFO(ctypes.Structure):
 user32.GetLastInputInfo.argtypes = [ctypes.POINTER(LASTINPUTINFO)]
 user32.GetLastInputInfo.restype = wintypes.BOOL
 
+WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+user32.EnumWindows.argtypes = [WNDENUMPROC, wintypes.LPARAM]
+user32.EnumWindows.restype = wintypes.BOOL
+
+user32.IsWindowVisible.argtypes = [wintypes.HWND]
+user32.IsWindowVisible.restype = wintypes.BOOL
+
+user32.IsIconic.argtypes = [wintypes.HWND]
+user32.IsIconic.restype = wintypes.BOOL
+
+user32.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
+user32.GetWindowLongW.restype = ctypes.c_long
+
 
 def _get_win32_idle_seconds() -> float:
     """Return seconds since last physical keyboard/mouse input on Windows."""
@@ -65,6 +78,42 @@ def _get_win32_idle_seconds() -> float:
     except Exception:
         pass
     return 0.0
+
+
+def _has_non_minimized_app_windows() -> bool:
+    """Return True if there is at least one visible, non-minimized top-level application window on screen."""
+    found = [False]
+
+    def enum_proc(hwnd: wintypes.HWND, lparam: wintypes.LPARAM) -> bool:
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        if user32.IsIconic(hwnd):
+            return True
+
+        buf = ctypes.create_unicode_buffer(256)
+        user32.GetClassNameW(hwnd, buf, 256)
+        cls = buf.value
+
+        ignored_classes = (
+            "Progman", "WorkerW", "SHELLDLL_DefView", "SysListView32",
+            "Shell_TrayWnd", "Shell_SecondaryTrayWnd", "Windows.UI.Core.CoreWindow",
+            "DV2ControlHost", "MultitaskingViewFrame", "XamlExplorerHost",
+            "LockScreenHost"
+        )
+        if cls in ignored_classes:
+            return True
+
+        ex_style = user32.GetWindowLongW(hwnd, -20)  # GWL_EXSTYLE: -20
+        # WS_EX_TOOLWINDOW: 0x00000080, WS_EX_APPWINDOW: 0x00040000
+        if (ex_style & 0x00000080) and not (ex_style & 0x00040000):
+            return True
+
+        found[0] = True
+        return False
+
+    cb = WNDENUMPROC(enum_proc)
+    user32.EnumWindows(cb, 0)
+    return found[0]
 
 
 class WindowsNativeWindowStateProvider(WindowStateProvider):
@@ -98,22 +147,28 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
                 class_name = class_buf.value
 
             desktop_classes = ("Progman", "WorkerW", "SHELLDLL_DefView", "SysListView32")
-            taskbar_classes = ("Shell_TrayWnd", "Shell_SecondaryTrayWnd")
+            transient_shell_classes = (
+                "Shell_TrayWnd",
+                "Shell_SecondaryTrayWnd",
+                "Windows.UI.Core.CoreWindow",
+                "DV2ControlHost",
+                "MultitaskingViewFrame",
+                "XamlExplorerHost"
+            )
 
             if class_name in desktop_classes:
+                # Desktop should ONLY be counted when every application is minimized
+                # and directly the desktop is visible!
+                if _has_non_minimized_app_windows():
+                    return WindowStateReadResult(state=None, error=f"Transient desktop click while apps open ({class_name})")
                 state = WindowState(
                     app="Desktop",
                     title="Desktop",
                     timestamp=to_storage_timestamp(now_utc())
                 )
                 return WindowStateReadResult(state=state, error=None)
-            elif class_name in taskbar_classes:
-                state = WindowState(
-                    app="Desktop",
-                    title="Taskbar",
-                    timestamp=to_storage_timestamp(now_utc())
-                )
-                return WindowStateReadResult(state=state, error=None)
+            elif class_name in transient_shell_classes:
+                return WindowStateReadResult(state=None, error=f"Transient taskbar/shell focus: {class_name}")
 
             # 3. Query window title
             length = user32.GetWindowTextLengthW(hwnd)
@@ -145,9 +200,17 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
                         if app.lower() in ("lockapp", "logonui", "scrnsave"):
                             return WindowStateReadResult(state=None, error="System locked / sleep screen")
                         if app.lower() == "explorer":
-                            if class_name not in ("CabinetWClass", "ExploreWClass") or title in ("", "Desktop", "Program Manager"):
+                            if class_name in desktop_classes:
+                                if _has_non_minimized_app_windows():
+                                    return WindowStateReadResult(state=None, error=f"Transient explorer desktop click while apps open ({class_name})")
                                 app = "Desktop"
-                                title = "Desktop" if class_name not in taskbar_classes else "Taskbar"
+                                title = "Desktop"
+                            elif class_name in ("CabinetWClass", "ExploreWClass"):
+                                app = "File Explorer"
+                                if not title:
+                                    title = "File Explorer"
+                            else:
+                                return WindowStateReadResult(state=None, error=f"Transient shell focus: {class_name}")
                         self._save_exe_path(app, exe_path)
                 finally:
                     kernel32.CloseHandle(h_process)
