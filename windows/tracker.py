@@ -44,27 +44,52 @@ kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
 kernel32.CloseHandle.restype = wintypes.BOOL
 
 
+class LASTINPUTINFO(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.UINT), ("dwTime", wintypes.DWORD)]
+
+
+user32.GetLastInputInfo.argtypes = [ctypes.POINTER(LASTINPUTINFO)]
+user32.GetLastInputInfo.restype = wintypes.BOOL
+
+
+def _get_win32_idle_seconds() -> float:
+    """Return seconds since last physical keyboard/mouse input on Windows."""
+    try:
+        lii = LASTINPUTINFO()
+        lii.cbSize = ctypes.sizeof(LASTINPUTINFO)
+        if user32.GetLastInputInfo(ctypes.byref(lii)):
+            millis = (kernel32.GetTickCount() & 0xFFFFFFFF) - (lii.dwTime & 0xFFFFFFFF)
+            if millis < 0:
+                millis += 0x100000000
+            return millis / 1000.0
+    except Exception:
+        pass
+    return 0.0
+
+
 class WindowsNativeWindowStateProvider(WindowStateProvider):
     """Native active window provider for Windows using ctypes APIs."""
 
-    def __init__(self) -> None:
+    def __init__(self, idle_threshold_sec: float = 300.0) -> None:
         super().__init__()
         self._saved_paths: dict[str, str] = {}
+        self.idle_threshold_sec = idle_threshold_sec
 
     def get_window_state(self) -> WindowStateReadResult:
         if sys.platform != "win32":
             return WindowStateReadResult(state=None, error="Windows tracker can only run on Windows")
 
         try:
+            # 0. Check physical user input idle threshold (AFK detection)
+            idle_sec = _get_win32_idle_seconds()
+            if idle_sec >= self.idle_threshold_sec:
+                return WindowStateReadResult(state=None, error=f"User idle / AFK for {idle_sec:.1f}s")
+
             # 1. Fetch active window handle
             hwnd = user32.GetForegroundWindow()
             if not hwnd:
-                state = WindowState(
-                    app="Desktop",
-                    title="Desktop",
-                    timestamp=to_storage_timestamp(now_utc())
-                )
-                return WindowStateReadResult(state=state, error=None)
+                # No window focused (screen locked, display off, lid closed, or system asleep)
+                return WindowStateReadResult(state=None, error="No active window focused")
 
             # 2. Query window class name to detect desktop shell focus
             class_name = ""
@@ -117,8 +142,8 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
                         exe_name = os.path.basename(exe_path)
                         # Strip extension, e.g. "chrome.exe" -> "chrome"
                         app = os.path.splitext(exe_name)[0]
-                        if app.lower() == "lockapp":
-                            return WindowStateReadResult(state=None, error=None)
+                        if app.lower() in ("lockapp", "logonui", "scrnsave"):
+                            return WindowStateReadResult(state=None, error="System locked / sleep screen")
                         if app.lower() == "explorer":
                             if class_name not in ("CabinetWClass", "ExploreWClass") or title in ("", "Desktop", "Program Manager"):
                                 app = "Desktop"
