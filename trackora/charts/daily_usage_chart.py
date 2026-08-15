@@ -16,7 +16,57 @@ _TEXT_MUTED = "#566a82"
 _ACCENT = "#3b82f6"
 
 
-from trackora.gui.ui_common import ChartValueAnimator
+from typing import Callable
+from PySide6.QtCore import QEasingCurve, QObject, QVariantAnimation
+
+
+class ChartValueAnimator(QObject):
+    """Smoothly interpolates chart bar values from old to new values over 160ms."""
+
+    def __init__(self, update_callback: Callable[[list[float]], None], duration_ms: int = 160, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._callback = update_callback
+        self._duration_ms = duration_ms
+        self._anim: QVariantAnimation | None = None
+        self._old_values: list[float] = []
+        self._target_values: list[float] = []
+
+    def animate_to(self, new_values: list[float]) -> None:
+        if not self._old_values:
+            self._old_values = [0.0] * len(new_values)
+            self._target_values = list(new_values)
+            self._callback(new_values)
+            return
+
+        max_len = max(len(self._old_values), len(new_values))
+        old_v = self._old_values + [0.0] * (max_len - len(self._old_values))
+        target_v = list(new_values) + [0.0] * (max_len - len(new_values))
+
+        if old_v == target_v:
+            return
+
+        if self._anim is not None:
+            self._anim.stop()
+
+        self._target_values = target_v
+
+        anim = QVariantAnimation(self)
+        anim.setDuration(self._duration_ms)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        def _on_step(progress: float) -> None:
+            p = float(progress)
+            interpolated = [
+                old + (tgt - old) * p for old, tgt in zip(old_v, target_v)
+            ]
+            self._old_values = interpolated
+            self._callback(interpolated)
+
+        anim.valueChanged.connect(_on_step)
+        self._anim = anim
+        anim.start()
 
 
 class DailyUsageChart(QWidget):
@@ -27,7 +77,7 @@ class DailyUsageChart(QWidget):
     
     _PAD_LEFT = 35      # space for left axis (0m, 15m, 30m...)
     _PAD_RIGHT = 15
-    _PAD_TOP = 15       # space at the top of the chart
+    _PAD_TOP = 28       # space at the top of the chart for tooltips
     _PAD_BOTTOM = 22    # space for bottom hour labels
     _BAR_GAP_RATIO = 0.25 # gap between bars
     
@@ -181,10 +231,13 @@ class DailyUsageChart(QWidget):
             
             # Draw tooltip bubble
             metrics = painter.fontMetrics()
-            tw = metrics.horizontalAdvance(tip_text) + 8
+            tw = metrics.horizontalAdvance(tip_text) + 10
             th = metrics.height() + 4
             tx = rect.center().x() - tw / 2
-            ty = rect.y() - th - 6
+            # Clamp horizontally to keep tooltip inside chart boundaries
+            tx = max(float(self._PAD_LEFT), min(tx, float(w - self._PAD_RIGHT - tw)))
+            # Position above bar, clamped to always stay below top edge
+            ty = max(4.0, rect.y() - th - 5)
             
             painter.setBrush(QBrush(QColor(15, 23, 42)))
             painter.setPen(QPen(QColor(59, 130, 246), 1))
