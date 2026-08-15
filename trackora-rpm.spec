@@ -1,5 +1,5 @@
 Name:           trackora
-Version:        2.1.0
+Version:        2.2.0
 Release:        1%{?dist}
 Summary:        Privacy-focused activity and screen time tracker for GNOME Wayland
 
@@ -83,6 +83,9 @@ fi
 %{_datadir}/pixmaps/trackora.png
 
 %changelog
+* Sat Aug 15 2026 SamXop123 <dot_notsam> - 2.2.0-1
+- High-performance O(N) analytics engine, async icon extraction, Windows High-DPI scaling, and process tracking optimizations.
+
 * Sun Aug 02 2026 SamXop123 <dot_notsam> - 2.1.0-1
 - Timeline pagination, icon caching, tray fixes, and desktop tracking QoLs.
 
