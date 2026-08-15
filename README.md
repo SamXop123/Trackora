@@ -14,7 +14,7 @@ Trackora is an elegant, privacy-first productivity tool designed primarily for t
 [![License: MIT](https://img.shields.io/badge/License-MIT-5c6bc0.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-informational?style=flat-square&color=5c6bc0)](https://github.com/SamXop123/Trackora)
 [![GNOME](https://img.shields.io/badge/GNOME-Extension-informational?style=flat-square&color=4db6ac)](https://extensions.gnome.org)
-[![Version](https://img.shields.io/badge/Version-v2.1.0-3b82f6.svg?style=flat-square)](https://github.com/SamXop123/Trackora/releases)
+[![Version](https://img.shields.io/badge/Version-v2.2.0-3b82f6.svg?style=flat-square)](https://github.com/SamXop123/Trackora/releases)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square&color=66bb6a)](DEVELOPMENT.md)
 [![Stars](https://img.shields.io/github/stars/SamXop123/Trackora?style=flat-square&color=ffa726)](https://github.com/SamXop123/Trackora/stargazers)
 
@@ -61,12 +61,12 @@ Then, whenever you're curious: *open it, and know.*
 
 #### Option 1: Fedora RPM Package (Recommended)
 
-Download the native Fedora RPM package (`trackora-2.1.0.rpm`) from the latest [Trackora GitHub Releases](https://github.com/SamXop123/Trackora/releases).
+Download the native Fedora RPM package (`trackora-2.2.0.rpm`) from the latest [Trackora GitHub Releases](https://github.com/SamXop123/Trackora/releases).
 
 Install either by double-clicking the RPM file in GNOME Software, or by running:
 
 ```bash
-sudo dnf install ./trackora-2.1.0.rpm
+sudo dnf install ./trackora-2.2.0.rpm
 ```
 
 After installation, launch **Trackora** directly from your GNOME Applications menu.
