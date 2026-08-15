@@ -13,14 +13,23 @@ OutputDir=dist-installer
 OutputBaseFilename=TrackoraSetup
 Compression=lzma2
 SolidCompression=yes
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesInstallIn64BitMode=x64compatible
+PrivilegesRequired=lowest
 DisableDirPage=no
 DisableProgramGroupPage=yes
+DirExistsWarning=no
+CloseApplications=yes
 SetupIconFile=trackora\assets\trackora_logo.ico
 ChangesAssociations=yes
 
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\_internal"
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}"
+
 [Files]
-Source: "dist\trackora-dashboard\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+Source: "dist\trackora-dashboard\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
 Name: "{group}\Trackora"; Filename: "{app}\trackora-dashboard.exe"; IconFilename: "{app}\_internal\trackora\assets\trackora_logo.ico"
@@ -28,3 +37,25 @@ Name: "{userdesktop}\Trackora"; Filename: "{app}\trackora-dashboard.exe"; IconFi
 
 [Run]
 Filename: "{app}\trackora-dashboard.exe"; Description: "Launch Trackora"; Flags: postinstall nowait
+
+[Code]
+procedure TaskKill(FileName: String);
+var
+  ResultCode: Integer;
+begin
+  Exec('taskkill.exe', '/F /IM ' + FileName, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+function InitializeSetup(): Boolean;
+begin
+  TaskKill('trackora-dashboard.exe');
+  TaskKill('trackora.exe');
+  Result := True;
+end;
+
+function InitializeUninstall(): Boolean;
+begin
+  TaskKill('trackora-dashboard.exe');
+  TaskKill('trackora.exe');
+  Result := True;
+end;
