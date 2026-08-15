@@ -22,6 +22,7 @@ from ...models.dashboard import (
 from ...utils.formatting import format_duration_compact, format_duration_live
 from ...database.dashboard import _get_app_category
 from ...utils.paths import get_asset_path
+from trackora.gui.ui_common import ChartValueAnimator
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -338,6 +339,7 @@ class _ActiveCard(_Card):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setMinimumHeight(190)
+        self._last_category: str | None = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 18, 24, 18)
@@ -419,40 +421,42 @@ class _ActiveCard(_Card):
             self._elapsed_label.setText("")
             self._app_icon_label.clear()
             self._category_badge.setVisible(False)
+            self._last_category = None
             return
 
         self._app_label.setText(active.app_name)
         self._elapsed_label.setText(format_duration_live(active.elapsed_seconds))
         self._set_icon(active.app_name)
 
-        # Resolve category and icon prefix
+        # Resolve category and update style only if changed
         cat = _get_app_category(active.app_name)
-        category_icons = {
-            "Browsers": "🌐 ",
-            "Development": "</> ",
-            "Music": "🎵 ",
-            "Communication": "💬 ",
-            "System": "⚙️ ",
-            "Utilities": "🔧 ",
-        }
-        icon_prefix = category_icons.get(cat, "")
-        self._category_badge.setText(f"{icon_prefix}{cat.upper()}")
-        self._category_badge.setVisible(True)
-        # Color badge depending on category
-        colors = {
-            "Browsers": (_GREEN, "rgba(52, 211, 153, 0.1)", "rgba(52, 211, 153, 0.2)"),
-            "Development": (_ACCENT, "rgba(59, 130, 246, 0.1)", "rgba(59, 130, 246, 0.2)"),
-            "Music": ("#a855f7", "rgba(168, 85, 247, 0.1)", "rgba(168, 85, 247, 0.2)"),
-            "Communication": ("#ec4899", "rgba(236, 72, 153, 0.1)", "rgba(236, 72, 153, 0.2)"),
-            "System": (_TEXT_SECONDARY, "rgba(139, 155, 180, 0.1)", "rgba(139, 155, 180, 0.2)"),
-            "Utilities": ("#eab308", "rgba(234, 179, 8, 0.1)", "rgba(234, 179, 8, 0.2)"),
-        }
-        fg, bg, border = colors.get(cat, (_TEXT_MUTED, "rgba(86, 106, 130, 0.1)", "rgba(86, 106, 130, 0.2)"))
-        self._category_badge.setStyleSheet(
-            f"color: {fg}; font-size: 10px; font-weight: 700; "
-            f"background: {bg}; border: 1px solid {border}; "
-            f"border-radius: 8px; padding: 2px 8px;"
-        )
+        if cat != self._last_category:
+            self._last_category = cat
+            category_icons = {
+                "Browsers": "🌐 ",
+                "Development": "</> ",
+                "Music": "🎵 ",
+                "Communication": "💬 ",
+                "System": "⚙️ ",
+                "Utilities": "🔧 ",
+            }
+            icon_prefix = category_icons.get(cat, "")
+            self._category_badge.setText(f"{icon_prefix}{cat.upper()}")
+            self._category_badge.setVisible(True)
+            colors = {
+                "Browsers": (_GREEN, "rgba(52, 211, 153, 0.1)", "rgba(52, 211, 153, 0.2)"),
+                "Development": (_ACCENT, "rgba(59, 130, 246, 0.1)", "rgba(59, 130, 246, 0.2)"),
+                "Music": ("#a855f7", "rgba(168, 85, 247, 0.1)", "rgba(168, 85, 247, 0.2)"),
+                "Communication": ("#ec4899", "rgba(236, 72, 153, 0.1)", "rgba(236, 72, 153, 0.2)"),
+                "System": (_TEXT_SECONDARY, "rgba(139, 155, 180, 0.1)", "rgba(139, 155, 180, 0.2)"),
+                "Utilities": ("#eab308", "rgba(234, 179, 8, 0.1)", "rgba(234, 179, 8, 0.2)"),
+            }
+            fg, bg, border = colors.get(cat, (_TEXT_MUTED, "rgba(86, 106, 130, 0.1)", "rgba(86, 106, 130, 0.2)"))
+            self._category_badge.setStyleSheet(
+                f"color: {fg}; font-size: 10px; font-weight: 700; "
+                f"background: {bg}; border: 1px solid {border}; "
+                f"border-radius: 8px; padding: 2px 8px;"
+            )
 
 
 # ─── Activity Timeline card ────────────────────────────────────────────────
@@ -544,40 +548,35 @@ class _TimelineCard(_Card):
 # ─── Top Applications card ─────────────────────────────────────────────────
 
 class _AppRow(QWidget):
-    """Single application row with native icon, name, progress bar, duration."""
+    """Row in the Top Applications list with progress bar, hover accent, and smooth animation."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, name: str = "", seconds: int = 0, ratio: float = 0.0, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setFixedHeight(46)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedHeight(48)
         self._hovered = False
-        self._bar_ratio = 0.0
+        self._name_str = name
+        self._seconds = seconds
+        self._bar_ratio = ratio
+        self._anim_progress = ratio
+        self._anim: QPropertyAnimation | None = None
 
         row = QHBoxLayout(self)
-        row.setContentsMargins(12, 6, 12, 6)
+        row.setContentsMargins(8, 0, 8, 0)
         row.setSpacing(12)
 
-        self._icon_label = QLabel()
-        self._icon_label.setFixedSize(32, 32)
+        self._icon_label = QLabel(self)
+        self._icon_label.setFixedSize(28, 28)
         self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._icon_label.setStyleSheet("background: transparent; border: none;")
         row.addWidget(self._icon_label)
 
-        mid = QVBoxLayout()
-        mid.setSpacing(2)
-        mid.setContentsMargins(0, 0, 0, 8)  # Leave space for the custom painted progress bar below the text
-
-        self._name = QLabel("")
+        self._name = QLabel(name)
         self._name.setStyleSheet(
-            f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 500; "
+            f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 600; "
             f"background: transparent; border: none;"
         )
-        mid.addWidget(self._name)
-        row.addLayout(mid, 1)
+        row.addWidget(self._name, 1)
 
-        self._duration = QLabel("")
-        self._duration.setFixedWidth(70)
-        self._duration.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self._duration = QLabel(format_duration_compact(seconds))
         self._duration.setStyleSheet(
             f"color: {_TEXT_SECONDARY}; font-size: 12px; font-weight: 500; "
             f"background: transparent; border: none;"
@@ -588,9 +587,16 @@ class _AppRow(QWidget):
         self._name.setText(name)
         self._duration.setText(format_duration_compact(seconds))
         self._bar_ratio = max(0.0, min(ratio, 1.0))
-        pixmap = _get_app_icon(name, 28)
+        self._current_row_app = name
+        def _on_icon_ready(pm: QPixmap | None) -> None:
+            if pm and not pm.isNull() and getattr(self, "_current_row_app", "") == name:
+                self._icon_label.setPixmap(pm)
+                self._icon_label.setStyleSheet("background: transparent; border: none;")
+
+        pixmap = _get_app_icon(name, 28, on_loaded=_on_icon_ready)
         if pixmap:
             self._icon_label.setPixmap(pixmap)
+            self._icon_label.setStyleSheet("background: transparent; border: none;")
         else:
             self._icon_label.setText("●")
             self._icon_label.setStyleSheet(
@@ -757,14 +763,21 @@ class _WeeklyChart(QWidget):
         self._days: list[DailyUsageSummary] = []
         self._today: date | None = None
         self._hovered_index: int = -1
+        self._animated_values: list[float] = []
         self.setMinimumHeight(170)
         self.setMouseTracking(True)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self._animator = ChartValueAnimator(self._on_animated_values, duration_ms=160, parent=self)
+
+    def _on_animated_values(self, values: list[float]) -> None:
+        self._animated_values = values
+        self.update()
 
     def set_data(self, days: list[DailyUsageSummary], today: date):
         self._days = days
         self._today = today
-        self.update()
+        targets = [float(d.duration_seconds) for d in days]
+        self._animator.animate_to(targets)
 
     def _bar_rects(self) -> list[QRectF]:
         """Compute bar rectangles for current widget size."""
@@ -776,11 +789,13 @@ class _WeeklyChart(QWidget):
         slot_w = usable_w / n
         gap = slot_w * self._BAR_GAP_RATIO
         bar_w = slot_w - gap
-        max_secs = max((d.duration_seconds for d in self._days), default=1) or 1
+        
+        vals = self._animated_values if self._animated_values and len(self._animated_values) == n else [float(d.duration_seconds) for d in self._days]
+        max_secs = max(vals, default=1.0) or 1.0
 
         rects = []
-        for i, day in enumerate(self._days):
-            ratio = min(day.duration_seconds / max_secs, 1.0)
+        for i, val in enumerate(vals):
+            ratio = min(val / max_secs, 1.0)
             bar_h = max(ratio * usable_h, 3)  # minimum 3px for empty days
             x = self._PAD_SIDE + i * slot_w + gap / 2
             y = self._PAD_TOP + usable_h - bar_h
@@ -1119,6 +1134,7 @@ class DashboardPage(QWidget):
         self._date_btn.setIcon(QIcon(_CALENDAR_SVG_PATH))
         self._date_btn.setIconSize(QSize(14, 14))
         self._date_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._date_btn.setToolTip("Click to choose a specific date")
         self._date_btn.setStyleSheet(
             f"QPushButton {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
             f"border-radius: 8px; padding: 7px 14px; color: {_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; text-align: center; }}"
@@ -1134,6 +1150,8 @@ class DashboardPage(QWidget):
         self._next_btn.setFixedSize(30, 30)
         self._prev_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._prev_btn.setToolTip("Previous day")
+        self._next_btn.setToolTip("Next day")
         
         self._prev_btn.setStyleSheet(
             f"QPushButton {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
@@ -1158,6 +1176,7 @@ class DashboardPage(QWidget):
 
         # View segmented toggle
         self._view_combo = _SegmentedToggle()
+        self._view_combo.setToolTip("Switch between Day and Week views")
         self._view_combo.currentTextChanged.connect(self._on_view_changed)
         hdr_row.addWidget(self._view_combo)
 
@@ -1165,6 +1184,7 @@ class DashboardPage(QWidget):
         self._reset_btn = QPushButton("⟲")
         self._reset_btn.setFixedSize(30, 30)
         self._reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._reset_btn.setToolTip("Reset to today")
         self._reset_btn.setStyleSheet(
             f"QPushButton {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; "
             f"border-radius: 8px; color: {_TEXT_PRIMARY}; font-size: 14px; }}"
@@ -1235,6 +1255,26 @@ class DashboardPage(QWidget):
         self._active_status = snapshot.active_app
         now = snapshot.last_refreshed
         self._date_btn.setText(now.strftime('%B %d, %Y'))
+
+        is_today = (now.date() >= date.today())
+        self._next_btn.setEnabled(not is_today)
+        if is_today:
+            self._next_btn.setStyleSheet(
+                f"QPushButton {{ background: {_CARD}; border: 0px; border-top: 1px solid {_CARD_BORDER}; "
+                f"border-bottom: 1px solid {_CARD_BORDER}; border-right: 1px solid {_CARD_BORDER}; "
+                f"border-top-right-radius: 8px; border-bottom-right-radius: 8px; "
+                f"color: {_TEXT_MUTED}; font-size: 12px; font-weight: 600; }}"
+            )
+            self._next_btn.setCursor(Qt.CursorShape.ArrowCursor)
+        else:
+            self._next_btn.setStyleSheet(
+                f"QPushButton {{ background: {_CARD}; border: 0px; border-top: 1px solid {_CARD_BORDER}; "
+                f"border-bottom: 1px solid {_CARD_BORDER}; border-right: 1px solid {_CARD_BORDER}; "
+                f"border-top-right-radius: 8px; border-bottom-right-radius: 8px; "
+                f"color: {_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; }}"
+                f"QPushButton:hover {{ background: {_CARD_LIGHTER}; }}"
+            )
+            self._next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._hero_card.update_data(snapshot.total_today_seconds, snapshot.total_yesterday_seconds, snapshot)
         self._active_card.update_data(snapshot.active_app)

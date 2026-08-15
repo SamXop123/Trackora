@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 from ...database.dashboard import DashboardRepository
 from ...models.dashboard import AppDetailedStats
 from ...utils.formatting import format_duration_compact
+from trackora.gui.ui_common import recycle_widgets_in_place
 
 # ─── Shared color tokens (identical to dashboard.py) ────────────────────────
 _BG = "#0d1117"
@@ -37,11 +38,7 @@ from trackora.gui.utils import get_app_icon as _get_app_icon
 
 
 def _add_shadow(widget: QWidget, blur: int = 20, opacity: int = 35, dy: int = 3):
-    shadow = QGraphicsDropShadowEffect(widget)
-    shadow.setBlurRadius(blur)
-    shadow.setColor(QColor(0, 0, 0, opacity))
-    shadow.setOffset(0, dy)
-    widget.setGraphicsEffect(shadow)
+    pass
 
 
 def _format_last_active(dt: datetime | None) -> str:
@@ -229,9 +226,16 @@ class _AppCard(QFrame):
         self._stat_avg[1].setText(format_duration_compact(stat.avg_session_seconds))
         self._stat_last[1].setText(_format_last_active(stat.last_active))
         # Icon
-        pixmap = _get_app_icon(stat.app_name, 32)
+        self._current_app_name = stat.app_name
+        def _on_icon_ready(pm: QPixmap | None) -> None:
+            if pm and not pm.isNull() and getattr(self, "_current_app_name", "") == stat.app_name:
+                self._icon_label.setPixmap(pm)
+                self._icon_label.setStyleSheet("background: transparent; border: none;")
+
+        pixmap = _get_app_icon(stat.app_name, 32, on_loaded=_on_icon_ready)
         if pixmap:
             self._icon_label.setPixmap(pixmap)
+            self._icon_label.setStyleSheet("background: transparent; border: none;")
         else:
             self._icon_label.setText("●")
             self._icon_label.setStyleSheet(
@@ -411,33 +415,35 @@ class ApplicationsPage(QWidget):
         self._repository = repo
 
     def refresh_data(self):
-        """Reload app data for the current range."""
+        """Reload app data for the current range with in-place recycling."""
         if self._repository is None:
             return
 
         stats = self._repository.load_app_details(days=self._current_days)
 
-        # Clear existing cards
-        for card in self._app_cards:
-            self._cards_layout.removeWidget(card)
-            card.deleteLater()
-        self._app_cards.clear()
-
         if not stats:
             self._empty_state.setVisible(True)
             self._count_label.setText("")
+            for card in self._app_cards:
+                card.setVisible(False)
             return
 
         self._empty_state.setVisible(False)
         self._count_label.setText(f"{len(stats)} applications")
 
         max_secs = stats[0].duration_seconds if stats else 1
-        for stat in stats:
-            card = _AppCard()
+
+        def _update_card(card: _AppCard, stat: AppDetailedStats, _idx: int) -> None:
             ratio = stat.duration_seconds / max(max_secs, 1)
             card.set_data(stat, ratio)
-            self._cards_layout.addWidget(card)
-            self._app_cards.append(card)
+
+        self._app_cards = recycle_widgets_in_place(
+            layout=self._cards_layout,
+            existing_widgets=self._app_cards,
+            new_data=stats,
+            create_fn=_AppCard,
+            update_fn=_update_card,
+        )
 
     def _on_range_change(self, days: int):
         self._current_days = days

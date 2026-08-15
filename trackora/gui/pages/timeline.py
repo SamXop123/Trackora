@@ -42,20 +42,12 @@ _GREEN = "#34d399"
 
 from trackora.gui.utils import get_app_icon as _get_app_icon
 
-_LOCAL_ICON_CACHE: dict[str, QPixmap | None] = {}
-
-def _get_cached_app_icon(app_name: str) -> QPixmap | None:
-    if app_name not in _LOCAL_ICON_CACHE:
-        _LOCAL_ICON_CACHE[app_name] = _get_app_icon(app_name, 28)
-    return _LOCAL_ICON_CACHE[app_name]
+def _get_cached_app_icon(app_name: str, on_loaded=None) -> QPixmap | None:
+    return _get_app_icon(app_name, 28, on_loaded=on_loaded)
 
 
 def _add_shadow(widget: QWidget, blur: int = 20, opacity: int = 35, dy: int = 3):
-    shadow = QGraphicsDropShadowEffect(widget)
-    shadow.setBlurRadius(blur)
-    shadow.setColor(QColor(0, 0, 0, opacity))
-    shadow.setOffset(0, dy)
-    widget.setGraphicsEffect(shadow)
+    pass
 
 
 def _format_duration_smart(seconds: int) -> str:
@@ -89,45 +81,14 @@ def _hour_label(hour_24: int) -> str:
     return f"{hour_24 - 12} PM"
 
 
-class _ToggleSwitch(QWidget):
-    """Custom premium toggle switch widget."""
+from trackora.gui.ui_common import AnimatedToggleSwitch
+
+
+class _ToggleSwitch(AnimatedToggleSwitch):
+    """Custom premium animated toggle switch widget."""
 
     def __init__(self, callback, parent=None):
-        super().__init__(parent)
-        self.setFixedSize(38, 20)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._checked = False
-        self._callback = callback
-
-    def is_checked(self) -> bool:
-        return self._checked
-
-    def set_checked(self, checked: bool):
-        if self._checked != checked:
-            self._checked = checked
-            self.update()
-
-    def mousePressEvent(self, event):
-        self._checked = not self._checked
-        self.update()
-        self._callback(self._checked)
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        # Draw background track
-        track_color = QColor("#2563eb") if self._checked else QColor("#1c2735")
-        painter.setBrush(QBrush(track_color))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawRoundedRect(0, 0, self.width(), self.height(), 10, 10)
-
-        # Draw knob
-        knob_color = QColor("#e6edf5") if self._checked else QColor("#8b9bb4")
-        painter.setBrush(QBrush(knob_color))
-        knob_x = self.width() - 17 if self._checked else 3
-        painter.drawEllipse(knob_x, 3, 14, 14)
-        painter.end()
+        super().__init__(checked=False, on_toggled=callback, parent=parent)
 
 
 # ─── Summary stat chip ──────────────────────────────────────────────────────
@@ -265,14 +226,20 @@ class _TimelineEntryCard(QFrame):
         self._subtitle.setVisible(bool(title))
 
         # Icon (cached lookup)
-        pixmap = _get_cached_app_icon(session.app_name)
+        self._current_app_name = session.app_name
+        def _on_icon_ready(pm: QPixmap | None) -> None:
+            if pm and not pm.isNull() and getattr(self, "_current_app_name", "") == session.app_name:
+                self._icon_label.setPixmap(pm)
+                self._icon_label.setStyleSheet("background: transparent; border: none;")
+
+        pixmap = _get_cached_app_icon(session.app_name, on_loaded=_on_icon_ready)
         if pixmap:
             self._icon_label.setPixmap(pixmap)
+            self._icon_label.setStyleSheet("background: transparent; border: none;")
         else:
-            letter = session.app_name[0].upper() if session.app_name else "●"
-            self._icon_label.setText(letter)
+            self._icon_label.setText("●")
             self._icon_label.setStyleSheet(
-                f"color: {_ACCENT}; font-size: 13px; font-weight: 700; "
+                f"color: {_ACCENT}; font-size: 16px; "
                 f"background: {_CARD_BORDER}; border-radius: 8px; border: none;"
             )
 
@@ -577,10 +544,11 @@ class TimelinePage(QWidget):
         """Called by MainWindow to inject the shared repository."""
         self._repository = repo
 
-    def reset_pagination(self) -> None:
+    def reset_pagination(self):
         """Reset pagination to default 50 sessions when navigating pages."""
-        self._limit = 50
-        self._last_structure_sig = None
+        if self._limit != 50:
+            self._limit = 50
+            self._last_structure_sig = None
 
     def refresh_data(self, force: bool = False):
         """Reload timeline sessions from the database."""
