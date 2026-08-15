@@ -56,6 +56,18 @@ class SQLiteSessionStore:
                 WHERE end_time IS NULL
                 """
             )
+            self._conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_app_sessions_times
+                ON app_sessions (start_time, end_time)
+                """
+            )
+            self._conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_app_sessions_app_name
+                ON app_sessions (app_name)
+                """
+            )
 
     def start_session(self, *, app_name: str, window_title: str, start_time: str) -> int:
         """Insert a new active session and return its row id."""
