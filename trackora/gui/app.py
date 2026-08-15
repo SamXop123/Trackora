@@ -339,7 +339,27 @@ def main(argv: list[str] | None = None) -> int:
         msg.exec()
         return 0
 
-    from PySide6.QtGui import QFont, QFontDatabase, QIcon
+    # Enable native Per-Monitor High-DPI awareness on Windows before QApplication creation
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            try:
+                ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+            except Exception:
+                try:
+                    ctypes.windll.shcore.SetProcessDpiAwareness(2)
+                except Exception:
+                    ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication, QIcon
+
+    if hasattr(Qt, "HighDpiScaleFactorRoundingPolicy"):
+        QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
+            Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+        )
 
     app = QApplication(sys.argv if argv is None else [sys.argv[0], *argv])
     app.setApplicationName("Trackora")
@@ -351,14 +371,17 @@ def main(argv: list[str] | None = None) -> int:
     if logo_path.exists():
         app.setWindowIcon(QIcon(str(logo_path)))
 
-    # Load custom premium 'Inter' font from assets folder
+    # Load custom premium 'Inter' font from assets folder with high-quality anti-aliasing
     font_path = get_asset_path("Inter.ttf")
     if font_path.exists():
         font_id = QFontDatabase.addApplicationFont(str(font_path))
         if font_id != -1:
             families = QFontDatabase.applicationFontFamilies(font_id)
             if families:
-                app.setFont(QFont(families[0], 10))
+                app_font = QFont(families[0], 10)
+                app_font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias | QFont.StyleStrategy.PreferQuality)
+                app_font.setHintingPreference(QFont.HintingPreference.PreferFullHinting)
+                app.setFont(app_font)
 
     # Ensure GNOME Shell extension is enabled (Linux only)
     if sys.platform != "win32":
