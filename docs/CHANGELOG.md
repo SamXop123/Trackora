@@ -4,6 +4,33 @@ All notable changes to the Trackora project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-08-15
+
+This release introduces a major performance engine overhaul, non-blocking asynchronous icon loading, native Windows Per-Monitor High-DPI scaling, and refined Windows application tracking.
+
+### Performance & Engine Overhaul
+- **$O(N)$ Floating-Point Analytics Engine**:
+  - Replaced nested ISO date string parsing with single-pass floating-point epoch math, speeding up 30-day and 90-day Reports queries from 5 seconds to **~3 ms** (over 900x faster).
+  - Added SQLite database indexes on session timestamps and app names to stop full-table scans.
+  - Added smart in-memory query caching with database modification checks for instantaneous range filter switching.
+- **Asynchronous Icon Extraction (`QThreadPool`)**:
+  - Moved Windows shell `.exe` icon extraction to background worker threads so Application cards render in **0 ms** with no UI thread freeze.
+  - Indexed Windows Start Menu shortcuts in memory to eliminate repeated directory scans.
+- **Instantaneous Tab Navigation**:
+  - Made sidebar tab switches and navigation instantaneous with deferred data reloads.
+
+### Display & Windows High-DPI Polish
+- **Per-Monitor v2 High-DPI Awareness**:
+  - Configured native Windows Per-Monitor High-DPI awareness (`DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2`) and pass-through scaling policy.
+  - Enabled sub-pixel font anti-aliasing and full hinting, eliminating blurry or pixelated text on 16:10 / 1920x1200+ laptop displays.
+
+### Windows Tracking & Exclusions
+- **Refined Process Name Normalization**:
+  - Improved executable matching for Windows background processes and Trackora Python GUI instances.
+  - Pre-compiled exclusion tokens in memory to eliminate repeated filesystem kernel `stat()` calls in hot paths.
+
+---
+
 ## [2.1.0] - 2026-08-02
 
 This minor release brings Timeline pagination, high-performance icon caching, system tray fixes for Windows, desktop tracking enhancements across Linux & Windows, and general Quality of Life (QoL) improvements.
