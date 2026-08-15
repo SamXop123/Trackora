@@ -23,10 +23,8 @@ SetupIconFile=trackora\assets\trackora_logo.ico
 ChangesAssociations=yes
 
 [InstallDelete]
+; Clean previous internal bundle on upgrade to prevent stale cached PySide / Python DLLs
 Type: filesandordirs; Name: "{app}\_internal"
-
-[UninstallDelete]
-Type: filesandordirs; Name: "{app}"
 
 [Files]
 Source: "dist\trackora-dashboard\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
