@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Any
 
-from PySide6.QtCore import Qt, QTimer, QUrl, QSize, QVariantAnimation, QRectF
+from PySide6.QtCore import Qt, QTimer, QUrl, QSize, QVariantAnimation, QRectF, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QPixmap, QPainter, QBrush, QPen
 from PySide6.QtWidgets import (
     QFrame,
@@ -672,6 +672,8 @@ class _SegmentedControl(QWidget):
 class SettingsPage(QWidget):
     """Application settings dashboard."""
 
+    data_reset_requested = Signal()
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._repository: DashboardRepository | None = None
@@ -1303,6 +1305,8 @@ class SettingsPage(QWidget):
             start_of_day_utc = datetime(now.year, now.month, now.day, tzinfo=now.tzinfo)
             self._repository.reset_today(start_of_day_utc)
             self._refresh_data_tab()
+            self.data_reset_requested.emit()
+            QMessageBox.information(self, "Data Reset", "Today's tracking data has been cleared.")
 
     def _on_reset_all(self) -> None:
         if not self._repository: return
@@ -1315,6 +1319,8 @@ class SettingsPage(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             self._repository.reset_all()
             self._refresh_data_tab()
+            self.data_reset_requested.emit()
+            QMessageBox.information(self, "Database Wiped", "All tracking data has been permanently wiped.")
 
     def _build_about_tab(self) -> QWidget:
         w = QWidget()
