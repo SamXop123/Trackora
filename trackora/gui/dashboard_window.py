@@ -21,6 +21,7 @@ from trackora.gui.pages import (
     ApplicationsPage, DashboardPage, GoalsPage,
     InsightsPage, ReportsPage, SettingsPage, TimelinePage,
 )
+from trackora.gui.ui_common import PageTransitionHelper
 
 from trackora.utils.paths import get_asset_path
 from trackora.utils.settings import settings_manager
@@ -142,7 +143,7 @@ class _ToastPopup(QWidget):
 
 
 class _NavButton(QWidget):
-    """Sidebar navigation item with icon, label, active indicator, and smooth ambient hover animation."""
+    """Sidebar navigation item with smooth ambient hover and active indicators."""
 
     def __init__(self, text: str, icon_char: str, index: int, callback, parent=None):
         super().__init__(parent)
@@ -150,13 +151,14 @@ class _NavButton(QWidget):
         self._callback = callback
         self._active = False
         self._hovered = False
+        self._pressed = False
         self.setFixedHeight(44)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
 
-        # Ambient hover fade animation
+        # Ambient hover fade animation (150ms)
         self._hover_anim = QVariantAnimation(self)
-        self._hover_anim.setDuration(180)  # smooth 180ms
+        self._hover_anim.setDuration(150)
         self._hover_anim.setStartValue(0.0)
         self._hover_anim.setEndValue(1.0)
         self._hover_anim.valueChanged.connect(self._on_anim_value_changed)
@@ -205,14 +207,15 @@ class _NavButton(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Draw ambient background & subtle border
-        r_val = self._hover_anim.currentValue()
+        r_val = float(self._hover_anim.currentValue() or 0.0)
         if self._active:
-            bg_color = QColor("#152035")
-            border_color = QColor(59, 130, 246, int(255 * 0.15))
+            bg_color = QColor("#152035") if not self._pressed else QColor("#111a2c")
+            border_color = QColor(59, 130, 246, int(255 * 0.18))
         else:
-            # Animate from transparent (0 alpha) to hover background color
-            bg_color = QColor(18, 27, 40, int(255 * r_val))
-            border_color = QColor(139, 155, 180, int(255 * 0.05 * r_val))
+            # Animate from transparent to hover background color
+            alpha = int(255 * r_val)
+            bg_color = QColor(18, 27, 40, alpha) if not self._pressed else QColor(14, 21, 32, alpha)
+            border_color = QColor(139, 155, 180, int(255 * 0.06 * r_val))
 
         painter.setBrush(QBrush(bg_color))
         painter.setPen(QPen(border_color, 1.0))
@@ -224,24 +227,35 @@ class _NavButton(QWidget):
         if self._active:
             painter.setBrush(QBrush(QColor(_ACCENT)))
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(QRectF(3, 12, 3, self.height() - 24), 1.5, 1.5)
+            painter.drawRoundedRect(QRectF(3, 11, 3, self.height() - 22), 1.5, 1.5)
 
         painter.end()
 
     def enterEvent(self, event):
         self._hovered = True
         self._apply_style()
+        self._hover_anim.stop()
         self._hover_anim.setDirection(QVariantAnimation.Direction.Forward)
         self._hover_anim.start()
 
     def leaveEvent(self, event):
         self._hovered = False
+        self._pressed = False
         self._apply_style()
+        self._hover_anim.stop()
         self._hover_anim.setDirection(QVariantAnimation.Direction.Backward)
         self._hover_anim.start()
 
     def mousePressEvent(self, event):
-        self._callback(self._index)
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._pressed = True
+            self.update()
+            self._callback(self._index)
+
+    def mouseReleaseEvent(self, event):
+        if self._pressed:
+            self._pressed = False
+            self.update()
 
 
 class _QuoteCard(QWidget):
@@ -447,6 +461,8 @@ class MainWindow(QMainWindow):
         self._settings_page.set_repository(self._repository)
         self._stack.addWidget(self._settings_page)         # 6
 
+        self._page_transitions = PageTransitionHelper(self._stack, duration_ms=120, parent=self)
+
         self._refresh_toast = _ToastPopup(root)
         self._position_refresh_toast()
 
@@ -475,23 +491,33 @@ class MainWindow(QMainWindow):
 
     def _on_nav_click(self, index: int):
         if 0 <= index < self._stack.count():
+            if index == self._stack.currentIndex():
+                return
             # Reset timeline pagination to default 50 sessions when navigating away or switching tabs
             if index != 1 or self._stack.currentIndex() != 1:
                 self._timeline_page.reset_pagination()
 
-            self._stack.setCurrentIndex(index)
             self._sidebar.set_active(index)
-            # Refresh page data when navigating
-            if index == 1:
-                self._timeline_page.refresh_data()
-            elif index == 2:
-                self._apps_page.refresh_data()
-            elif index == 3:
-                self._insights_page.refresh_data()
-            elif index == 5:
-                self._reports_page.refresh_data()
-            elif index == 6:
-                self._settings_page.refresh_data()
+            self._stack.setCurrentIndex(index)
+            # Schedule page data refresh on next tick so UI tab switch is instantaneous (0ms perceived lag)
+            QTimer.singleShot(0, lambda idx=index: self._refresh_page_data(idx))
+
+    def _refresh_page_data(self, index: int):
+        if self._stack.currentIndex() != index:
+            return
+        if index == 0:
+            snapshot = self._repository.load_snapshot(self._selected_date)
+            self._dashboard_page.refresh(snapshot)
+        elif index == 1:
+            self._timeline_page.refresh_data()
+        elif index == 2:
+            self._apps_page.refresh_data()
+        elif index == 3:
+            self._insights_page.refresh_data()
+        elif index == 5:
+            self._reports_page.refresh_data()
+        elif index == 6:
+            self._settings_page.refresh_data()
 
     def _start_timers(self):
         self._refresh_timer = QTimer(self)
@@ -524,22 +550,21 @@ class MainWindow(QMainWindow):
 
     def _refresh_dashboard(self):
         from trackora.utils.logging import log_info, log_error
-        log_info("dashboard refresh started")
         try:
-            snapshot = self._repository.load_snapshot(self._selected_date)
-            self._dashboard_page.refresh(snapshot)
-
-            if self._stack.currentIndex() == 1:
+            cur = self._stack.currentIndex()
+            if cur == 0:
+                snapshot = self._repository.load_snapshot(self._selected_date)
+                self._dashboard_page.refresh(snapshot)
+            elif cur == 1:
                 self._timeline_page.refresh_data()
-            elif self._stack.currentIndex() == 2:
+            elif cur == 2:
                 self._apps_page.refresh_data()
-            elif self._stack.currentIndex() == 3:
+            elif cur == 3:
                 self._insights_page.refresh_data()
-            elif self._stack.currentIndex() == 5:
+            elif cur == 5:
                 self._reports_page.refresh_data()
-            elif self._stack.currentIndex() == 6:
+            elif cur == 6:
                 self._settings_page.refresh_data()
-            log_info("dashboard refresh success")
         except Exception as exc:
             log_error(f"refresh exception if any: {exc}")
 
