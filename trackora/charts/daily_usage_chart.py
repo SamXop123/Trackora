@@ -16,6 +16,9 @@ _TEXT_MUTED = "#566a82"
 _ACCENT = "#3b82f6"
 
 
+from trackora.gui.ui_common import ChartValueAnimator
+
+
 class DailyUsageChart(QWidget):
     """Custom-painted daily usage hourly bar chart widget.
     
@@ -35,14 +38,18 @@ class DailyUsageChart(QWidget):
         self.setMinimumHeight(190)
         self.setMouseTracking(True)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self._animator = ChartValueAnimator(self._on_animated_values, duration_ms=160, parent=self)
+
+    def _on_animated_values(self, values: list[float]) -> None:
+        self._values = values
+        self.update()
 
     def update_chart(self, hour_labels: list[str], hour_values: list[float]) -> None:
         # hour_values are in hours (e.g. 0.5 = 30m). Let's cap values to 1.0 (60m).
-        self._values = [max(0.0, float(v)) for v in hour_values]
-        # Pad to 24 if shorter
-        while len(self._values) < 24:
-            self._values.append(0.0)
-        self.update()
+        target = [max(0.0, float(v)) for v in hour_values]
+        while len(target) < 24:
+            target.append(0.0)
+        self._animator.animate_to(target)
 
     def _bar_rects(self) -> list[QRectF]:
         if not self._values:
