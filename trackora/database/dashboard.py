@@ -1129,3 +1129,40 @@ class DashboardRepository:
                 return result
         except sqlite3.Error:
             return []
+
+    def reset_all(self) -> None:
+        """Wipe all tracking data from the database completely."""
+        if not self._database_path.exists():
+            return
+        try:
+            conn = sqlite3.connect(self._database_path, timeout=5.0, isolation_level=None)
+            try:
+                conn.execute("DELETE FROM app_sessions")
+                conn.execute("VACUUM")
+            finally:
+                conn.close()
+            self._query_cache.clear()
+        except sqlite3.Error:
+            pass
+
+    def reset_today(self, start_of_day_utc: datetime) -> None:
+        """Delete all tracking data recorded for today."""
+        if not self._database_path.exists():
+            return
+        iso_str = start_of_day_utc.isoformat()
+        try:
+            conn = sqlite3.connect(self._database_path, timeout=5.0, isolation_level=None)
+            try:
+                conn.execute(
+                    """
+                    DELETE FROM app_sessions
+                    WHERE start_time >= ? OR (end_time IS NOT NULL AND end_time >= ?)
+                    """,
+                    (iso_str, iso_str),
+                )
+                conn.execute("VACUUM")
+            finally:
+                conn.close()
+            self._query_cache.clear()
+        except sqlite3.Error:
+            pass
