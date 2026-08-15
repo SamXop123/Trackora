@@ -6,12 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.2.0] - 2026-08-15
 
-This release introduces a major performance engine overhaul, non-blocking asynchronous icon loading, native Windows Per-Monitor High-DPI scaling, and refined Windows application tracking.
+This release introduces a major performance engine overhaul, non-blocking asynchronous icon loading, native Windows Per-Monitor High-DPI scaling, data protection backups, and refined UI/UX improvements across the Dashboard and Settings.
 
 ### Performance & Engine Overhaul
 - **$O(N)$ Floating-Point Analytics Engine**:
   - Replaced nested ISO date string parsing with single-pass floating-point epoch math, speeding up 30-day and 90-day Reports queries from 5 seconds to **~3 ms** (over 900x faster).
-  - Added SQLite database indexes on session timestamps and app names to stop full-table scans.
+  - Added SQLite database indexes on session timestamps and app names to eliminate full-table scans.
   - Added smart in-memory query caching with database modification checks for instantaneous range filter switching.
 - **Asynchronous Icon Extraction (`QThreadPool`)**:
   - Moved Windows shell `.exe` icon extraction to background worker threads so Application cards render in **0 ms** with no UI thread freeze.
@@ -19,15 +19,32 @@ This release introduces a major performance engine overhaul, non-blocking asynch
 - **Instantaneous Tab Navigation**:
   - Made sidebar tab switches and navigation instantaneous with deferred data reloads.
 
+### Data Protection & Installer Safety
+- **Safe Installer & Database Isolation**:
+  - Updated Inno Setup installer scripts to strictly preserve user tracking database `%LOCALAPPDATA%\trackora\trackora.db` across re-installations and uninstalls.
+  - Added automatic process termination hooks (`taskkill`) during setup and teardown to prevent locked executable files.
+- **Automated Online Rolling Backup**:
+  - Implemented SQLite online backup engine (`trackora/database/sqlite.py`) creating non-blocking automatic backups at `%LOCALAPPDATA%\trackora\backups\trackora_auto_backup.db`.
+
+### Dashboard & UI Polish
+- **Currently Active "Paused" State**:
+  - Designed a clean amber/orange theme (`#f59e0b`) with a dedicated `PAUSED` pill badge and cleared active app icons/timers when tracking is paused.
+- **Top Applications Progress Bars**:
+  - Built a dedicated custom-painted `_ProgressBar` component with a vibrant electric blue gradient (`#3b82f6` $\rightarrow$ `#60a5fa`), text baseline alignment, and relative scaling.
+- **Hourly Bar Chart Tooltip Headroom**:
+  - Expanded top chart padding to `28px` with boundary clamping to prevent tooltip text truncation on peak 58m–60m bars.
+
+### Settings & Management Fixes
+- **Wipe Database & Reset Today**:
+  - Fixed SQLite transaction handling for autocommit `DELETE` and `VACUUM` commands.
+  - Added `data_reset_requested` signal in `MainWindow` to instantly reload in-memory caches across all dashboard pages after a reset.
+- **Excluded Applications Picker**:
+  - Added `get_all_detected_applications()` to dynamically pick installed and tracked processes with safety guards.
+
 ### Display & Windows High-DPI Polish
 - **Per-Monitor v2 High-DPI Awareness**:
   - Configured native Windows Per-Monitor High-DPI awareness (`DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2`) and pass-through scaling policy.
-  - Enabled sub-pixel font anti-aliasing and full hinting, eliminating blurry or pixelated text on 16:10 / 1920x1200+ laptop displays.
-
-### Windows Tracking & Exclusions
-- **Refined Process Name Normalization**:
-  - Improved executable matching for Windows background processes and Trackora Python GUI instances.
-  - Pre-compiled exclusion tokens in memory to eliminate repeated filesystem kernel `stat()` calls in hot paths.
+  - Enabled sub-pixel font anti-aliasing and full hinting, eliminating blurry or pixelated text on high-resolution displays.
 
 ---
 
