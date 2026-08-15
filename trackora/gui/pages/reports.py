@@ -13,6 +13,7 @@ from trackora.database.dashboard import DashboardRepository
 from trackora.models.dashboard import ReportsData, AppUsageSummary, DailyUsageSummary
 from typing import TYPE_CHECKING
 from trackora.utils.paths import get_asset_path
+from trackora.gui.ui_common import ChartValueAnimator, recycle_widgets_in_place
 
 _BG = "#0d1117"; _CARD = "#141a23"; _CARD_LIGHTER = "#171f2a"
 _CARD_BORDER = "#1c2735"; _TEXT_PRIMARY = "#e6edf5"
@@ -224,11 +225,23 @@ class _FilterBtn(QWidget):
 
 
 class _TrendChart(QWidget):
-    """Daily usage bar chart."""
+    """Daily usage bar chart with smooth value animations."""
     def __init__(self, parent=None):
-        super().__init__(parent); self._data = []; self.setMinimumHeight(_s(200))
+        super().__init__(parent)
+        self._data: list[DailyUsageSummary] = []
+        self._animated_values: list[float] = []
+        self.setMinimumHeight(_s(200))
+        self._animator = ChartValueAnimator(self._on_animated_values, duration_ms=160, parent=self)
+
+    def _on_animated_values(self, values: list[float]) -> None:
+        self._animated_values = values
+        self.update()
+
     def set_data(self, days: list[DailyUsageSummary]):
-        self._data = days; self.update()
+        self._data = days
+        targets = [float(d.duration_seconds) for d in days]
+        self._animator.animate_to(targets)
+
     def resizeEvent(self, e):
         super().resizeEvent(e)
         self.update()
@@ -332,7 +345,8 @@ class _TrendChart(QWidget):
 
         for i, d in enumerate(self._data):
             bx = pad_l + int(i * (bw + gap) + gap / 2)
-            bh = max(int((d.duration_seconds / max_scale_seconds) * ch), 2)
+            dur = self._animated_values[i] if i < len(self._animated_values) else d.duration_seconds
+            bh = max(int((dur / max_scale_seconds) * ch), 2)
             by = pad_t + ch - bh; r = QRectF(bx, by, bw, bh)
             g = QLinearGradient(r.topLeft(), r.bottomLeft())
             if i == peak_i:
@@ -390,8 +404,15 @@ class _AppTableRow(QWidget):
             self._pct.setStyleSheet(f"color: {_ACCENT}; font-size: {_sf(13)}; font-weight: 700; background: transparent; border: none;")
     def set_data(self, name, dur, pct):
         self._name.setText(name); self._dur.setText(_fmt(dur)); self._pct.setText(f"{pct}%")
-        px = _get_icon(name, _s(24))
-        if px: self._icon.setPixmap(px)
+        self._current_app = name
+        def _on_icon_ready(pm: QPixmap | None) -> None:
+            if pm and not pm.isNull() and getattr(self, "_current_app", "") == name:
+                self._icon.setPixmap(pm)
+        px = _get_icon(name, _s(24), on_loaded=_on_icon_ready)
+        if px:
+            self._icon.setPixmap(px)
+        else:
+            self._icon.clear()
     def enterEvent(self, e):
         self._apply_style(True)
     def leaveEvent(self, e):
@@ -469,6 +490,8 @@ class ReportsPage(QWidget):
         super().__init__(parent)
         self._repository = None; self._active_range = "Last 7 Days"
         self._last_data: ReportsData | None = None
+        self._app_table_rows: list[_AppTableRow] = []
+        self._cat_table_rows: list[_CategoryRow] = []
 
         scroll = QScrollArea(self); scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -721,25 +744,33 @@ class ReportsPage(QWidget):
         self._s_day.set_sub(_fmt(data.most_active_day_seconds))
         self._trend_chart.set_data(data.daily_usage)
         # Apps
-        while self._app_rows_lo.count():
-            it = self._app_rows_lo.takeAt(0)
-            if it is not None:
-                w = it.widget()
-                if w: w.deleteLater()
         total = sum(a.duration_seconds for a in data.app_usage) or 1
-        for app in data.app_usage[:10]:
+        top_apps = data.app_usage[:10]
+
+        def _update_app_row(row: _AppTableRow, app: AppUsageSummary, _idx: int) -> None:
             pct = int((app.duration_seconds / total) * 100)
-            row = _AppTableRow(); row.set_data(app.app_name, app.duration_seconds, pct)
-            self._app_rows_lo.addWidget(row)
+            row.set_data(app.app_name, app.duration_seconds, pct)
+
+        self._app_table_rows = recycle_widgets_in_place(
+            layout=self._app_rows_lo,
+            existing_widgets=self._app_table_rows,
+            new_data=top_apps,
+            create_fn=_AppTableRow,
+            update_fn=_update_app_row,
+        )
+
         # Categories
-        while self._cat_rows_lo.count():
-            it = self._cat_rows_lo.takeAt(0)
-            if it is not None:
-                w = it.widget()
-                if w: w.deleteLater()
-        for cat, dur, pct in data.category_breakdown:
-            row = _CategoryRow(); row.set_data(cat, dur, pct)
-            self._cat_rows_lo.addWidget(row)
+        def _update_cat_row(row: _CategoryRow, cat_item: tuple[str, int, int], _idx: int) -> None:
+            cat, dur, pct = cat_item
+            row.set_data(cat, dur, pct)
+
+        self._cat_table_rows = recycle_widgets_in_place(
+            layout=self._cat_rows_lo,
+            existing_widgets=self._cat_table_rows,
+            new_data=data.category_breakdown,
+            create_fn=_CategoryRow,
+            update_fn=_update_cat_row,
+        )
 
     def _on_filter(self, name):
         self._active_range = name

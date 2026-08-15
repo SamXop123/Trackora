@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from trackora.database.dashboard import DashboardRepository
 from trackora.models.dashboard import InsightsData, AppUsageSummary
+from trackora.gui.ui_common import ChartValueAnimator, recycle_widgets_in_place
 
 # ── Color tokens ─────────────────────────────────────────────────────────────
 _BG = "#0d1117"
@@ -190,9 +191,21 @@ class _StatCard(_Card):
         )
         layout.addWidget(self._sub_label)
 
-    def set_val(self, val: str, icon_pix: QPixmap | None = None):
+    def set_val(self, val: str, icon_pix: QPixmap | None = None, app_name: str | None = None):
         self._val_label.setText(val)
-        if icon_pix:
+        if app_name:
+            self._current_app = app_name
+            def _on_icon_ready(pm: QPixmap | None) -> None:
+                if pm and not pm.isNull() and getattr(self, "_current_app", "") == app_name:
+                    self._icon_label.setPixmap(pm)
+                    self._icon_label.setVisible(True)
+            pix = _get_app_icon(app_name, 24, on_loaded=_on_icon_ready)
+            if pix:
+                self._icon_label.setPixmap(pix)
+                self._icon_label.setVisible(True)
+            else:
+                self._icon_label.setVisible(False)
+        elif icon_pix:
             self._icon_label.setPixmap(icon_pix)
             self._icon_label.setVisible(True)
         else:
@@ -284,18 +297,25 @@ class _HourlyChart(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedHeight(140)
-        self._hourly_data: list[int] = [0] * 24
+        self._hourly_data: list[float] = [0.0] * 24
         self._peak_idx = -1
         self._hovered_idx = -1
         self.setMouseTracking(True)
+        self._animator = ChartValueAnimator(self._on_animated_values, duration_ms=160, parent=self)
 
-    def set_data(self, data: list[int]):
-        self._hourly_data = data
-        if any(data):
-            self._peak_idx = data.index(max(data))
+    def _on_animated_values(self, values: list[float]) -> None:
+        self._hourly_data = values
+        if any(v > 0 for v in values):
+            self._peak_idx = values.index(max(values))
         else:
             self._peak_idx = -1
         self.update()
+
+    def set_data(self, data: list[int]):
+        targets = [float(v) for v in data]
+        while len(targets) < 24:
+            targets.append(0.0)
+        self._animator.animate_to(targets)
 
     def mouseMoveEvent(self, event):
         pad_side = 20
@@ -442,9 +462,10 @@ class _MetricBlock(QWidget):
 class _CategoryCard(_Card):
     """Small rounded category breakdown item."""
 
-    def __init__(self, name: str, parent=None):
+    def __init__(self, name: str = "", parent=None):
         super().__init__(parent)
         self.setFixedSize(145, 96)
+        self._name = name
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 12, 14, 12)
@@ -456,16 +477,17 @@ class _CategoryCard(_Card):
         self._icon_lbl = QLabel()
         self._icon_lbl.setFixedSize(18, 18)
         self._icon_lbl.setStyleSheet("background: transparent; border: none;")
-        px = _get_category_icon(name, 18, _ACCENT)
-        self._icon_lbl.setPixmap(px)
+        if name:
+            px = _get_category_icon(name, 18, _ACCENT)
+            self._icon_lbl.setPixmap(px)
         header_layout.addWidget(self._icon_lbl)
 
-        name_lbl = QLabel(name.upper())
-        name_lbl.setStyleSheet(
+        self._name_lbl = QLabel(name.upper())
+        self._name_lbl.setStyleSheet(
             f"color: {_TEXT_MUTED}; font-size: 9px; font-weight: 700; "
             f"letter-spacing: 0.06em; background: transparent; border: none;"
         )
-        header_layout.addWidget(name_lbl)
+        header_layout.addWidget(self._name_lbl)
         header_layout.addStretch(1)
         layout.addLayout(header_layout)
 
@@ -487,6 +509,14 @@ class _CategoryCard(_Card):
         self._duration_lbl.setText(_format_duration_smart(duration))
         self._pct_lbl.setText(f"{pct}% of screen time")
 
+    def set_category(self, name: str, duration: int, pct: int):
+        if self._name != name:
+            self._name = name
+            px = _get_category_icon(name, 18, _ACCENT)
+            self._icon_lbl.setPixmap(px)
+            self._name_lbl.setText(name.upper())
+        self.set_data(duration, pct)
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  INSIGHTS PAGE
@@ -498,6 +528,8 @@ class InsightsPage(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._repository: DashboardRepository | None = None
+        self._app_rows: list[_AppRow] = []
+        self._category_cards: list[_CategoryCard] = []
 
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
@@ -727,7 +759,7 @@ class InsightsPage(QWidget):
         # 1. Update Stat Cards (Row 1)
         self._stat_most_used.set_val(
             data.most_used_app_name, 
-            _get_app_icon(data.most_used_app_name, 24)
+            app_name=data.most_used_app_name
         )
         self._stat_most_used.set_sub(
             f"{_format_duration_smart(data.most_used_app_duration)} ({data.most_used_app_percentage}% of screen time)"
@@ -740,7 +772,7 @@ class InsightsPage(QWidget):
 
         self._stat_longest_session.set_val(
             data.longest_session_app,
-            _get_app_icon(data.longest_session_app, 24)
+            app_name=data.longest_session_app
         )
         self._stat_longest_session.set_sub(
             f"Duration: {_format_duration_smart(data.longest_session_duration)}"
@@ -760,22 +792,20 @@ class InsightsPage(QWidget):
             self._stat_switches.set_sub("First day of tracking")
 
         # 2. Update Usage Distribution (Row 2 Left)
-        # Clear previous progress rows
-        while self._app_rows_container.count():
-            item = self._app_rows_container.takeAt(0)
-            if item is not None:
-                widget = item.widget()
-                if widget:
-                    widget.deleteLater()
-
-        # Add top 5 apps
         top_apps = data.usage_distribution[:5]
-        total_top_duration = sum(app_durations.duration_seconds for app_durations in data.usage_distribution)
-        for app in top_apps:
+        total_top_duration = sum(app.duration_seconds for app in data.usage_distribution)
+
+        def _update_app_row(row: _AppRow, app: AppUsageSummary, _idx: int) -> None:
             pct = int((app.duration_seconds / total_top_duration) * 100) if total_top_duration > 0 else 0
-            row = _AppRow()
             row.set_data(app.app_name, app.duration_seconds, pct)
-            self._app_rows_container.addWidget(row)
+
+        self._app_rows = recycle_widgets_in_place(
+            layout=self._app_rows_container,
+            existing_widgets=self._app_rows,
+            new_data=top_apps,
+            create_fn=_AppRow,
+            update_fn=_update_app_row,
+        )
 
         # 3. Update Activity by Hour Chart (Row 2 Right)
         self._hourly_chart.set_data(data.hourly_activity)
@@ -788,20 +818,17 @@ class InsightsPage(QWidget):
         self._block_longest_focus.set_data(_format_duration_smart(data.longest_focus_period_seconds), "LONGEST FOCUS")
 
         # 5. Update Categories Breakdown (Row 4)
-        # Clear category grid layout
-        while self._category_grid.count():
-            item = self._category_grid.takeAt(0)
-            if item is not None:
-                widget = item.widget()
-                if widget:
-                    widget.deleteLater()
+        def _update_cat_card(card: _CategoryCard, cat_item: tuple[str, int, int], _idx: int) -> None:
+            cat, dur, pct = cat_item
+            card.set_category(cat, dur, pct)
 
-        # Add category cards dynamically
-        for cat, dur, pct in data.category_breakdown:
-            card = _CategoryCard(cat)
-            card.set_data(dur, pct)
-            self._category_grid.addWidget(card)
-        self._category_grid.addStretch(1)
+        self._category_cards = recycle_widgets_in_place(
+            layout=self._category_grid,
+            existing_widgets=self._category_cards,
+            new_data=data.category_breakdown,
+            create_fn=_CategoryCard,
+            update_fn=_update_cat_card,
+        )
 
     def _set_ui_visible(self, visible: bool):
         """Toggle visibility of analytical widgets."""
