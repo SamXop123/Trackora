@@ -6,7 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.2.0] - 2026-08-15
 
-This release introduces a major performance engine overhaul, non-blocking asynchronous icon loading, native Windows Per-Monitor High-DPI scaling, data protection backups, and refined UI/UX improvements across the Dashboard and Settings.
+This release introduces the ability to **pause tracking** and **exclude specific applications from being tracked**, followed by a major performance engine overhaul ($O(N)$ analytics math & async icon extraction), data protection backups, native Windows High-DPI scaling, and refined UI/UX improvements.
+
+### Pause Tracking & Excluded Applications
+- **Global Pause Tracking State**:
+  - Added global tracking pause control accessible from both the System Tray context menu and the Dashboard UI.
+  - Automatically finalizes active session recording and displays a dedicated `PAUSED` pill badge (`#f59e0b`) while clearing active application timers.
+  - Ensures full bi-directional state synchronization between the background daemon service, system tray, and GUI client.
+- **Excluded Applications Management**:
+  - Introduced an interactive Excluded Applications selector in Settings (`get_all_detected_applications()`) allowing users to pick installed desktop apps or running processes to ignore.
+  - Excluded applications are filtered out by the tracking engine before database persistence to maintain strict user privacy.
 
 ### Performance & Engine Overhaul
 - **$O(N)$ Floating-Point Analytics Engine**:
@@ -27,8 +36,6 @@ This release introduces a major performance engine overhaul, non-blocking asynch
   - Implemented SQLite online backup engine (`trackora/database/sqlite.py`) creating non-blocking automatic backups at `%LOCALAPPDATA%\trackora\backups\trackora_auto_backup.db`.
 
 ### Dashboard & UI Polish
-- **Currently Active "Paused" State**:
-  - Designed a clean amber/orange theme (`#f59e0b`) with a dedicated `PAUSED` pill badge and cleared active app icons/timers when tracking is paused.
 - **Top Applications Progress Bars**:
   - Built a dedicated custom-painted `_ProgressBar` component with a vibrant electric blue gradient (`#3b82f6` $\rightarrow$ `#60a5fa`), text baseline alignment, and relative scaling.
 - **Hourly Bar Chart Tooltip Headroom**:
@@ -38,8 +45,6 @@ This release introduces a major performance engine overhaul, non-blocking asynch
 - **Wipe Database & Reset Today**:
   - Fixed SQLite transaction handling for autocommit `DELETE` and `VACUUM` commands.
   - Added `data_reset_requested` signal in `MainWindow` to instantly reload in-memory caches across all dashboard pages after a reset.
-- **Excluded Applications Picker**:
-  - Added `get_all_detected_applications()` to dynamically pick installed and tracked processes with safety guards.
 
 ### Display & Windows High-DPI Polish
 - **Per-Monitor v2 High-DPI Awareness**:
