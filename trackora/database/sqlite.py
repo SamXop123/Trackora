@@ -68,6 +68,18 @@ class SQLiteSessionStore:
                 ON app_sessions (app_name)
                 """
             )
+        self._create_safety_backup()
+
+    def _create_safety_backup(self) -> None:
+        """Create an automatic online rolling backup of the database to protect user data."""
+        try:
+            backup_dir = self._database_path.parent / "backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            backup_file = backup_dir / "trackora_auto_backup.db"
+            with sqlite3.connect(backup_file) as bck:
+                self._conn.backup(bck)
+        except Exception:
+            pass
 
     def start_session(self, *, app_name: str, window_title: str, start_time: str) -> int:
         """Insert a new active session and return its row id."""
