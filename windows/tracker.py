@@ -211,6 +211,8 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
                                     title = "File Explorer"
                             else:
                                 return WindowStateReadResult(state=None, error=f"Transient shell focus: {class_name}")
+                        if app.lower() in ("python", "pythonw") and ("trackora" in (title or "").lower() or "excluded application" in (title or "").lower() or "service status" in (title or "").lower()):
+                            app = "Trackora"
                         self._save_exe_path(app, exe_path)
                 finally:
                     kernel32.CloseHandle(h_process)

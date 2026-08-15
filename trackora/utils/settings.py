@@ -43,17 +43,33 @@ class SettingsManager:
     def __init__(self, settings_path: Path | None = None) -> None:
         self.path = settings_path or (trackora_data_dir() / "settings.json")
         self.config = SettingsConfig()
-        self.load()
+        self._last_mtime: float = -1.0
+        self._cached_excluded_items: list[tuple[str, set[str]]] = []
+        self.load(force=True)
 
-    def load(self) -> None:
-        """Load settings from disk."""
+    def _rebuild_excluded_cache(self) -> None:
+        self._cached_excluded_items = []
+        for item in self.config.excluded_applications:
+            tokens = self._extract_tokens(item)
+            if tokens:
+                self._cached_excluded_items.append((item.strip().casefold(), tokens))
+
+    def load(self, force: bool = False) -> None:
+        """Load settings from disk only when file has been modified."""
         if not self.path.exists():
+            self._rebuild_excluded_cache()
             return
             
         try:
+            mtime = self.path.stat().st_mtime
+            if not force and self._last_mtime == mtime:
+                return
+            self._last_mtime = mtime
+
             raw = self.path.read_text(encoding="utf-8")
             data = json.loads(raw)
             if not isinstance(data, dict):
+                self._rebuild_excluded_cache()
                 return
                 
             # Safely extract known keys
@@ -63,15 +79,21 @@ class SettingsManager:
                     current_val = config_dict[k]
                     if current_val is None or v is None or isinstance(v, type(current_val)):
                         setattr(self.config, k, v)
+            self._rebuild_excluded_cache()
         except (OSError, json.JSONDecodeError):
-            pass
+            self._rebuild_excluded_cache()
 
     def save(self) -> None:
         """Save current settings to disk."""
         try:
+            self._rebuild_excluded_cache()
             self.path.parent.mkdir(parents=True, exist_ok=True)
             raw = json.dumps(asdict(self.config), indent=4)
             self.path.write_text(raw, encoding="utf-8")
+            try:
+                self._last_mtime = self.path.stat().st_mtime
+            except Exception:
+                pass
         except OSError:
             pass
 
@@ -91,49 +113,83 @@ class SettingsManager:
         app_clean = app_name.strip()
         if not app_clean:
             return
-        if not self.is_application_excluded(app_clean):
+        already = {a.strip().casefold() for a in self.config.excluded_applications}
+        if app_clean.casefold() not in already:
             self.config.excluded_applications.append(app_clean)
             self.save()
 
     def remove_excluded_application(self, app_name: str) -> None:
-        app_clean = app_name.strip()
+        app_clean = app_name.strip().casefold()
         if not app_clean:
             return
-        raw_target = app_clean.casefold()
-        norm_target = normalize_app_name(app_clean).casefold()
-        
-        new_list = []
-        for item in self.config.excluded_applications:
-            ex_raw = item.strip().casefold()
-            ex_norm = normalize_app_name(item).casefold()
-            if raw_target == ex_raw or norm_target == ex_raw or raw_target == ex_norm or norm_target == ex_norm:
-                continue
-            new_list.append(item)
+        new_list = [
+            item for item in self.config.excluded_applications
+            if item.strip().casefold() != app_clean
+        ]
         self.config.excluded_applications = new_list
         self.save()
 
-    def is_application_excluded(self, app_name: str, window_title: str = "") -> bool:
-        if not app_name:
-            return False
-        # Reload latest settings from disk in case GUI updated settings.json
-        self.load()
-        raw_target = app_name.strip().casefold()
-        norm_target = normalize_app_name(app_name, window_title).casefold()
-        title_target = (window_title or "").strip().casefold()
+    @staticmethod
+    def _extract_tokens(text: str) -> set[str]:
+        """Extract multi-variant tokens from an app name or process name."""
+        clean = (text or "").strip().casefold()
+        if clean.endswith(".exe"):
+            clean = clean[:-4].strip()
+        if not clean:
+            return set()
+        
+        tokens = {clean}
+        # Alphanumeric collapsed token (e.g. "vs code" -> "vscode", "forza horizon 6" -> "forzahorizon6")
+        alnum = "".join(c for c in clean if c.isalnum())
+        if alnum:
+            tokens.add(alnum)
 
-        for item in self.config.excluded_applications:
-            ex = item.strip().casefold()
-            if not ex:
-                continue
-            ex_norm = normalize_app_name(item).casefold()
-            
-            # Direct match on raw process name or normalized display app name
-            if raw_target == ex or norm_target == ex or raw_target == ex_norm or norm_target == ex_norm:
+        # Normalized display name tokens
+        norm = normalize_app_name(clean).casefold()
+        tokens.add(norm)
+        norm_alnum = "".join(c for c in norm if c.isalnum())
+        if norm_alnum:
+            tokens.add(norm_alnum)
+
+        # Word tokens
+        words = [w for w in clean.replace("-", " ").replace("_", " ").replace(".", " ").split() if len(w) >= 3]
+        tokens.update(words)
+        return tokens
+
+    def is_application_excluded(self, app_name: str, window_title: str = "") -> bool:
+        if not app_name or not self._cached_excluded_items:
+            return False
+
+        app_tokens = self._extract_tokens(app_name)
+        norm_app = normalize_app_name(app_name, window_title).casefold()
+        app_tokens.add(norm_app)
+        norm_alnum = "".join(c for c in norm_app if c.isalnum())
+        if norm_alnum:
+            app_tokens.add(norm_alnum)
+
+        title_lower = (window_title or "").strip().casefold()
+        is_browser = any(b in app_tokens for b in ("chrome", "msedge", "edge", "firefox", "brave", "opera", "vivaldi", "chromium", "zen"))
+
+        for item_lower, item_tokens in self._cached_excluded_items:
+            # 1. Exact token intersection (e.g. "chrome" == "chrome", "vscode" == "vscode", "whatsapp" == "whatsapp")
+            if app_tokens & item_tokens:
                 return True
-                
-            # Flexible keyword match for app names or window titles (e.g. "Trackora", "Antigravity")
-            if ex in raw_target or ex in norm_target or (len(ex) >= 3 and ex in title_target):
-                return True
+
+            # 2. Token containment on application tokens for terms >= 3 characters
+            for it in item_tokens:
+                if len(it) < 3:
+                    continue
+                if any(it in at or at in it for at in app_tokens if len(at) >= 3):
+                    return True
+
+            # 3. Window title matching
+            for it in item_tokens:
+                if len(it) < 3:
+                    continue
+                if is_browser and it in title_lower:
+                    return True
+                if title_lower.endswith(f" - {it}") or title_lower.endswith(f" — {it}") or title_lower.endswith(f" | {it}") or title_lower == it:
+                    return True
 
         return False
 
