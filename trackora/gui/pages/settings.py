@@ -1075,7 +1075,10 @@ class SettingsPage(QWidget):
     def _on_add_excluded_app(self) -> None:
         detected = []
         if self._repository:
-            detected = self._repository.get_all_detected_applications()
+            try:
+                detected = self._repository.get_all_detected_applications()
+            except Exception:
+                detected = []
         already = settings_manager.get_excluded_applications()
         
         dialog = AddExcludedAppDialog(detected, already, self)
