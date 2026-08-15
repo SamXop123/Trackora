@@ -1096,3 +1096,36 @@ class DashboardRepository:
                 "earliest_date": None,
                 "latest_date": None,
             }
+
+    def get_all_detected_applications(self) -> list[str]:
+        """Fetch all unique application names recorded in the database."""
+        if not self._database_path.exists():
+            return []
+
+        cached = self._get_query_cache("all_detected_apps", ttl=5.0)
+        if cached is not None:
+            return cached
+
+        try:
+            with sqlite3.connect(self._database_path, timeout=2.0) as conn:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    """
+                    SELECT DISTINCT app_name, window_title
+                    FROM app_sessions
+                    ORDER BY app_name ASC
+                    """
+                ).fetchall()
+
+                apps = set()
+                for row in rows:
+                    raw_app = str(row["app_name"] or "")
+                    win_title = str(row["window_title"] or "")
+                    norm = normalize_app_name(raw_app, win_title)
+                    if norm and norm != "Unknown":
+                        apps.add(norm)
+                result = sorted(apps, key=lambda s: s.lower())
+                self._set_query_cache("all_detected_apps", result)
+                return result
+        except sqlite3.Error:
+            return []
