@@ -28,12 +28,63 @@ _ICON_THEME_MAP: dict[str, list[str]] = {
 }
 _FALLBACK_ICON = "application-x-executable"
 
+from typing import Callable
+from collections import defaultdict
+from PySide6.QtCore import QObject, QRunnable, QSize, QThreadPool, Signal
+
 # In-memory cache for resolved icons to avoid heavy scans
 _ICON_CACHE: dict[str, QPixmap] = {}
 _MISSING_ICON_CACHE: set[str] = set()
+_PENDING_ICON_CALLBACKS: dict[str, list[Callable[[QPixmap | None], None]]] = defaultdict(list)
+_RESOLVING_ICONS: set[str] = set()
 
-def get_app_icon(app_name: str, size: int = 24) -> QPixmap | None:
-    """Retrieve application icon in a platform-aware way (icon theme on Linux, shell executable icon on Windows)."""
+
+class _IconWorkerSignals(QObject):
+    icon_loaded = Signal(str, int, object)  # app_name, size, QPixmap or None
+
+
+_SIGNALS: _IconWorkerSignals | None = None
+
+
+def _get_signals() -> _IconWorkerSignals:
+    global _SIGNALS
+    if _SIGNALS is None:
+        _SIGNALS = _IconWorkerSignals()
+        _SIGNALS.icon_loaded.connect(_on_icon_loaded_slot)
+    return _SIGNALS
+
+
+def _on_icon_loaded_slot(app_name: str, size: int, pixmap: QPixmap | None) -> None:
+    cache_key = f"{app_name}_{size}"
+    callbacks = _PENDING_ICON_CALLBACKS.pop(cache_key, [])
+    for cb in callbacks:
+        try:
+            cb(pixmap)
+        except Exception:
+            pass
+
+
+class _AsyncIconTask(QRunnable):
+    def __init__(self, app_name: str, size: int):
+        super().__init__()
+        self.app_name = app_name
+        self.size = size
+
+    def run(self) -> None:
+        try:
+            pixmap = _resolve_app_icon_sync(self.app_name, self.size)
+        except Exception:
+            pixmap = None
+        finally:
+            _RESOLVING_ICONS.discard(f"{self.app_name}_{self.size}")
+            try:
+                _get_signals().icon_loaded.emit(self.app_name, self.size, pixmap)
+            except Exception:
+                pass
+
+
+def _resolve_app_icon_sync(app_name: str, size: int) -> QPixmap | None:
+    """Internal synchronous icon resolver."""
     cache_key = f"{app_name}_{size}"
     if cache_key in _ICON_CACHE:
         return _ICON_CACHE[cache_key]
@@ -99,6 +150,34 @@ def get_app_icon(app_name: str, size: int = 24) -> QPixmap | None:
     return pixmap
 
 
+def get_app_icon(
+    app_name: str,
+    size: int = 24,
+    on_loaded: Callable[[QPixmap | None], None] | None = None,
+) -> QPixmap | None:
+    """Retrieve application icon.
+    
+    If on_loaded is provided and icon is not yet cached, it resolves the icon
+    asynchronously in the background without blocking the UI thread (0ms latency).
+    """
+    cache_key = f"{app_name}_{size}"
+    if cache_key in _ICON_CACHE:
+        return _ICON_CACHE[cache_key]
+    if cache_key in _MISSING_ICON_CACHE:
+        return None
+
+    if on_loaded is not None:
+        _PENDING_ICON_CALLBACKS[cache_key].append(on_loaded)
+        if cache_key not in _RESOLVING_ICONS:
+            _RESOLVING_ICONS.add(cache_key)
+            task = _AsyncIconTask(app_name, size)
+            QThreadPool.globalInstance().start(task)
+        return None
+
+    # Fallback to synchronous resolution if no callback was passed
+    return _resolve_app_icon_sync(app_name, size)
+
+
 _WIN_APP_ALIASES: dict[str, list[str]] = {
     "vs code": ["code", "code.exe", "vscode", "visual studio code"],
     "vscode": ["code", "code.exe", "vs code"],
@@ -113,6 +192,36 @@ _WIN_APP_ALIASES: dict[str, list[str]] = {
     "telegram": ["telegram", "telegram.exe"],
 }
 
+_START_MENU_SHORTCUT_INDEX: dict[str, str] | None = None
+_EXE_SEARCH_CACHE: dict[str, str | None] = {}
+_EXE_PATHS_JSON_CACHE: dict[str, str] = {}
+_EXE_PATHS_JSON_MTIME: float = -1.0
+
+
+def _get_start_menu_shortcuts() -> dict[str, str]:
+    global _START_MENU_SHORTCUT_INDEX
+    if _START_MENU_SHORTCUT_INDEX is not None:
+        return _START_MENU_SHORTCUT_INDEX
+
+    _START_MENU_SHORTCUT_INDEX = {}
+    start_menu_dirs = [
+        os.path.join(os.environ.get("APPDATA", ""), "Microsoft", "Windows", "Start Menu", "Programs"),
+        os.path.join(os.environ.get("ALLUSERSPROFILE", ""), "Microsoft", "Windows", "Start Menu", "Programs"),
+    ]
+    for sm_dir in start_menu_dirs:
+        if not os.path.exists(sm_dir):
+            continue
+        try:
+            for root_dir, _, files in os.walk(sm_dir):
+                for f in files:
+                    if f.lower().endswith(".lnk"):
+                        fname_lower = os.path.splitext(f.lower())[0]
+                        if fname_lower not in _START_MENU_SHORTCUT_INDEX:
+                            _START_MENU_SHORTCUT_INDEX[fname_lower] = os.path.join(root_dir, f)
+        except Exception:
+            pass
+    return _START_MENU_SHORTCUT_INDEX
+
 
 def _find_win32_exe_path(app_name: str) -> str | None:
     """Find Windows executable path for app_name via aliases, known paths, cache, registry, or Start Menu shortcuts."""
@@ -120,6 +229,8 @@ def _find_win32_exe_path(app_name: str) -> str | None:
         return None
 
     app_lower = app_name.lower().strip()
+    if app_lower in _EXE_SEARCH_CACHE:
+        return _EXE_SEARCH_CACHE[app_lower]
 
     # 0. Check direct known installation paths for common desktop apps
     known_paths = {
@@ -149,6 +260,7 @@ def _find_win32_exe_path(app_name: str) -> str | None:
     if app_lower in known_paths:
         for p in known_paths[app_lower]:
             if p and os.path.exists(p):
+                _EXE_SEARCH_CACHE[app_lower] = p
                 return p
 
     # Build search variants including aliases
@@ -156,20 +268,26 @@ def _find_win32_exe_path(app_name: str) -> str | None:
     if app_lower in _WIN_APP_ALIASES:
         search_names.update(_WIN_APP_ALIASES[app_lower])
 
-    # 1. Check daemon's JSON path cache
+    # 1. Check daemon's JSON path cache (memory cached)
     try:
         from trackora.utils.paths import trackora_data_dir
         import json
+        global _EXE_PATHS_JSON_MTIME, _EXE_PATHS_JSON_CACHE
         cache_file = trackora_data_dir() / "exe_paths.json"
         if cache_file.exists():
-            data = json.loads(cache_file.read_text(encoding="utf-8"))
-            for key, val in data.items():
+            mtime = cache_file.stat().st_mtime
+            if mtime != _EXE_PATHS_JSON_MTIME:
+                _EXE_PATHS_JSON_CACHE = json.loads(cache_file.read_text(encoding="utf-8"))
+                _EXE_PATHS_JSON_MTIME = mtime
+            for key, val in _EXE_PATHS_JSON_CACHE.items():
                 if key.lower() in search_names:
                     if val and os.path.exists(val):
                         if "WindowsApps" in val:
                             uwp_icon = _find_uwp_png_icon(val)
                             if uwp_icon:
+                                _EXE_SEARCH_CACHE[app_lower] = uwp_icon
                                 return uwp_icon
+                        _EXE_SEARCH_CACHE[app_lower] = val
                         return val
     except Exception:
         pass
@@ -184,6 +302,7 @@ def _find_win32_exe_path(app_name: str) -> str | None:
     if app_lower in sys_fallbacks:
         path = sys_fallbacks[app_lower]
         if os.path.exists(path):
+            _EXE_SEARCH_CACHE[app_lower] = path
             return path
 
     # 3. Registry App Paths
@@ -197,31 +316,28 @@ def _find_win32_exe_path(app_name: str) -> str | None:
                         with winreg.OpenKey(root, key_path) as key:
                             val, _ = winreg.QueryValueEx(key, "")
                             if val and os.path.exists(val):
+                                _EXE_SEARCH_CACHE[app_lower] = val
                                 return val
                     except OSError:
                         continue
     except Exception:
         pass
 
-    # 4. Start Menu shortcuts scan
+    # 4. Start Menu shortcuts scan using single-pass index
     try:
-        start_menu_dirs = [
-            os.path.join(os.environ.get("APPDATA", ""), "Microsoft", "Windows", "Start Menu", "Programs"),
-            os.path.join(os.environ.get("ALLUSERSPROFILE", ""), "Microsoft", "Windows", "Start Menu", "Programs"),
-        ]
-        for sm_dir in start_menu_dirs:
-            if not os.path.exists(sm_dir):
-                continue
-            for root_dir, _, files in os.walk(sm_dir):
-                for f in files:
-                    if f.lower().endswith(".lnk"):
-                        fname_lower = os.path.splitext(f.lower())[0]
-                        if fname_lower in search_names or any(alias in fname_lower for alias in search_names):
-                            shortcut_path = os.path.join(root_dir, f)
-                            return shortcut_path
+        sm_shortcuts = _get_start_menu_shortcuts()
+        for sname in search_names:
+            if sname in sm_shortcuts:
+                _EXE_SEARCH_CACHE[app_lower] = sm_shortcuts[sname]
+                return sm_shortcuts[sname]
+        for key, path in sm_shortcuts.items():
+            if any(sname in key for sname in search_names if len(sname) >= 3):
+                _EXE_SEARCH_CACHE[app_lower] = path
+                return path
     except Exception:
         pass
 
+    _EXE_SEARCH_CACHE[app_lower] = None
     return None
 
 
@@ -229,26 +345,20 @@ def _find_uwp_png_icon(exe_path: str) -> str | None:
     """Scan the UWP package directory for a high-resolution logo PNG."""
     try:
         app_dir = os.path.dirname(exe_path)
-        patterns = [
+        patterns = (
             "StoreLogo.scale-200.png",
             "StoreLogo.png",
-            "medtile*.png",
             "TitleIcon32.scale-200.png",
             "logo.scale-200.png",
             "logo.png",
-        ]
-        for root, dirs, files in os.walk(app_dir):
-            depth = root[len(app_dir):].count(os.sep)
-            if depth > 2:
-                continue
-            for file in files:
-                file_lower = file.lower()
-                for p in patterns:
-                    import fnmatch
-                    if fnmatch.fnmatch(file_lower, p.lower()):
-                        full_path = os.path.join(root, file)
-                        if os.path.exists(full_path):
-                            return full_path
+        )
+        for pat in patterns:
+            candidate = os.path.join(app_dir, pat)
+            if os.path.exists(candidate):
+                return candidate
+            candidate_assets = os.path.join(app_dir, "Assets", pat)
+            if os.path.exists(candidate_assets):
+                return candidate_assets
     except Exception:
         pass
     return None
