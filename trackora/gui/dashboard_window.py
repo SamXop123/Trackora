@@ -459,6 +459,7 @@ class MainWindow(QMainWindow):
         
         self._settings_page = SettingsPage()
         self._settings_page.set_repository(self._repository)
+        self._settings_page.data_reset_requested.connect(self._on_data_reset)
         self._stack.addWidget(self._settings_page)         # 6
 
         self._page_transitions = PageTransitionHelper(self._stack, duration_ms=120, parent=self)
@@ -467,6 +468,16 @@ class MainWindow(QMainWindow):
         self._position_refresh_toast()
 
         self._stack.setCurrentIndex(0)
+
+    def _on_data_reset(self) -> None:
+        """Handle full data wipe or day reset from settings: clear and reload all page views."""
+        snapshot = self._repository.load_snapshot(self._selected_date)
+        self._dashboard_page.refresh(snapshot)
+        self._timeline_page.refresh_data()
+        self._apps_page.refresh_data()
+        self._insights_page.refresh_data()
+        self._reports_page.refresh_data()
+        self._settings_page.refresh_data()
 
     def _position_refresh_toast(self) -> None:
         if not hasattr(self, "_refresh_toast"):
