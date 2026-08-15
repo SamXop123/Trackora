@@ -22,6 +22,7 @@ from ...models.dashboard import (
 from ...utils.formatting import format_duration_compact, format_duration_live
 from ...database.dashboard import _get_app_category
 from ...utils.paths import get_asset_path
+from ...utils.settings import settings_manager
 from trackora.gui.ui_common import ChartValueAnimator
 
 from typing import TYPE_CHECKING
@@ -40,6 +41,7 @@ _ACCENT = "#3b82f6"
 _ACCENT_SOFT = "#2563eb"
 _GREEN = "#34d399"
 _GREEN_DIM = "#065f46"
+_ORANGE = "#f59e0b"
 
 _CALENDAR_SVG_PATH = str(get_asset_path("calendar.svg")).replace("\\", "/")
 
@@ -416,10 +418,45 @@ class _ActiveCard(_Card):
             )
 
     def update_data(self, active: ActiveAppStatus | None) -> None:
+        if settings_manager.is_tracking_paused():
+            self._app_label.setText("Tracking Paused")
+            self._app_label.setStyleSheet(
+                f"color: {_ORANGE}; font-size: 18px; font-weight: 800; background: transparent; border: none;"
+            )
+            self._elapsed_label.setText("")
+            self._app_icon_label.clear()
+            self._app_icon_label.setText("⏸")
+            self._app_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._app_icon_label.setStyleSheet(
+                f"color: {_ORANGE}; font-size: 18px; background: rgba(245, 158, 11, 0.1); "
+                f"border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px;"
+            )
+            self._category_badge.setText("PAUSED")
+            self._category_badge.setStyleSheet(
+                f"color: {_ORANGE}; font-size: 10px; font-weight: 700; "
+                f"background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); "
+                f"border-radius: 8px; padding: 2px 8px;"
+            )
+            self._category_badge.setVisible(True)
+            self._last_category = "PAUSED"
+            return
+
+        # Restore default styling
+        self._app_label.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 18px; font-weight: 800; background: transparent; border: none;"
+        )
+        self._elapsed_label.setStyleSheet(
+            f"color: {_ACCENT}; font-size: 15px; font-weight: 700; background: transparent; border: none;"
+        )
+
         if active is None:
             self._app_label.setText("No active session")
             self._elapsed_label.setText("")
             self._app_icon_label.clear()
+            self._app_icon_label.setText("")
+            self._app_icon_label.setStyleSheet(
+                f"border-radius: 8px; border: 1px solid {_CARD_BORDER}; background: {_CARD_LIGHTER};"
+            )
             self._category_badge.setVisible(False)
             self._last_category = None
             return
@@ -547,6 +584,42 @@ class _TimelineCard(_Card):
 
 # ─── Top Applications card ─────────────────────────────────────────────────
 
+class _ProgressBar(QWidget):
+    """Clean custom-painted progress bar with smooth anti-aliased capsule shape."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setFixedHeight(5)
+        self._ratio = 0.0
+
+    def set_ratio(self, ratio: float) -> None:
+        self._ratio = max(0.0, min(ratio, 1.0))
+        self.update()
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w, h = float(self.width()), float(self.height())
+        if w <= 1:
+            painter.end()
+            return
+
+        # Track background (crisp dark slate border)
+        painter.setBrush(QBrush(QColor("#1c2735")))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(QRectF(0, 0, w, h), h / 2, h / 2)
+
+        # Vivid electric blue fill
+        if self._ratio > 0.001:
+            fill_w = max(h, w * self._ratio)
+            grad = QLinearGradient(0, 0, fill_w, 0)
+            grad.setColorAt(0, QColor("#3b82f6")) # Vivid electric blue
+            grad.setColorAt(1, QColor("#60a5fa")) # Sky blue
+            painter.setBrush(QBrush(grad))
+            painter.drawRoundedRect(QRectF(0, 0, min(w, fill_w), h), h / 2, h / 2)
+        painter.end()
+
+
 class _AppRow(QWidget):
     """Row in the Top Applications list with progress bar, hover accent, and smooth animation."""
 
@@ -556,12 +629,9 @@ class _AppRow(QWidget):
         self._hovered = False
         self._name_str = name
         self._seconds = seconds
-        self._bar_ratio = ratio
-        self._anim_progress = ratio
-        self._anim: QPropertyAnimation | None = None
 
         row = QHBoxLayout(self)
-        row.setContentsMargins(8, 0, 8, 0)
+        row.setContentsMargins(8, 4, 8, 4)
         row.setSpacing(12)
 
         self._icon_label = QLabel(self)
@@ -569,14 +639,23 @@ class _AppRow(QWidget):
         self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         row.addWidget(self._icon_label)
 
+        mid = QVBoxLayout()
+        mid.setContentsMargins(0, 2, 0, 2)
+        mid.setSpacing(4)
+
         self._name = QLabel(name)
         self._name.setStyleSheet(
             f"color: {_TEXT_PRIMARY}; font-size: 13px; font-weight: 600; "
             f"background: transparent; border: none;"
         )
-        row.addWidget(self._name, 1)
+        mid.addWidget(self._name)
+
+        self._bar = _ProgressBar(self)
+        mid.addWidget(self._bar)
+        row.addLayout(mid, 1)
 
         self._duration = QLabel(format_duration_compact(seconds))
+        self._duration.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self._duration.setStyleSheet(
             f"color: {_TEXT_SECONDARY}; font-size: 12px; font-weight: 500; "
             f"background: transparent; border: none;"
@@ -586,7 +665,7 @@ class _AppRow(QWidget):
     def set_data(self, name: str, seconds: int, ratio: float) -> None:
         self._name.setText(name)
         self._duration.setText(format_duration_compact(seconds))
-        self._bar_ratio = max(0.0, min(ratio, 1.0))
+        self._bar.set_ratio(ratio)
         self._current_row_app = name
         def _on_icon_ready(pm: QPixmap | None) -> None:
             if pm and not pm.isNull() and getattr(self, "_current_row_app", "") == name:
@@ -622,26 +701,6 @@ class _AppRow(QWidget):
             painter.setBrush(QBrush(QColor(255, 255, 255, 6)))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(QRectF(0, 0, self.width(), self.height()), 8, 8)
-
-        # Custom progress bar: starts aligned with name text (x=56)
-        x = 56
-        y = 33
-        w = max(10, self.width() - x - 90)
-        h = 5
-
-        # Draw empty track
-        painter.setBrush(QBrush(QColor(_CARD_BORDER)))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawRoundedRect(QRectF(x, y, w, h), 2.5, 2.5)
-
-        # Draw filled part
-        fill_w = w * self._bar_ratio
-        if fill_w > 0:
-            grad = QLinearGradient(x, y, x + fill_w, y)
-            grad.setColorAt(0, QColor("#2563eb"))
-            grad.setColorAt(1, QColor("#60a5fa"))
-            painter.setBrush(QBrush(grad))
-            painter.drawRoundedRect(QRectF(x, y, fill_w, h), 2.5, 2.5)
         painter.end()
 
 
@@ -721,12 +780,13 @@ class _TopAppsCard(_Card):
 
     def update_data(self, apps: list[AppUsageSummary]) -> None:
         total_secs = sum(app.duration_seconds for app in apps)
+        max_secs = max((app.duration_seconds for app in apps), default=1)
         self._summary_label.setText(
             f"{len(apps)} apps tracked today · {format_duration_compact(total_secs)} total"
         )
         for i, row in enumerate(self._rows):
             if i < len(apps):
-                ratio = apps[i].duration_seconds / max(total_secs, 1)
+                ratio = apps[i].duration_seconds / max(max_secs, 1)
                 row.set_data(apps[i].app_name, apps[i].duration_seconds, ratio)
                 row.setVisible(True)
             else:
