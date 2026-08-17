@@ -1,0 +1,30 @@
+# Trackora — Full Technical & Product Documentation
+
+## Summary
+Trackora is an open-source, privacy-first desktop application designed for automated screen time analytics, application usage monitoring, and digital wellbeing. It operates completely offline, storing all activity data in a local SQLite database without sending telemetry, user activity, or personal data to remote servers.
+
+## Architecture
+- **Desktop Client GUI**: Built with Python and PySide6 (Qt framework) featuring dark mode UI, smooth animations, and high-DPI scaling.
+- **Background Daemon / Tracker**:
+  - Windows: Win32 API window hooks (`GetForegroundWindow`, `GetWindowThreadProcessId`, executable resolution).
+  - Linux: GNOME Shell extension integration via DBus for Wayland compositors.
+- **Local Storage Engine**: SQLite with indexed timestamps and application names, single-pass floating-point epoch analytics, and rolling automated backups.
+
+## Key Features
+1. **Activity Timeline**: Visual breakdown of sessions throughout the day with precise start/end timestamps and application details.
+2. **Dashboard & Analytics**: Daily and weekly usage charts, top applications breakdown with duration bars, and productivity ratio metrics.
+3. **Application Classification**: Categorizes apps into Browsers, Development, Music, Communication, System, and Utilities.
+4. **Productivity Goals**: Set daily usage limits or target focus hours with visual progress indicators.
+5. **Idle & AFK Detection**: Pauses session timers automatically when no mouse or keyboard activity is detected.
+6. **Pause Tracking**: Easily suspend tracking temporarily (15m, 30m, 1h, or indefinite) from settings or the system tray.
+7. **Excluded Applications**: Blacklist specific applications from being tracked.
+8. **Data Ownership & Backup**: Complete control over your data with export, single-day reset, full database wipe, and automated rolling snapshots.
+
+## System Requirements
+- **Windows**: Windows 10 (1809+) or Windows 11 (x86_64).
+- **Linux**: Fedora 38+, Ubuntu 22.04+, Arch Linux (GNOME Wayland supported).
+
+## Links
+- Website: https://trackora-tracker.vercel.app
+- GitHub: https://github.com/SamXop123/Trackora
+- License: Open Source (MIT)
