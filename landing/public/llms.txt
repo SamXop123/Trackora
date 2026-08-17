@@ -1,0 +1,23 @@
+# Trackora
+
+> Trackora is a local-first, privacy-focused desktop screen time and productivity tracker for Windows and Linux (GNOME Wayland).
+
+## Overview
+- **Privacy & Local-First**: Zero tracking telemetry, zero cloud accounts, and 100% offline local SQLite storage. All activity logs remain on the user's local machine.
+- **Supported Platforms**: Windows 10/11 (64-bit standalone installer & portable zip) and Linux (Fedora RPM & tarball for GNOME Wayland).
+- **Core Features**:
+  - Live active application tracking with low overhead (< 0.1% CPU).
+  - Activity Timeline, Daily/Weekly analytics charts, application category classification, and custom goals.
+  - AFK & Idle Observer to exclude idle periods.
+  - Non-blocking asynchronous icon extraction for responsive UI.
+  - Pause Tracking functionality from settings or system tray.
+  - Safe data backups and database management tools.
+
+## Key Links & Resources
+- Official Website: https://trackora-tracker.vercel.app
+- Source Code Repository: https://github.com/SamXop123/Trackora
+- Full AI Documentation: https://trackora-tracker.vercel.app/llms-full.txt
+
+## Quick Install
+- Windows Installer: Download `TrackoraSetup.exe` from https://trackora-tracker.vercel.app
+- Linux Fedora: `sudo dnf install ./trackora-2.2.0.rpm`
