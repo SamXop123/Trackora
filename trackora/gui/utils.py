@@ -9,7 +9,12 @@ from PySide6.QtCore import QSize
 
 # Linux/GNOME icon theme candidate list
 _ICON_THEME_MAP: dict[str, list[str]] = {
-    "VS Code": ["code", "visual-studio-code", "com.visualstudio.code"],
+    "VS Code": ["vscode", "visual-studio-code", "com.visualstudio.code", "com.visualstudio.code.oss", "code-oss", "code"],
+    "Obsidian": ["md.obsidian.Obsidian", "obsidian", "md.obsidian"],
+    "Md.Obsidian": ["md.obsidian.Obsidian", "obsidian", "md.obsidian"],
+    "Document Viewer": ["org.gnome.Papers", "document-viewer", "org.gnome.Papers.desktop", "evince"],
+    "Org.Gnome.Papers": ["org.gnome.Papers", "document-viewer"],
+    "Papers": ["org.gnome.Papers", "document-viewer"],
     "Chrome": ["google-chrome", "chromium"],
     "Chromium": ["chromium"],
     "Brave": ["brave-browser"],
@@ -93,54 +98,90 @@ def _resolve_app_icon_sync(app_name: str, size: int) -> QPixmap | None:
 
     pixmap = None
 
-    if app_name.lower() == "desktop":
-        if sys.platform == "win32":
-            try:
-                from PySide6.QtWidgets import QFileIconProvider
-                provider = QFileIconProvider()
-                icon = provider.icon(QFileIconProvider.IconType.Desktop)
-                if not icon.isNull():
-                    pixmap = icon.pixmap(size, size)
-            except Exception:
-                pass
-        else:
-            candidates = ["user-desktop", "desktop", "preferences-desktop-wallpaper", "preferences-desktop"]
-            for name in candidates:
-                icon = QIcon.fromTheme(name)
-                if not icon.isNull():
-                    pixmap = icon.pixmap(QSize(size, size))
-                    break
-    elif sys.platform == "win32":
-        # Windows native executable icon extraction
-        if app_name.lower() in ("trackora", "trackora dashboard", "trackora-dashboard"):
+    # Trackora asset logo fallback (works across all platforms)
+    if app_name.lower() in ("trackora", "trackora dashboard", "trackora-dashboard"):
+        try:
             from trackora.utils.paths import get_asset_path
             logo_path = get_asset_path("trackora_logo.png")
-            exe_path = str(logo_path) if logo_path.exists() else None
-        else:
-            exe_path = _find_win32_exe_path(app_name)
-        if exe_path:
-            try:
-                if exe_path.lower().endswith((".png", ".jpg", ".jpeg")):
-                    icon = QIcon(exe_path)
-                    if not icon.isNull():
-                        pixmap = icon.pixmap(size, size)
-                else:
+            if logo_path.exists():
+                icon = QIcon(str(logo_path))
+                if not icon.isNull():
+                    pixmap = icon.pixmap(size, size)
+        except Exception:
+            pass
+
+    if pixmap is None:
+        if app_name.lower() == "desktop":
+            if sys.platform == "win32":
+                try:
                     from PySide6.QtWidgets import QFileIconProvider
-                    from PySide6.QtCore import QFileInfo
                     provider = QFileIconProvider()
-                    icon = provider.icon(QFileInfo(exe_path))
+                    icon = provider.icon(QFileIconProvider.IconType.Desktop)
                     if not icon.isNull():
                         pixmap = icon.pixmap(size, size)
+                except Exception:
+                    pass
+            else:
+                candidates = ["user-desktop", "desktop", "preferences-desktop-wallpaper", "preferences-desktop"]
+                for name in candidates:
+                    icon = QIcon.fromTheme(name)
+                    if not icon.isNull():
+                        pixmap = icon.pixmap(QSize(size, size))
+                        break
+        elif sys.platform == "win32":
+            # Windows native executable icon extraction
+            exe_path = _find_win32_exe_path(app_name)
+            if exe_path:
+                try:
+                    if exe_path.lower().endswith((".png", ".jpg", ".jpeg")):
+                        icon = QIcon(exe_path)
+                        if not icon.isNull():
+                            pixmap = icon.pixmap(size, size)
+                    else:
+                        from PySide6.QtWidgets import QFileIconProvider
+                        from PySide6.QtCore import QFileInfo
+                        provider = QFileIconProvider()
+                        icon = provider.icon(QFileInfo(exe_path))
+                        if not icon.isNull():
+                            pixmap = icon.pixmap(size, size)
+                except Exception:
+                    pass
+        else:
+            # Linux standard XDG desktop icon theme lookup
+            candidates = list(_ICON_THEME_MAP.get(app_name, []))
+
+            # Query Linux desktop entry index for Icon= field if present
+            try:
+                from trackora.utils.app_names import _get_linux_desktop_index
+                dt_index = _get_linux_desktop_index()
+                clean_app = app_name.lower().strip()
+                if clean_app in dt_index:
+                    dt_icon = dt_index[clean_app][1]
+                    if dt_icon and dt_icon not in candidates:
+                        candidates.insert(0, dt_icon)
+                else:
+                    for k, (_, dt_icon) in dt_index.items():
+                        if (k.startswith(clean_app + ".") or k.endswith("." + clean_app) or clean_app in k.split(".")) and dt_icon:
+                            if dt_icon not in candidates:
+                                candidates.insert(0, dt_icon)
+                            break
             except Exception:
                 pass
-    else:
-        # Linux standard XDG desktop icon theme lookup
-        candidates = _ICON_THEME_MAP.get(app_name, [app_name.lower().replace(" ", "-")])
-        for name in candidates:
-            icon = QIcon.fromTheme(name)
-            if not icon.isNull():
-                pixmap = icon.pixmap(QSize(size, size))
-                break
+
+            # Add generic fallback name variants
+            for name_variant in [app_name, app_name.lower(), app_name.lower().replace(" ", "-")]:
+                if name_variant not in candidates:
+                    candidates.append(name_variant)
+
+            for name in candidates:
+                # Try exact name, lowercased name, and hyphenated name
+                for test_name in (name, name.lower(), name.replace(" ", "-")):
+                    icon = QIcon.fromTheme(test_name)
+                    if not icon.isNull():
+                        pixmap = icon.pixmap(QSize(size, size))
+                        break
+                if pixmap is not None:
+                    break
 
     if pixmap is not None:
         _ICON_CACHE[cache_key] = pixmap
@@ -148,6 +189,7 @@ def _resolve_app_icon_sync(app_name: str, size: int) -> QPixmap | None:
         _MISSING_ICON_CACHE.add(cache_key)
 
     return pixmap
+
 
 
 def get_app_icon(
