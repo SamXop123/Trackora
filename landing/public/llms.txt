@@ -20,4 +20,4 @@
 
 ## Quick Install
 - Windows Installer: Download `TrackoraSetup.exe` from https://trackora-tracker.vercel.app
-- Linux Fedora: `sudo dnf install ./trackora-2.2.0.rpm`
+- Linux Fedora: `sudo dnf install ./trackora-2.2.1.rpm`

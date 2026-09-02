@@ -15,7 +15,7 @@ export default function DownloadView() {
     }, 2000);
   };
 
-  const dnfCommand = "sudo dnf install ./trackora-2.2.0.rpm";
+  const dnfCommand = "sudo dnf install ./trackora-2.2.1.rpm";
   const sourceCommands = "git clone https://github.com/SamXop123/Trackora.git\ncd Trackora\n./install.sh";
 
   return (
@@ -86,7 +86,7 @@ export default function DownloadView() {
 
           {/* Linux Primary Download Button */}
           <motion.a
-            href="/trackora-2.2.0.rpm"
+            href="/trackora-2.2.1.rpm"
             download
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}

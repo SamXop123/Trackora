@@ -104,7 +104,7 @@ const jsonLd = {
       "url": "https://trackora-tracker.vercel.app",
       "downloadUrl": "https://trackora-tracker.vercel.app/TrackoraSetup.exe",
       "image": "https://trackora-tracker.vercel.app/trackora_logo.png",
-      "softwareVersion": "2.2.0",
+      "softwareVersion": "2.2.1",
       "author": {
         "@type": "Organization",
         "name": "Trackora",

@@ -3,7 +3,7 @@
 
 [Setup]
 AppName=Trackora
-AppVersion=2.2.0
+AppVersion=2.2.1
 AppPublisher=SamXop123
 AppPublisherURL=https://github.com/SamXop123/Trackora
 DefaultDirName={localappdata}\Programs\Trackora
