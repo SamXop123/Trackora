@@ -36,7 +36,7 @@ def _get_app_category(name: str) -> str:
         return "Browsers"
         
     # 2. Development
-    if any(kw in name_lower for kw in ["vs code", "vscode", "cursor", "github desktop", "terminal", "antigravity", "kitty", "console", "sublime", "pycharm", "webstorm", "intellij", "git", "github", "neovim", "vim", "emacs", "bash", "sh"]):
+    if any(kw in name_lower for kw in ["vs code", "vscode", "cursor", "github desktop", "terminal", "antigravity", "kitty", "console", "sublime", "pycharm", "webstorm", "intellij", "git", "github", "neovim", "vim", "emacs", "bash", "sh", "trackora"]):
         return "Development"
         
     # 3. Music
@@ -52,7 +52,7 @@ def _get_app_category(name: str) -> str:
         return "System"
         
     # 6. Utilities
-    if any(kw in name_lower for kw in ["files", "nautilus", "archive manager", "archive", "file roller", "text editor", "gedit", "kwrite", "calculator", "notes", "obsidian", "notion", "keep", "manager"]):
+    if any(kw in name_lower for kw in ["files", "nautilus", "archive manager", "archive", "file roller", "text editor", "gedit", "kwrite", "calculator", "notes", "obsidian", "notion", "keep", "manager", "document viewer", "papers"]):
         return "Utilities"
         
     return "Other"
