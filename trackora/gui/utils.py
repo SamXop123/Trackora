@@ -133,17 +133,24 @@ def _resolve_app_icon_sync(app_name: str, size: int) -> QPixmap | None:
             exe_path = _find_win32_exe_path(app_name)
             if exe_path:
                 try:
-                    if exe_path.lower().endswith((".png", ".jpg", ".jpeg")):
-                        icon = QIcon(exe_path)
+                    uwp_icon = _find_uwp_png_icon(exe_path)
+                    if uwp_icon and os.path.exists(uwp_icon):
+                        icon = QIcon(uwp_icon)
                         if not icon.isNull():
                             pixmap = icon.pixmap(size, size)
-                    else:
-                        from PySide6.QtWidgets import QFileIconProvider
-                        from PySide6.QtCore import QFileInfo
-                        provider = QFileIconProvider()
-                        icon = provider.icon(QFileInfo(exe_path))
-                        if not icon.isNull():
-                            pixmap = icon.pixmap(size, size)
+
+                    if pixmap is None:
+                        if exe_path.lower().endswith((".png", ".jpg", ".jpeg")):
+                            icon = QIcon(exe_path)
+                            if not icon.isNull():
+                                pixmap = icon.pixmap(size, size)
+                        else:
+                            from PySide6.QtWidgets import QFileIconProvider
+                            from PySide6.QtCore import QFileInfo
+                            provider = QFileIconProvider()
+                            icon = provider.icon(QFileInfo(exe_path))
+                            if not icon.isNull():
+                                pixmap = icon.pixmap(size, size)
                 except Exception:
                     pass
         else:
@@ -232,6 +239,11 @@ _WIN_APP_ALIASES: dict[str, list[str]] = {
     "discord": ["discord", "discord.exe"],
     "slack": ["slack", "slack.exe"],
     "telegram": ["telegram", "telegram.exe"],
+    "whatsapp": ["whatsapp", "whatsapp.exe", "whatsapp.root", "whatsappdesktop"],
+    "whatsapp.root": ["whatsapp.root", "whatsapp", "whatsapp.exe"],
+    "whatsappdesktop": ["whatsappdesktop", "whatsapp", "whatsapp.exe"],
+    "onenote": ["onenote", "onenoteim", "onenote.exe", "onenoteim.exe"],
+    "settings": ["systemsettings", "systemsettings.exe", "settings"],
 }
 
 _START_MENU_SHORTCUT_INDEX: dict[str, str] | None = None
@@ -297,6 +309,28 @@ def _find_win32_exe_path(app_name: str) -> str | None:
             os.path.join(os.environ.get("ProgramFiles(x86)", ""), "Microsoft", "Edge", "Application", "msedge.exe"),
             os.path.join(os.environ.get("ProgramFiles", ""), "Microsoft", "Edge", "Application", "msedge.exe"),
         ],
+        "whatsapp": [
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WindowsApps", "WhatsApp.exe"),
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "WhatsApp", "WhatsApp.exe"),
+            os.path.join(os.environ.get("ProgramFiles", ""), "WindowsApps", "WhatsApp.exe"),
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "WhatsApp", "WhatsApp.exe"),
+        ],
+        "whatsapp.root": [
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WindowsApps", "WhatsApp.exe"),
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "WhatsApp", "WhatsApp.exe"),
+            os.path.join(os.environ.get("ProgramFiles", ""), "WindowsApps", "WhatsApp.exe"),
+        ],
+        "onenote": [
+            os.path.join(os.environ.get("ProgramFiles", ""), "Microsoft Office", "root", "Office16", "ONENOTE.EXE"),
+            os.path.join(os.environ.get("ProgramFiles(x86)", ""), "Microsoft Office", "root", "Office16", "ONENOTE.EXE"),
+        ],
+        "settings": [
+            os.path.join(os.environ.get("windir", "C:\\Windows"), "ImmersiveControlPanel", "SystemSettings.exe"),
+        ],
+        "spotify": [
+            os.path.join(os.environ.get("APPDATA", ""), "Spotify", "Spotify.exe"),
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WindowsApps", "Spotify.exe"),
+        ],
     }
 
     if app_lower in known_paths:
@@ -324,7 +358,7 @@ def _find_win32_exe_path(app_name: str) -> str | None:
             for key, val in _EXE_PATHS_JSON_CACHE.items():
                 if key.lower() in search_names:
                     if val and os.path.exists(val):
-                        if "WindowsApps" in val:
+                        if "WindowsApps" in val or "Packages" in val:
                             uwp_icon = _find_uwp_png_icon(val)
                             if uwp_icon:
                                 _EXE_SEARCH_CACHE[app_lower] = uwp_icon
@@ -384,23 +418,66 @@ def _find_win32_exe_path(app_name: str) -> str | None:
 
 
 def _find_uwp_png_icon(exe_path: str) -> str | None:
-    """Scan the UWP package directory for a high-resolution logo PNG."""
+    """Scan the UWP package directory for a high-resolution logo PNG or ICO."""
+    if not exe_path:
+        return None
     try:
         app_dir = os.path.dirname(exe_path)
-        patterns = (
-            "StoreLogo.scale-200.png",
-            "StoreLogo.png",
-            "TitleIcon32.scale-200.png",
-            "logo.scale-200.png",
-            "logo.png",
-        )
-        for pat in patterns:
-            candidate = os.path.join(app_dir, pat)
-            if os.path.exists(candidate):
-                return candidate
-            candidate_assets = os.path.join(app_dir, "Assets", pat)
-            if os.path.exists(candidate_assets):
-                return candidate_assets
+        search_dirs = [app_dir]
+        parent_dir = os.path.dirname(app_dir)
+        if "WindowsApps" in parent_dir or "Packages" in parent_dir:
+            search_dirs.append(parent_dir)
+
+        sub_names = ["assets", "images", "img", "icons", "res", "resources", "notepad"]
+        for sd in list(search_dirs):
+            for sub in sub_names:
+                p = os.path.join(sd, sub)
+                if os.path.exists(p) and p not in search_dirs:
+                    search_dirs.append(p)
+
+        candidates = []
+        for s_dir in search_dirs:
+            if not os.path.exists(s_dir):
+                continue
+            try:
+                for file in os.listdir(s_dir):
+                    f_lower = file.lower()
+                    if f_lower.endswith((".png", ".ico")):
+                        full_p = os.path.join(s_dir, file)
+                        candidates.append((file, full_p))
+            except Exception:
+                pass
+
+        if not candidates:
+            return None
+
+        priority_keywords = [
+            "square44x44logo", "square150x150logo", "storelogo", "titleicon",
+            "applist", "smalllogo", "graphicslogo", "logo", "icon"
+        ]
+
+        scored = []
+        for name, path in candidates:
+            n_lower = name.lower()
+            if "bg" in n_lower or "background" in n_lower or "banner" in n_lower or "hero" in n_lower:
+                continue
+            score = 0
+            for idx, kw in enumerate(priority_keywords):
+                if kw in n_lower:
+                    score += (len(priority_keywords) - idx) * 10
+                    break
+            if "scale-200" in n_lower or "targetsize" in n_lower:
+                score += 5
+            elif "scale-100" in n_lower:
+                score += 2
+            if score > 0:
+                scored.append((score, path))
+
+        if scored:
+            scored.sort(key=lambda x: x[0], reverse=True)
+            return scored[0][1]
+
+        return candidates[0][1]
     except Exception:
         pass
     return None
