@@ -55,6 +55,12 @@ WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 user32.EnumWindows.argtypes = [WNDENUMPROC, wintypes.LPARAM]
 user32.EnumWindows.restype = wintypes.BOOL
 
+user32.EnumChildWindows.argtypes = [wintypes.HWND, WNDENUMPROC, wintypes.LPARAM]
+user32.EnumChildWindows.restype = wintypes.BOOL
+
+user32.FindWindowExW.argtypes = [wintypes.HWND, wintypes.HWND, wintypes.LPWSTR, wintypes.LPWSTR]
+user32.FindWindowExW.restype = wintypes.HWND
+
 user32.IsWindowVisible.argtypes = [wintypes.HWND]
 user32.IsWindowVisible.restype = wintypes.BOOL
 
@@ -114,6 +120,51 @@ def _has_non_minimized_app_windows() -> bool:
     cb = WNDENUMPROC(enum_proc)
     user32.EnumWindows(cb, 0)
     return found[0]
+
+
+def _resolve_uwp_real_process(hwnd: wintypes.HWND, main_pid: int) -> tuple[str | None, str | None]:
+    """Inspect ApplicationFrameHost window to find its embedded UWP app child process and exe path."""
+    child_pid = wintypes.DWORD(0)
+
+    def enum_child_proc(c_hwnd: wintypes.HWND, lparam: wintypes.LPARAM) -> bool:
+        c_buf = ctypes.create_unicode_buffer(256)
+        user32.GetClassNameW(c_hwnd, c_buf, 256)
+        if c_buf.value == "Windows.UI.Core.CoreWindow":
+            c_pid = wintypes.DWORD(0)
+            user32.GetWindowThreadProcessId(c_hwnd, ctypes.byref(c_pid))
+            if c_pid.value and c_pid.value != main_pid:
+                child_pid.value = c_pid.value
+                return False
+        return True
+
+    cb = WNDENUMPROC(enum_child_proc)
+    user32.EnumChildWindows(hwnd, cb, 0)
+
+    real_pid = child_pid.value if child_pid.value else None
+    if not real_pid:
+        c_hwnd = user32.FindWindowExW(hwnd, 0, "Windows.UI.Core.CoreWindow", None)
+        if c_hwnd:
+            c_pid = wintypes.DWORD(0)
+            user32.GetWindowThreadProcessId(c_hwnd, ctypes.byref(c_pid))
+            if c_pid.value and c_pid.value != main_pid:
+                real_pid = c_pid.value
+
+    if real_pid:
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        h_process = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, real_pid)
+        if h_process:
+            try:
+                buf_size = ctypes.c_ulong(1024)
+                buf = ctypes.create_unicode_buffer(buf_size.value)
+                if kernel32.QueryFullProcessImageNameW(h_process, 0, buf, ctypes.byref(buf_size)):
+                    exe_path = buf.value
+                    exe_name = os.path.basename(exe_path)
+                    app = os.path.splitext(exe_name)[0]
+                    if app and app.lower() != "applicationframehost":
+                        return app, exe_path
+            finally:
+                kernel32.CloseHandle(h_process)
+    return None, None
 
 
 class WindowsNativeWindowStateProvider(WindowStateProvider):
@@ -199,6 +250,31 @@ class WindowsNativeWindowStateProvider(WindowStateProvider):
                         app = os.path.splitext(exe_name)[0]
                         if app.lower() in ("lockapp", "logonui", "scrnsave"):
                             return WindowStateReadResult(state=None, error="System locked / sleep screen")
+
+                        if app.lower() == "applicationframehost":
+                            real_app, real_exe_path = _resolve_uwp_real_process(hwnd, pid.value)
+                            if real_app:
+                                app = real_app
+                                exe_path = real_exe_path
+                            else:
+                                t_lower = (title or "").lower()
+                                if "onenote" in t_lower:
+                                    app = "OneNote"
+                                elif "settings" in t_lower:
+                                    app = "Settings"
+                                elif "whatsapp" in t_lower:
+                                    app = "WhatsApp"
+                                elif "calculator" in t_lower:
+                                    app = "Calculator"
+                                elif "photos" in t_lower:
+                                    app = "Photos"
+                                elif "clock" in t_lower or "alarm" in t_lower:
+                                    app = "Clock"
+                                elif "weather" in t_lower:
+                                    app = "Weather"
+                                elif "mail" in t_lower or "calendar" in t_lower:
+                                    app = "Mail"
+
                         if app.lower() == "explorer":
                             if class_name in desktop_classes:
                                 if _has_non_minimized_app_windows():
