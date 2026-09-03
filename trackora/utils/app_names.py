@@ -67,6 +67,7 @@ _APP_NAME_MAP: dict[str, str] = {
     "telegram": "Telegram",
     "whatsapp.root": "WhatsApp",
     "whatsapp": "WhatsApp",
+    "whatsappdesktop": "WhatsApp",
     "teams": "Microsoft Teams",
     "ms-teams": "Microsoft Teams",
     "zoom": "Zoom",
@@ -100,6 +101,12 @@ _APP_NAME_MAP: dict[str, str] = {
     "org.gnome.texteditor": "Text Editor",
     "org.gnome.loupe": "Image Viewer",
     "org.freedesktop.gnomeabrt": "Problem Reporting",
+    "systemsettings": "Settings",
+    "onenoteim": "OneNote",
+    "onenote": "OneNote",
+    "calculatorapp": "Calculator",
+    "microsoft.photos": "Photos",
+    "photosapp": "Photos",
     "trackora": "Trackora",
     "trackora-dashboard": "Trackora",
     "trackora dashboard": "Trackora",
@@ -194,6 +201,18 @@ def normalize_app_name(app_name: str, window_title: str = "") -> str:
 
     if normalized in {"python3", "python", "pythonw"} and ("trackora" in title or "excluded application" in title or "service status" in title or "select date" in title):
         return "Trackora"
+
+    if normalized == "applicationframehost":
+        if "onenote" in title:
+            return "OneNote"
+        if "settings" in title:
+            return "Settings"
+        if "whatsapp" in title:
+            return "WhatsApp"
+        if "calculator" in title:
+            return "Calculator"
+        if "photos" in title:
+            return "Photos"
 
     mapped = _APP_NAME_MAP.get(normalized)
     if mapped:
