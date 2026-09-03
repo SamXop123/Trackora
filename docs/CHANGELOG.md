@@ -4,16 +4,15 @@ All notable changes to the Trackora project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.1] - 2026-09-02
-
-This release resolves Linux application display name normalization and icon theme resolution for Flatpak, GNOME, and local application binaries.
+## [2.2.1] - 2026-09-04
 
 ### Fixed (Linux)
-- **VS Code Icon Resolution**: Fixed incorrect icon fetching by reordering icon theme candidate prioritization (`vscode`, `visual-studio-code`, `com.visualstudio.code`) ahead of generic document icons.
-- **Obsidian Flatpak Display Name & Icon**: Resolved reverse-DNS Flatpak application identifiers (`md.obsidian`, `md.obsidian.Obsidian`) to display cleanly as `"Obsidian"` and successfully load Flatpak icon assets.
-- **Document Viewer (GNOME Papers) Name & Icon**: Added normalization for reverse-DNS desktop IDs (`org.gnome.Papers`, `gnome.org.papers`) to `"Document Viewer"` and preserved exact-case icon resolution (`org.gnome.Papers`).
-- **Trackora Application Icon**: Made local asset logo fallback (`trackora_logo.png`) cross-platform to properly display Trackora's icon on Linux desktops.
-- **Dynamic Linux Desktop Metadata Indexer**: Added dynamic scanning of system and Flatpak `.desktop` files (`/usr/share/applications`, `/var/lib/flatpak/exports/share/applications`, `~/.local/share/applications`) to automatically extract application `Name=` and `Icon=` metadata for unmapped desktop applications.
+- **App Name & Icon Resolution**: Fixed icon prioritization and reverse-DNS Flatpak identifiers (VS Code, Obsidian, GNOME Papers) to display clean names and correct icons.
+- **Dynamic Desktop Indexer**: Added `.desktop` file scanning to automatically extract `Name=` and `Icon=` metadata for unmapped applications.
+
+### Fixed (Windows)
+- **UWP App Detection (`ApplicationFrameHost`)**: Resolved `ApplicationFrameHost` container process to correctly identify and log underlying UWP apps (OneNote, Settings, Calculator, Photos).
+- **Store & WhatsApp App Icons**: Enhanced UWP asset scanner to reliably extract high-resolution icons for WhatsApp and Windows Store apps.
 
 ## [2.2.0] - 2026-08-15
 
