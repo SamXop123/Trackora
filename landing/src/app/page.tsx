@@ -174,6 +174,66 @@ export default function Home() {
           </AnimatePresence>
         </div>
       </AppFrame>
+
+      {/* Crawlable Semantic SEO & GEO Structured Content Layer for Search Engines and AI Indexers */}
+      <section className="sr-only" aria-label="About Trackora Screen Time and Productivity Tracker">
+        <header>
+          <h1>Trackora — Free & Local-First Screen Time Tracker for Windows and Linux</h1>
+          <p>
+            Trackora is a privacy-first, open-source desktop screen time and activity tracker built for Windows 10/11 and Linux (GNOME Wayland). It operates 100% offline with local SQLite storage, giving you automated time tracking, timeline replay, daily/weekly analytics charts, and zero telemetry.
+          </p>
+        </header>
+
+        <article id="features">
+          <h2>Key Features of Trackora Screen Time Tracker</h2>
+          <ul>
+            <li><strong>Automated Screen Time Tracking:</strong> Passively records active window focus with less than 0.1% CPU overhead.</li>
+            <li><strong>100% Offline & Private:</strong> Zero telemetry, zero analytics tracking, and no cloud logins. All activity logs stay in your local SQLite database.</li>
+            <li><strong>Daily & Weekly Analytics:</strong> Interactive bar charts, productivity ratios, session counts, and most-used application rankings.</li>
+            <li><strong>Visual Activity Timeline:</strong> Replay and inspect exact application usage patterns throughout the day.</li>
+            <li><strong>Intelligent Idle & AFK Detection:</strong> Automatically pauses tracking when you step away from keyboard and mouse, or when your system enters sleep or lock screen.</li>
+            <li><strong>App Categorization:</strong> Automatically organizes usage across Browsers, Development, Communication, Music, Utilities, and System.</li>
+            <li><strong>Productivity Goals:</strong> Define daily screen time limits or minimum productive focus targets.</li>
+            <li><strong>System Tray Controls:</strong> Minimize to system tray and easily pause tracking for 15m, 30m, 1h, or custom durations.</li>
+          </ul>
+        </article>
+
+        <article id="download">
+          <h2>Download Trackora for Windows and Linux</h2>
+          <p>Get started with Trackora today — completely free and open source.</p>
+          <ul>
+            <li><a href="/TrackoraSetup.exe" download>Download Trackora Installer for Windows (Windows 10 / Windows 11 64-bit)</a></li>
+            <li><a href="/trackora-2.2.1.rpm" download>Download Trackora for Linux Fedora / RHEL (RPM Package)</a></li>
+            <li><a href="https://github.com/SamXop123/Trackora">View Source Code on GitHub (MIT License)</a></li>
+          </ul>
+        </article>
+
+        <article id="faq">
+          <h2>Frequently Asked Questions (FAQ)</h2>
+          <dl>
+            <dt>What is Trackora?</dt>
+            <dd>Trackora is a free, local-first screen time and activity tracker designed for desktop users on Windows and Linux who want deep productivity insights without compromising privacy.</dd>
+
+            <dt>How is Trackora different from cloud-based time trackers?</dt>
+            <dd>Unlike cloud trackers that send screenshots and keystrokes to third-party servers, Trackora keeps 100% of your data on your local device in an offline SQLite database. No account is required and no telemetry is transmitted.</dd>
+
+            <dt>What platforms does Trackora support?</dt>
+            <dd>Trackora supports Windows 10 and 11, as well as Linux distributions running GNOME Wayland (such as Fedora, Ubuntu, and Arch Linux).</dd>
+
+            <dt>How does Trackora handle computer sleep and lock screen?</dt>
+            <dd>Trackora monitors physical mouse and keyboard activity via native Win32/DBus hooks. When you lock your computer, close the lid, or step away for more than 5 minutes, tracking automatically halts to avoid logging false screen time.</dd>
+          </dl>
+        </article>
+
+        <footer>
+          <p>Trackora is created by the Trackora Open Source Team. Licensed under the MIT License.</p>
+          <nav>
+            <a href="https://github.com/SamXop123/Trackora">GitHub Repository</a> |{" "}
+            <a href="/llms.txt">AI Documentation (llms.txt)</a> |{" "}
+            <a href="/llms-full.txt">Full Technical Specs (llms-full.txt)</a>
+          </nav>
+        </footer>
+      </section>
     </main>
   );
 }
