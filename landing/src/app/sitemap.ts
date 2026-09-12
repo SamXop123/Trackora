@@ -12,28 +12,28 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1.0,
     },
     {
-      url: `${baseUrl}/#features`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/#download`,
+      url: `${baseUrl}/TrackoraSetup.exe`,
       lastModified,
       changeFrequency: "weekly",
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/#faq`,
+      url: `${baseUrl}/trackora-2.2.1.rpm`,
       lastModified,
-      changeFrequency: "monthly",
-      priority: 0.7,
+      changeFrequency: "weekly",
+      priority: 0.8,
     },
     {
       url: `${baseUrl}/llms.txt`,
       lastModified,
-      changeFrequency: "monthly",
-      priority: 0.6,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/llms-full.txt`,
+      lastModified,
+      changeFrequency: "weekly",
+      priority: 0.7,
     },
   ];
 }
