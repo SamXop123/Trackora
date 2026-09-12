@@ -7,17 +7,26 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
+        allow: ["/", "/llms.txt", "/llms-full.txt"],
         disallow: ["/api/"],
       },
       {
         userAgent: [
+          "Googlebot",
+          "Bingbot",
+          "DuckDuckBot",
+          "Baiduspider",
+          "YandexBot",
+          "Applebot",
           "GPTBot",
           "ChatGPT-User",
-          "ClaudeBot",
           "PerplexityBot",
+          "ClaudeBot",
           "Google-Extended",
           "Applebot-Extended",
+          "cohere-ai",
+          "Bytespider",
+          "CCBot",
         ],
         allow: ["/", "/llms.txt", "/llms-full.txt"],
       },
