@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 
 from trackora.database.dashboard import DashboardRepository
 from trackora.gui.pages import (
-    ApplicationsPage, DashboardPage, GoalsPage,
+    ApplicationsPage, CalendarPage, DashboardPage,
     InsightsPage, ReportsPage, SettingsPage, TimelinePage,
 )
 from trackora.gui.ui_common import PageTransitionHelper
@@ -40,9 +40,9 @@ _NAV_HOVER_BG = "#121b28"
 _NAV_ITEMS: list[tuple[str, str]] = [
     ("Dashboard",    "⌂"),
     ("Timeline",     "◔"),
+    ("Calendar",     "▦"),
     ("Applications", "⊞"),
     ("Insights",     "◈"),
-    ("Goals",        "◎"),
     ("Reports",      "◷"),
 ]
 
@@ -441,26 +441,33 @@ class MainWindow(QMainWindow):
         self._dashboard_page.date_changed.connect(self._on_dashboard_date_changed)
         self._dashboard_page.reset_date_requested.connect(self._on_dashboard_reset_date)
         self._dashboard_page.custom_date_selected.connect(self._on_dashboard_custom_date_selected)
-        self._dashboard_page.view_all_requested.connect(lambda: self._on_nav_click(2))
+        self._dashboard_page.view_all_requested.connect(lambda: self._on_nav_click(3))
         self._stack.addWidget(self._dashboard_page)      # 0
+
         self._timeline_page = TimelinePage()
         self._timeline_page.set_repository(self._repository)
-        self._stack.addWidget(self._timeline_page)            # 1
+        self._stack.addWidget(self._timeline_page)       # 1
+
+        self._calendar_page = CalendarPage()
+        self._calendar_page.set_repository(self._repository)
+        self._stack.addWidget(self._calendar_page)       # 2
+
         self._apps_page = ApplicationsPage()
         self._apps_page.set_repository(self._repository)
-        self._stack.addWidget(self._apps_page)            # 2
+        self._stack.addWidget(self._apps_page)           # 3
+
         self._insights_page = InsightsPage()
         self._insights_page.set_repository(self._repository)
-        self._stack.addWidget(self._insights_page)        # 3
-        self._stack.addWidget(GoalsPage())                # 4
+        self._stack.addWidget(self._insights_page)       # 4
+
         self._reports_page = ReportsPage()
         self._reports_page.set_repository(self._repository)
-        self._stack.addWidget(self._reports_page)          # 5
+        self._stack.addWidget(self._reports_page)         # 5
         
         self._settings_page = SettingsPage()
         self._settings_page.set_repository(self._repository)
         self._settings_page.data_reset_requested.connect(self._on_data_reset)
-        self._stack.addWidget(self._settings_page)         # 6
+        self._stack.addWidget(self._settings_page)        # 6
 
         self._page_transitions = PageTransitionHelper(self._stack, duration_ms=120, parent=self)
 
@@ -474,6 +481,7 @@ class MainWindow(QMainWindow):
         snapshot = self._repository.load_snapshot(self._selected_date)
         self._dashboard_page.refresh(snapshot)
         self._timeline_page.refresh_data()
+        self._calendar_page.refresh_data()
         self._apps_page.refresh_data()
         self._insights_page.refresh_data()
         self._reports_page.refresh_data()
@@ -522,8 +530,10 @@ class MainWindow(QMainWindow):
         elif index == 1:
             self._timeline_page.refresh_data()
         elif index == 2:
-            self._apps_page.refresh_data()
+            self._calendar_page.refresh_data()
         elif index == 3:
+            self._apps_page.refresh_data()
+        elif index == 4:
             self._insights_page.refresh_data()
         elif index == 5:
             self._reports_page.refresh_data()
@@ -569,8 +579,10 @@ class MainWindow(QMainWindow):
             elif cur == 1:
                 self._timeline_page.refresh_data()
             elif cur == 2:
-                self._apps_page.refresh_data()
+                self._calendar_page.refresh_data()
             elif cur == 3:
+                self._apps_page.refresh_data()
+            elif cur == 4:
                 self._insights_page.refresh_data()
             elif cur == 5:
                 self._reports_page.refresh_data()
