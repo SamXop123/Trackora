@@ -105,3 +105,124 @@ _CATEGORY_SVGS: dict[str, str] = {
 }
 
 
+def _get_category_pixmap(cat: str, size: int, color_hex: str) -> QPixmap:
+    from PySide6.QtCore import QByteArray
+
+    svg_text = _CATEGORY_SVGS.get(cat, _CATEGORY_SVGS["Other"])
+    svg_text = svg_text.replace('stroke="currentColor"', f'stroke="{color_hex}"')
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    renderer = QSvgRenderer(QByteArray(svg_text.encode("utf-8")))
+    renderer.render(painter)
+    painter.end()
+    return pixmap
+
+
+def _blend_colors(c1: QColor, c2: QColor, factor: float) -> QColor:
+    f = max(0.0, min(1.0, factor))
+    r = int(c1.red() + (c2.red() - c1.red()) * f)
+    g = int(c1.green() + (c2.green() - c1.green()) * f)
+    b = int(c1.blue() + (c2.blue() - c1.blue()) * f)
+    a = int(c1.alpha() + (c2.alpha() - c1.alpha()) * f)
+    return QColor(r, g, b, a)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  BASE CARD
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+class _Card(QFrame):
+    """Reusable base card container with clean dark background and border."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("calendarCard")
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setStyleSheet(
+            f"QFrame#calendarCard {{ background: {_CARD}; border: 1px solid {_CARD_BORDER}; border-radius: 14px; }}"
+        )
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  NAVIGATION BUTTON
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+class _NavIconBtn(QWidget):
+    """Subtle, animated navigation button for month switching and jumping to today."""
+
+    clicked = Signal()
+
+    def __init__(
+        self,
+        text: str,
+        tooltip: str = "",
+        fixed_width: int = 34,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._text = text
+        self._hover_val = 0.0
+        self.setFixedHeight(32)
+        if fixed_width > 0:
+            self.setFixedWidth(fixed_width)
+        else:
+            self.setMinimumWidth(58)
+        if tooltip:
+            self.setToolTip(tooltip)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        self._anim = QVariantAnimation(self)
+        self._anim.setDuration(120)
+        self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._anim.setStartValue(0.0)
+        self._anim.setEndValue(1.0)
+        self._anim.valueChanged.connect(self._on_anim)
+
+    def _on_anim(self, val: float) -> None:
+        self._hover_val = float(val)
+        self.update()
+
+    def enterEvent(self, event) -> None:
+        super().enterEvent(event)
+        self._anim.stop()
+        self._anim.setStartValue(self._hover_val)
+        self._anim.setEndValue(1.0)
+        self._anim.start()
+
+    def leaveEvent(self, event) -> None:
+        super().leaveEvent(event)
+        self._anim.stop()
+        self._anim.setStartValue(self._hover_val)
+        self._anim.setEndValue(0.0)
+        self._anim.start()
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        rect = QRectF(0.5, 0.5, self.width() - 1, self.height() - 1)
+        bg = _blend_colors(QColor(_CARD_LIGHTER), QColor(28, 42, 64), self._hover_val)
+        border = _blend_colors(QColor(_CARD_BORDER), QColor(_ACCENT), self._hover_val)
+        text_color = _blend_colors(QColor(_TEXT_SECONDARY), QColor(_TEXT_PRIMARY), self._hover_val)
+
+        painter.setBrush(QBrush(bg))
+        painter.setPen(QPen(border, 1.0))
+        painter.drawRoundedRect(rect, 8.0, 8.0)
+
+        font = self.font()
+        font.setFamily("Inter")
+        font.setPointSizeF(10.0)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.setPen(QPen(text_color))
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, self._text)
+        painter.end()
+
+
