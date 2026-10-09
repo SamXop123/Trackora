@@ -936,3 +936,313 @@ class _DayDetailsPanel(_Card):
 
         self._cat_chips_container.updateGeometry()
 
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  MONTH SUMMARY STAT CARDS STRIP
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+class _StatBlock(QFrame):
+    """Clean single-metric card for the month overview."""
+
+    def __init__(self, title: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setFixedHeight(76)
+        self.setStyleSheet(
+            f"background: {_CARD}; border: 1px solid {_CARD_BORDER}; border-radius: 12px;"
+        )
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(3)
+
+        lbl = QLabel(title.upper())
+        lbl.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 9px; font-weight: 700; letter-spacing: 0.09em; border: none;"
+        )
+        layout.addWidget(lbl)
+
+        self._val = QLabel("—")
+        self._val.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 17px; font-weight: 700; border: none;"
+        )
+        layout.addWidget(self._val)
+
+        self._sub = QLabel("")
+        self._sub.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 10px; border: none;")
+        layout.addWidget(self._sub)
+
+    def set_data(self, val: str, sub: str = "") -> None:
+        self._val.setText(val)
+        self._sub.setText(sub)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  MAIN CALENDAR PAGE
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+class CalendarPage(QWidget):
+    """Trackora Calendar Page — Monthly screen-time intelligence."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._repository: DashboardRepository | None = None
+        self._current_month: date = date.today().replace(day=1)
+        self._selected_date: date = date.today()
+        self._day_cache: dict[date, ReportsData | None] = {}
+        self._month_cache: dict[tuple[int, int], ReportsData | None] = {}
+
+        self._build_layout()
+
+    def set_repository(self, repo: DashboardRepository) -> None:
+        self._repository = repo
+
+    def _build_layout(self) -> None:
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        # Outer ScrollArea for complete natural reflow without shrinking or clipping
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet(f"""
+            QScrollArea {{
+                background: {_BG};
+                border: none;
+            }}
+            QScrollBar:vertical {{
+                background: {_BG};
+                width: 6px;
+                margin: 0;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {_CARD_BORDER};
+                border-radius: 3px;
+                min-height: 30px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {_TEXT_MUTED};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                background: none;
+            }}
+        """)
+
+        container = QWidget()
+        container.setStyleSheet(f"background: {_BG};")
+        self._container_layout = QVBoxLayout(container)
+        self._container_layout.setContentsMargins(36, 32, 36, 32)
+        self._container_layout.setSpacing(20)
+
+        # 1. Header Bar: Title, Subtitle, and Month Navigation Controls
+        header_bar = QHBoxLayout()
+        header_bar.setContentsMargins(0, 0, 0, 0)
+        header_bar.setSpacing(16)
+
+        header_col = QVBoxLayout()
+        header_col.setSpacing(4)
+        title = QLabel("Calendar")
+        title.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 22px; font-weight: 700; background: transparent; border: none;"
+        )
+        header_col.addWidget(title)
+
+        subtitle = QLabel("See how your time changed day by day.")
+        subtitle.setStyleSheet(
+            f"color: {_TEXT_SECONDARY}; font-size: 13px; background: transparent; border: none;"
+        )
+        header_col.addWidget(subtitle)
+        header_bar.addLayout(header_col, 1)
+
+        # Month Navigation Controls
+        nav_controls = QHBoxLayout()
+        nav_controls.setSpacing(8)
+
+        self._today_btn = _NavIconBtn("Today", tooltip="Jump to current month", fixed_width=58)
+        self._today_btn.clicked.connect(self._on_jump_today)
+        nav_controls.addWidget(self._today_btn)
+
+        self._prev_btn = _NavIconBtn("‹", tooltip="Previous month", fixed_width=32)
+        self._prev_btn.clicked.connect(self._on_prev_month)
+        nav_controls.addWidget(self._prev_btn)
+
+        self._month_label = QLabel("October 2026")
+        self._month_label.setFixedWidth(140)
+        self._month_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._month_label.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 14px; font-weight: 700; background: transparent; border: none;"
+        )
+        nav_controls.addWidget(self._month_label)
+
+        self._next_btn = _NavIconBtn("›", tooltip="Next month", fixed_width=32)
+        self._next_btn.clicked.connect(self._on_next_month)
+        nav_controls.addWidget(self._next_btn)
+
+        header_bar.addLayout(nav_controls)
+        self._container_layout.addLayout(header_bar)
+
+        # 2. Month Overview Stats Strip
+        stats_strip = QHBoxLayout()
+        stats_strip.setSpacing(14)
+
+        self._stat_month_time = _StatBlock("MONTH SCREEN TIME")
+        self._stat_active_days = _StatBlock("ACTIVE DAYS")
+        self._stat_daily_avg = _StatBlock("DAILY AVERAGE")
+        self._stat_peak_day = _StatBlock("MOST ACTIVE DAY")
+
+        stats_strip.addWidget(self._stat_month_time)
+        stats_strip.addWidget(self._stat_active_days)
+        stats_strip.addWidget(self._stat_daily_avg)
+        stats_strip.addWidget(self._stat_peak_day)
+
+        self._container_layout.addLayout(stats_strip)
+
+        # 3. Main Body: Calendar Grid + Day Details Panel (Solid, unshifting layout)
+        self._body_layout = QHBoxLayout()
+        self._body_layout.setContentsMargins(0, 0, 0, 0)
+        self._body_layout.setSpacing(18)
+
+        # Calendar 7-Column Surface (expands to fill available width)
+        self._calendar_surface = _CalendarMonthSurface()
+        self._calendar_surface.day_selected.connect(self._on_day_clicked)
+        self._body_layout.addWidget(self._calendar_surface, 1)
+
+        # Compact Day Details Side Panel (stable, fixed width of 330px)
+        self._details_panel = _DayDetailsPanel()
+        self._body_layout.addWidget(self._details_panel, 0)
+
+        self._container_layout.addLayout(self._body_layout)
+
+        scroll.setWidget(container)
+        main_layout.addWidget(scroll)
+
+    def _on_jump_today(self) -> None:
+        today = date.today()
+        self._current_month = today.replace(day=1)
+        self._selected_date = today
+        self.refresh_data()
+
+    def _on_prev_month(self) -> None:
+        year = self._current_month.year
+        month = self._current_month.month - 1
+        if month < 1:
+            month = 12
+            year -= 1
+        self._current_month = date(year, month, 1)
+        if self._selected_date.year != year or self._selected_date.month != month:
+            self._selected_date = date(year, month, 1)
+        self.refresh_data()
+
+    def _on_next_month(self) -> None:
+        year = self._current_month.year
+        month = self._current_month.month + 1
+        if month > 12:
+            month = 1
+            year += 1
+        self._current_month = date(year, month, 1)
+        if self._selected_date.year != year or self._selected_date.month != month:
+            self._selected_date = date(year, month, 1)
+        self.refresh_data()
+
+    def _on_day_clicked(self, d: date) -> None:
+        self._selected_date = d
+        self._load_day_details(d)
+
+    def refresh_data(self) -> None:
+        """Fetch and populate month data and selected day data."""
+        if not self._repository:
+            return
+
+        year = self._current_month.year
+        month = self._current_month.month
+
+        # Sync selected_date to current month if needed
+        if self._selected_date.year != year or self._selected_date.month != month:
+            today = date.today()
+            if today.year == year and today.month == month:
+                self._selected_date = today
+            else:
+                self._selected_date = date(year, month, 1)
+
+        # Update Month Label
+        self._month_label.setText(self._current_month.strftime("%B %Y"))
+
+        # Calculate grid bounds (42 days)
+        first_of_month = date(year, month, 1)
+        start_offset = first_of_month.weekday()  # Mon = 0
+        grid_start = first_of_month - timedelta(days=start_offset)
+        grid_end = grid_start + timedelta(days=41)
+
+        # 1. Fetch Month Range Data
+        cache_key = (year, month)
+        month_data = self._repository.load_reports_data(start_date=grid_start, end_date=grid_end)
+        self._month_cache[cache_key] = month_data
+
+        usage_map: dict[date, int] = {}
+        if month_data and month_data.daily_usage:
+            for item in month_data.daily_usage:
+                usage_map[item.day] = item.duration_seconds
+
+        # 2. Update Month Overview Summary Cards
+        _, days_in_month = calendar.monthrange(year, month)
+        month_days = [date(year, month, d) for d in range(1, days_in_month + 1)]
+
+        month_tracked_sec = sum(usage_map.get(d, 0) for d in month_days)
+        active_days = sum(1 for d in month_days if usage_map.get(d, 0) > 0)
+        daily_avg_sec = month_tracked_sec // max(1, active_days)
+
+        self._stat_month_time.set_data(
+            format_duration_compact(month_tracked_sec),
+            f"across {days_in_month} days",
+        )
+        self._stat_active_days.set_data(
+            f"{active_days} / {days_in_month}",
+            f"{int((active_days / days_in_month) * 100)}% active rate",
+        )
+        self._stat_daily_avg.set_data(
+            format_duration_compact(daily_avg_sec),
+            "per active day",
+        )
+
+        # Most active day within current month
+        month_items = [
+            (d, usage_map.get(d, 0)) for d in month_days if usage_map.get(d, 0) > 0
+        ]
+        if month_items:
+            best_day, best_sec = max(month_items, key=lambda item: item[1])
+            self._stat_peak_day.set_data(
+                best_day.strftime("%b %d"),
+                format_duration_compact(best_sec),
+            )
+        else:
+            self._stat_peak_day.set_data("—", "No activity")
+
+        # 3. Update the 42 cells in place
+        self._calendar_surface.update_grid(
+            year=year,
+            month=month,
+            usage_map=usage_map,
+            selected_date=self._selected_date,
+        )
+
+        # 4. Load details for the currently selected date
+        self._load_day_details(self._selected_date)
+
+    def _load_day_details(self, target_date: date) -> None:
+        """Fetch and display details for target_date with caching."""
+        if not self._repository:
+            return
+
+        if target_date in self._day_cache:
+            day_data = self._day_cache[target_date]
+        else:
+            day_data = self._repository.load_reports_data(start_date=target_date, end_date=target_date)
+            self._day_cache[target_date] = day_data
+
+        self._details_panel.set_day_data(target_date, day_data)
