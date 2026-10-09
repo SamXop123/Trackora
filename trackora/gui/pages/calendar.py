@@ -538,3 +538,401 @@ class _CalendarMonthSurface(_Card):
             cell.set_day_data(cur_date, in_month, is_today, is_selected, dur)
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+#  DAY DETAILS PANEL (Secondary, informative, non-intrusive)
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+class _AppUsageRow(QWidget):
+    """Compact application row inside the Day Details panel."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setFixedHeight(34)
+        self.setStyleSheet("background: transparent;")
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setSpacing(10)
+
+        self._icon_lbl = QLabel()
+        self._icon_lbl.setFixedSize(18, 18)
+        self._icon_lbl.setStyleSheet("background: transparent; border: none;")
+        layout.addWidget(self._icon_lbl)
+
+        name_dur_col = QVBoxLayout()
+        name_dur_col.setContentsMargins(0, 0, 0, 0)
+        name_dur_col.setSpacing(2)
+
+        self._name_lbl = QLabel("—")
+        self._name_lbl.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; background: transparent; border: none;"
+        )
+        name_dur_col.addWidget(self._name_lbl)
+
+        self._bar_bg = QFrame()
+        self._bar_bg.setFixedHeight(3)
+        self._bar_bg.setStyleSheet(f"background: #1c2735; border-radius: 1px;")
+        name_dur_col.addWidget(self._bar_bg)
+
+        layout.addLayout(name_dur_col, 1)
+
+        self._dur_lbl = QLabel("0m")
+        self._dur_lbl.setStyleSheet(
+            f"color: {_TEXT_SECONDARY}; font-size: 11px; font-weight: 500; background: transparent; border: none;"
+        )
+        layout.addWidget(self._dur_lbl)
+
+    def set_app_data(self, app_name: str, duration_sec: int, max_sec: int) -> None:
+        self._name_lbl.setText(app_name)
+        self._dur_lbl.setText(format_duration_compact(duration_sec))
+
+        pixmap = get_app_icon(app_name, 18, on_loaded=self._on_icon_loaded)
+        if pixmap and not pixmap.isNull():
+            self._icon_lbl.setPixmap(pixmap)
+        else:
+            self._icon_lbl.clear()
+
+        pct = max(3, int((duration_sec / max(1, max_sec)) * 100))
+        self._bar_bg.setStyleSheet(
+            f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+            f"stop:0 {_ACCENT}, stop:{pct/100:.2f} {_ACCENT}, stop:{(pct+0.01)/100:.2f} #1c2735, stop:1 #1c2735); "
+            f"border-radius: 1px;"
+        )
+
+    def _on_icon_loaded(self, pixmap: QPixmap | None) -> None:
+        if pixmap and not pixmap.isNull():
+            self._icon_lbl.setPixmap(pixmap)
+
+
+class _FlowLayout(QLayout):
+    """Layout that arranges child widgets horizontally and wraps to subsequent rows when space runs out."""
+
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        margin: int = 0,
+        h_spacing: int = 6,
+        v_spacing: int = 6,
+    ) -> None:
+        super().__init__(parent)
+        self._item_list: list = []
+        self._h_spacing = h_spacing
+        self._v_spacing = v_spacing
+        self.setContentsMargins(margin, margin, margin, margin)
+
+    def addItem(self, item) -> None:
+        self._item_list.append(item)
+
+    def horizontalSpacing(self) -> int:
+        return self._h_spacing
+
+    def verticalSpacing(self) -> int:
+        return self._v_spacing
+
+    def count(self) -> int:
+        return len(self._item_list)
+
+    def itemAt(self, index: int):
+        if 0 <= index < len(self._item_list):
+            return self._item_list[index]
+        return None
+
+    def takeAt(self, index: int):
+        if 0 <= index < len(self._item_list):
+            return self._item_list.pop(index)
+        return None
+
+    def expandingDirections(self) -> Qt.Orientation:
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self) -> bool:
+        return True
+
+    def heightForWidth(self, width: int) -> int:
+        return self._do_layout(QRect(0, 0, width, 0), True)
+
+    def setGeometry(self, rect: QRect) -> None:
+        super().setGeometry(rect)
+        self._do_layout(rect, False)
+
+    def sizeHint(self) -> QSize:
+        w = self.geometry().width()
+        if w > 0:
+            return QSize(w, self.heightForWidth(w))
+        return self.minimumSize()
+
+    def minimumSize(self) -> QSize:
+        size = QSize()
+        for item in self._item_list:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        size += QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+        return size
+
+    def _do_layout(self, rect: QRect, test_only: bool) -> int:
+        left, top, right, bottom = self.getContentsMargins()
+        effective_rect = rect.adjusted(+left, +top, -right, -bottom)
+        x = effective_rect.x()
+        y = effective_rect.y()
+        line_height = 0
+
+        for item in self._item_list:
+            space_x = self.horizontalSpacing()
+            space_y = self.verticalSpacing()
+            hint = item.sizeHint()
+            next_x = x + hint.width() + space_x
+            if next_x - space_x > effective_rect.right() and line_height > 0:
+                x = effective_rect.x()
+                y = y + line_height + space_y
+                next_x = x + hint.width() + space_x
+                line_height = 0
+
+            if not test_only:
+                item.setGeometry(QRect(QPoint(x, y), hint))
+
+            x = next_x
+            line_height = max(line_height, hint.height())
+
+        return y + line_height - rect.y() + bottom
+
+
+class _DayDetailsPanel(_Card):
+    """Compact secondary detail section displaying metrics for the selected day."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._date: date = date.today()
+        self.setFixedWidth(330)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Preferred)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(14)
+
+        # 1. Header (Date + Badge)
+        header_row = QHBoxLayout()
+        header_row.setSpacing(8)
+
+        header_col = QVBoxLayout()
+        header_col.setSpacing(2)
+
+        self._date_title = QLabel("Wednesday, Oct 14")
+        self._date_title.setStyleSheet(
+            f"color: {_TEXT_PRIMARY}; font-size: 15px; font-weight: 700; background: transparent; border: none;"
+        )
+        header_col.addWidget(self._date_title)
+
+        self._date_subtitle = QLabel("Selected Day")
+        self._date_subtitle.setStyleSheet(
+            f"color: {_TEXT_SECONDARY}; font-size: 11px; background: transparent; border: none;"
+        )
+        header_col.addWidget(self._date_subtitle)
+        header_row.addLayout(header_col, 1)
+
+        self._today_badge = QLabel("TODAY")
+        self._today_badge.setStyleSheet(
+            f"color: #ffffff; background: {_ACCENT}; font-size: 9px; font-weight: 700; "
+            f"padding: 3px 7px; border-radius: 4px; border: none;"
+        )
+        self._today_badge.setVisible(False)
+        header_row.addWidget(self._today_badge)
+
+        layout.addLayout(header_row)
+
+        # 2. Metric Cards Container (Clean 2-row layout that NEVER overflows)
+        metrics_card = QFrame()
+        metrics_card.setStyleSheet(
+            f"background: {_CARD_LIGHTER}; border: 1px solid {_CARD_BORDER}; border-radius: 10px;"
+        )
+        metrics_card_lo = QVBoxLayout(metrics_card)
+        metrics_card_lo.setContentsMargins(14, 12, 14, 12)
+        metrics_card_lo.setSpacing(10)
+
+        # Row 1: Total Time + Apps Used
+        m_row1 = QHBoxLayout()
+        m_row1.setSpacing(10)
+
+        # Stat 1: Total Screen Time
+        s1_col = QVBoxLayout()
+        s1_col.setSpacing(2)
+        s1_lbl = QLabel("TOTAL TIME")
+        s1_lbl.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; border: none;")
+        self._stat_time = QLabel("0m")
+        self._stat_time.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 15px; font-weight: 700; border: none;")
+        s1_col.addWidget(s1_lbl)
+        s1_col.addWidget(self._stat_time)
+        m_row1.addLayout(s1_col, 1)
+
+        # Divider
+        div1 = QFrame()
+        div1.setFixedWidth(1)
+        div1.setStyleSheet(f"background: {_CARD_BORDER}; border: none;")
+        m_row1.addWidget(div1)
+
+        # Stat 2: Apps Count
+        s2_col = QVBoxLayout()
+        s2_col.setSpacing(2)
+        s2_lbl = QLabel("APPS USED")
+        s2_lbl.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; border: none;")
+        self._stat_apps = QLabel("0")
+        self._stat_apps.setStyleSheet(f"color: {_TEXT_PRIMARY}; font-size: 15px; font-weight: 700; border: none;")
+        s2_col.addWidget(s2_lbl)
+        s2_col.addWidget(self._stat_apps)
+        m_row1.addLayout(s2_col, 1)
+
+        metrics_card_lo.addLayout(m_row1)
+
+        # Divider line
+        h_div = QFrame()
+        h_div.setFixedHeight(1)
+        h_div.setStyleSheet(f"background: {_CARD_BORDER}; border: none;")
+        metrics_card_lo.addWidget(h_div)
+
+        # Row 2: Top Application (Full width, avoids horizontal clipping)
+        s3_col = QVBoxLayout()
+        s3_col.setSpacing(2)
+        s3_lbl = QLabel("TOP APPLICATION")
+        s3_lbl.setStyleSheet(f"color: {_TEXT_MUTED}; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; border: none;")
+        self._stat_top_app = QLabel("—")
+        self._stat_top_app.setStyleSheet(f"color: {_ACCENT}; font-size: 13px; font-weight: 700; border: none;")
+        s3_col.addWidget(s3_lbl)
+        s3_col.addWidget(self._stat_top_app)
+        metrics_card_lo.addLayout(s3_col)
+
+        layout.addWidget(metrics_card)
+
+        # 3. Category Breakdown (Productivity breakdown)
+        self._category_section = QWidget()
+        self._category_section.setStyleSheet("background: transparent;")
+        cat_lo = QVBoxLayout(self._category_section)
+        cat_lo.setContentsMargins(0, 0, 0, 0)
+        cat_lo.setSpacing(6)
+
+        cat_header = QLabel("CATEGORIES")
+        cat_header.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; border: none;"
+        )
+        cat_lo.addWidget(cat_header)
+
+        self._cat_chips_container = QWidget()
+        self._cat_chips_container.setStyleSheet("background: transparent;")
+        self._cat_flow_layout = _FlowLayout(self._cat_chips_container, margin=0, h_spacing=6, v_spacing=6)
+        cat_lo.addWidget(self._cat_chips_container)
+
+        layout.addWidget(self._category_section)
+
+        # 4. Major Application Usage
+        app_header_row = QHBoxLayout()
+        app_header = QLabel("MAJOR USAGE")
+        app_header.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; border: none;"
+        )
+        app_header_row.addWidget(app_header)
+        app_header_row.addStretch(1)
+
+        layout.addLayout(app_header_row)
+
+        self._app_list_layout = QVBoxLayout()
+        self._app_list_layout.setSpacing(4)
+        layout.addLayout(self._app_list_layout)
+
+        # 5. Empty State Message for Inactive Days
+        self._empty_label = QLabel("No activity recorded for this day.")
+        self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_label.setStyleSheet(
+            f"color: {_TEXT_MUTED}; font-size: 12px; font-weight: 500; padding: 28px 0; background: transparent; border: none;"
+        )
+        self._empty_label.setVisible(False)
+        layout.addWidget(self._empty_label)
+
+        layout.addStretch(1)
+        self._app_rows: list[_AppUsageRow] = []
+
+    def set_day_data(self, target_date: date, data: ReportsData | None) -> None:
+        """Update day details cleanly without flicker."""
+        self._date = target_date
+
+        self._date_title.setText(target_date.strftime("%A, %b %d"))
+        is_today = (target_date == date.today())
+        self._today_badge.setVisible(is_today)
+        self._date_subtitle.setText("Today's Activity" if is_today else f"{target_date.strftime('%B %Y')}")
+
+        has_data = data is not None and data.total_screen_time_seconds > 0
+
+        if not has_data:
+            self._stat_time.setText("0m")
+            self._stat_apps.setText("0")
+            self._stat_top_app.setText("—")
+            self._category_section.setVisible(False)
+            self._clear_category_chips()
+            self._empty_label.setVisible(True)
+            self._empty_label.setText(
+                "No activity recorded for this day."
+                if target_date <= date.today()
+                else "Future day — no activity yet."
+            )
+            for r in self._app_rows:
+                r.setVisible(False)
+        else:
+            self._empty_label.setVisible(False)
+            self._category_section.setVisible(True)
+
+            self._stat_time.setText(format_duration_compact(data.total_screen_time_seconds))
+            self._stat_apps.setText(str(len(data.app_usage)))
+            top_app = data.most_used_app_name if data.most_used_app_name != "—" else "None"
+            self._stat_top_app.setText(top_app)
+
+            # Category Chips
+            self._render_category_chips(data.category_breakdown)
+
+            # App Usage Rows
+            top_apps = data.app_usage[:5]
+            max_sec = top_apps[0].duration_seconds if top_apps else 1
+
+            self._app_rows = recycle_widgets_in_place(
+                layout=self._app_list_layout,
+                existing_widgets=self._app_rows,
+                new_data=top_apps,
+                create_fn=lambda: _AppUsageRow(),
+                update_fn=lambda w, item, idx: w.set_app_data(item.app_name, item.duration_seconds, max_sec),
+            )
+
+    def _clear_category_chips(self) -> None:
+        while self._cat_flow_layout.count():
+            item = self._cat_flow_layout.takeAt(0)
+            if item:
+                wid = item.widget()
+                if wid:
+                    wid.deleteLater()
+
+    def _render_category_chips(self, categories: list[tuple[str, int, int]]) -> None:
+        self._clear_category_chips()
+        active_cats = [c for c in categories if c[1] > 0][:4]
+        if not active_cats:
+            self._category_section.setVisible(False)
+            return
+
+        self._category_section.setVisible(True)
+        for cat_name, dur, pct in active_cats:
+            chip = QFrame()
+            chip.setStyleSheet(
+                f"background: {_CARD_LIGHTER}; border: 1px solid {_CARD_BORDER}; border-radius: 6px;"
+            )
+            chip_lo = QHBoxLayout(chip)
+            chip_lo.setContentsMargins(7, 4, 9, 4)
+            chip_lo.setSpacing(5)
+
+            icon_lbl = QLabel()
+            icon_lbl.setFixedSize(14, 14)
+            icon_lbl.setPixmap(_get_category_pixmap(cat_name, 14, _ACCENT))
+            chip_lo.addWidget(icon_lbl)
+
+            lbl = QLabel(f"{cat_name} {pct}%")
+            lbl.setStyleSheet(f"color: {_TEXT_SECONDARY}; font-size: 10px; font-weight: 600; border: none;")
+            chip_lo.addWidget(lbl)
+
+            self._cat_flow_layout.addWidget(chip)
+
+        self._cat_chips_container.updateGeometry()
+
