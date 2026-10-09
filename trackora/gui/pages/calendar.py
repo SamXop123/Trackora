@@ -226,3 +226,315 @@ class _NavIconBtn(QWidget):
         painter.end()
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+#  CALENDAR DAY CELL
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+class _CalendarDayCell(QWidget):
+    """A compact, high-fidelity day cell in the 7-column calendar.
+
+    Usage Intensity Tiers (Subtle & Premium, not an aggressive heatmap):
+    - Tier 0: 0 seconds (no activity, clean dark card)
+    - Tier 1: > 0 to < 1.5h (very low usage: subtle navy tint, soft indicator)
+    - Tier 2: 1.5h to 5h (normal usage: medium navy presence, accent pill)
+    - Tier 3: > 5h (high usage / deep focus: rich deep navy, bright accent pill)
+    """
+
+    clicked = Signal(date)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._date: date | None = None
+        self._in_current_month: bool = True
+        self._is_today: bool = False
+        self._is_selected: bool = False
+        self._duration_seconds: int = 0
+
+        self.setMinimumSize(QSize(54, 62))
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Expanding)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        # Smooth 120ms hover animation
+        self._hover_val = 0.0
+        self._hover_anim = QVariantAnimation(self)
+        self._hover_anim.setDuration(120)
+        self._hover_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._hover_anim.setStartValue(0.0)
+        self._hover_anim.setEndValue(1.0)
+        self._hover_anim.valueChanged.connect(self._on_hover_step)
+
+    def _on_hover_step(self, val: float) -> None:
+        self._hover_val = float(val)
+        self.update()
+
+    def set_day_data(
+        self,
+        d: date,
+        in_month: bool,
+        is_today: bool,
+        is_selected: bool,
+        duration_seconds: int,
+    ) -> None:
+        """In-place data update avoiding widget destruction."""
+        self._date = d
+        self._in_current_month = in_month
+        self._is_today = is_today
+        self._is_selected = is_selected
+        self._duration_seconds = max(0, duration_seconds)
+        self.update()
+
+    def set_selected(self, selected: bool) -> None:
+        if self._is_selected != selected:
+            self._is_selected = selected
+            self.update()
+
+    def enterEvent(self, event) -> None:
+        super().enterEvent(event)
+        self._hover_anim.stop()
+        self._hover_anim.setStartValue(self._hover_val)
+        self._hover_anim.setEndValue(1.0)
+        self._hover_anim.start()
+
+    def leaveEvent(self, event) -> None:
+        super().leaveEvent(event)
+        self._hover_anim.stop()
+        self._hover_anim.setStartValue(self._hover_val)
+        self._hover_anim.setEndValue(0.0)
+        self._hover_anim.start()
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton and self._date is not None:
+            self.clicked.emit(self._date)
+
+    def paintEvent(self, event) -> None:
+        if self._date is None:
+            return
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        w = float(self.width())
+        h = float(self.height())
+        rect = QRectF(0.5, 0.5, w - 1.0, h - 1.0)
+
+        # 1. Determine Usage Tier
+        secs = self._duration_seconds
+        if secs <= 0:
+            tier = 0
+        elif secs < 5400:  # < 1.5h
+            tier = 1
+        elif secs < 18000:  # 1.5h - 5h
+            tier = 2
+        else:  # >= 5h
+            tier = 3
+
+        # 2. Base Background & Border
+        if not self._in_current_month:
+            # Clean dark container for days outside current month
+            base_bg = QColor("#0f141f")
+            base_border = QColor("#192230")
+        else:
+            if tier == 0:
+                base_bg = QColor(_CARD)  # #141a23
+                base_border = QColor(_CARD_BORDER)  # #1c2735
+            elif tier == 1:
+                base_bg = QColor(19, 28, 42)
+                base_border = QColor(28, 44, 68)
+            elif tier == 2:
+                base_bg = QColor(22, 34, 52)
+                base_border = QColor(33, 56, 86)
+            else:
+                base_bg = QColor(26, 42, 68)
+                base_border = QColor(42, 72, 110)
+
+        # 3. Hover Blend
+        hover_bg_target = QColor(27, 40, 60)
+        hover_border_target = QColor(59, 130, 246)
+
+        current_bg = _blend_colors(base_bg, hover_bg_target, self._hover_val * 0.7)
+        current_border = _blend_colors(base_border, hover_border_target, self._hover_val * 0.9)
+
+        # 4. Selection Highlight
+        if self._is_selected:
+            current_border = QColor(_ACCENT)
+            current_bg = _blend_colors(current_bg, QColor(29, 48, 76), 0.7)
+
+        # Draw Cell Background
+        painter.setBrush(QBrush(current_bg))
+        pen_width = 1.6 if self._is_selected else 1.0
+        painter.setPen(QPen(current_border, pen_width))
+        painter.drawRoundedRect(rect, 8.0, 8.0)
+
+        # 5. Top Row: Day Number + Today Highlight
+        day_num_str = str(self._date.day)
+
+        if self._is_today:
+            # Restrained accent pill for today
+            today_pill_size = 20.0
+            pill_rect = QRectF(6.0, 6.0, today_pill_size, today_pill_size)
+            painter.setBrush(QBrush(QColor(_ACCENT)))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(pill_rect, 5.0, 5.0)
+
+            font_day = QFont("Inter")
+            font_day.setPointSizeF(9.5)
+            font_day.setBold(True)
+            painter.setFont(font_day)
+            painter.setPen(QPen(QColor("#ffffff")))
+            painter.drawText(pill_rect, Qt.AlignmentFlag.AlignCenter, day_num_str)
+        else:
+            font_day = QFont("Inter")
+            font_day.setPointSizeF(9.5)
+            font_day.setBold(self._in_current_month and (tier > 0 or self._is_selected))
+            painter.setFont(font_day)
+
+            if not self._in_current_month:
+                painter.setPen(QPen(QColor(_TEXT_MUTED)))
+            else:
+                painter.setPen(QPen(QColor(_TEXT_PRIMARY)))
+
+            day_text_rect = QRectF(8.0, 7.0, 26.0, 18.0)
+            painter.drawText(day_text_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, day_num_str)
+
+        # 6. Usage Intensity Pill in upper-right
+        if self._in_current_month and tier > 0:
+            if tier == 1:
+                pill_color = QColor(59, 130, 246, 120)
+                pill_w = 10.0
+            elif tier == 2:
+                pill_color = QColor(59, 130, 246, 200)
+                pill_w = 14.0
+            else:
+                pill_color = QColor(96, 165, 250, 255)
+                pill_w = 18.0
+
+            indicator_rect = QRectF(w - pill_w - 7.0, 9.0, pill_w, 3.5)
+            painter.setBrush(QBrush(pill_color))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(indicator_rect, 1.75, 1.75)
+
+        # 7. Bottom Row: Duration String
+        font_dur = QFont("Inter")
+        font_dur.setPointSizeF(8.5)
+
+        if self._in_current_month:
+            if tier > 0:
+                dur_str = format_duration_compact(secs)
+                if tier == 3:
+                    dur_color = QColor("#93c5fd")
+                    font_dur.setBold(True)
+                elif tier == 2:
+                    dur_color = QColor(_TEXT_PRIMARY)
+                    font_dur.setBold(True)
+                else:
+                    dur_color = QColor(_TEXT_SECONDARY)
+                    font_dur.setBold(False)
+            else:
+                dur_str = "—"
+                dur_color = QColor("#3a4b60")
+                font_dur.setBold(False)
+
+            painter.setFont(font_dur)
+            painter.setPen(QPen(dur_color))
+            dur_rect = QRectF(8.0, h - 21.0, w - 16.0, 15.0)
+            painter.drawText(dur_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, dur_str)
+        else:
+            if secs > 0:
+                dur_str = format_duration_compact(secs)
+                painter.setFont(font_dur)
+                painter.setPen(QPen(QColor(86, 106, 130, 140)))
+                dur_rect = QRectF(8.0, h - 21.0, w - 16.0, 15.0)
+                painter.drawText(dur_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, dur_str)
+
+        painter.end()
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  CALENDAR MONTH SURFACE (7 COLUMNS)
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+class _CalendarMonthSurface(_Card):
+    """Container holding the 7-column header and 42 persistent day cells in a single aligned grid."""
+
+    day_selected = Signal(date)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._year: int = date.today().year
+        self._month: int = date.today().month
+        self._selected_date: date = date.today()
+        self._cells: list[_CalendarDayCell] = []
+
+        self.setMinimumHeight(490)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Preferred)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(10)
+
+        # Single unified QGridLayout for 100% pixel-perfect column alignment
+        self._grid_layout = QGridLayout()
+        self._grid_layout.setContentsMargins(0, 0, 0, 0)
+        self._grid_layout.setHorizontalSpacing(8)
+        self._grid_layout.setVerticalSpacing(8)
+
+        # Row 0: Column headers (MON → SUN)
+        weekday_names = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+        for col, name in enumerate(weekday_names):
+            lbl = QLabel(name)
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl.setFixedHeight(22)
+            lbl.setStyleSheet(
+                f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 700; "
+                f"letter-spacing: 0.1em; background: transparent; border: none;"
+            )
+            self._grid_layout.addWidget(lbl, 0, col)
+
+        # Rows 1 to 6: 42 Persistent Day Cells
+        for r in range(6):
+            for c in range(7):
+                cell = _CalendarDayCell()
+                cell.clicked.connect(self._on_cell_clicked)
+                self._grid_layout.addWidget(cell, r + 1, c)
+                self._cells.append(cell)
+
+        layout.addLayout(self._grid_layout, 1)
+
+    def _on_cell_clicked(self, d: date) -> None:
+        self.set_selected_date(d)
+        self.day_selected.emit(d)
+
+    def set_selected_date(self, d: date) -> None:
+        """Update selection across cells without recreating anything."""
+        self._selected_date = d
+        for cell in self._cells:
+            cell.set_selected(cell._date == d)
+
+    def update_grid(
+        self,
+        year: int,
+        month: int,
+        usage_map: dict[date, int],
+        selected_date: date,
+    ) -> None:
+        """Populate the 42 cells in-place for the given month."""
+        self._year = year
+        self._month = month
+        self._selected_date = selected_date
+
+        first_of_month = date(year, month, 1)
+        start_day_offset = first_of_month.weekday()  # Mon = 0, Sun = 6
+        grid_start = first_of_month - timedelta(days=start_day_offset)
+        today = date.today()
+
+        for i, cell in enumerate(self._cells):
+            cur_date = grid_start + timedelta(days=i)
+            in_month = (cur_date.year == year and cur_date.month == month)
+            is_today = (cur_date == today)
+            is_selected = (cur_date == selected_date)
+            dur = usage_map.get(cur_date, 0)
+            cell.set_day_data(cur_date, in_month, is_today, is_selected, dur)
+
+
