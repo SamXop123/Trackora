@@ -84,10 +84,10 @@ fi
 
 %changelog
 * Sat Oct 10 2026 SamXop123 <dot_notsam> - 2.3.0-1
-- Brand new Calendar page: monthly screen-time view, usage intensity tiers, and day details panel.
-- Category card flow layout with responsive multi-row wrapping.
-- Custom slim scrollbar styling matching Trackora visual design.
-- Removed deprecated Goals section and streamlined navigation.
+- Brand new Calendar view: monthly screen-time overview with usage intensity tiers.
+- Interactive day details panel with daily app rankings and category breakdowns.
+- Smooth month navigation with quick jump-to-today action.
+- Streamlined sidebar navigation focusing on core activity analytics.
 
 * Wed Sep 02 2026 SamXop123 <dot_notsam> - 2.2.1-1
 - Linux application display name normalization and icon theme resolution fixes (VS Code, Obsidian, Document Viewer, Trackora).
