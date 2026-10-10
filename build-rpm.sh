@@ -68,6 +68,7 @@ EXCLUDES=(
     --exclude="landing/public/*.rpm"
     --exclude="landing/public/*.tar.gz"
     --exclude="landing/public/*.exe"
+    --exclude="landing/public/*.zip"
 )
 
 rsync -a "${EXCLUDES[@]}" ./ "${TEMP_DIR}/trackora-${VERSION}/"
@@ -84,7 +85,7 @@ if [[ "${1:-}" == "--setup-only" ]]; then
 fi
 
 echo "Building RPM package..."
-rpmbuild --define "_topdir $(pwd)/rpmbuild" -ba rpmbuild/SPECS/trackora.spec
+rpmbuild --define "_topdir $(pwd)/rpmbuild" --define "_tmppath /tmp" -ba rpmbuild/SPECS/trackora.spec
 
 # Normalize the version name for output files (e.g. 1.0.0rc1 -> 1.0.0-rc1)
 FILE_VERSION=$(echo "${VERSION}" | sed 's/rc/-rc/')
