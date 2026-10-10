@@ -53,9 +53,9 @@ A: Local-First means that all computational logic and data storage occur exclusi
 A: Download `TrackoraSetup.exe` from https://trackora-tracker.vercel.app/TrackoraSetup.exe and execute the setup wizard. The application will configure optional startup launch and system tray integration.
 
 ### Q: How do I install Trackora on Linux?
-A: On Fedora or RHEL distributions, download `trackora-2.2.1.rpm` and run:
+A: On Fedora or RHEL distributions, download `trackora-2.3.0.rpm` and run:
 ```bash
-sudo dnf install ./trackora-2.2.1.rpm
+sudo dnf install ./trackora-2.3.0.rpm
 ```
 Alternatively, clone the repository from https://github.com/SamXop123/Trackora and execute `./install.sh`.
 
@@ -65,6 +65,6 @@ A: Trackora incorporates hardware input activity monitoring. If there is no user
 ## Key Endpoints & Downloads
 - Official Homepage: https://trackora-tracker.vercel.app
 - Windows Installer: https://trackora-tracker.vercel.app/TrackoraSetup.exe
-- Linux RPM: https://trackora-tracker.vercel.app/trackora-2.2.1.rpm
+- Linux RPM: https://trackora-tracker.vercel.app/trackora-2.3.0.rpm
 - GitHub Source: https://github.com/SamXop123/Trackora
 - AI Summary: https://trackora-tracker.vercel.app/llms.txt

@@ -24,7 +24,7 @@
 
 ## Installation & Downloads
 - **Windows (x64)**: Download `TrackoraSetup.exe` directly from https://trackora-tracker.vercel.app/TrackoraSetup.exe
-- **Linux Fedora / RHEL**: `sudo dnf install ./trackora-2.2.1.rpm`
+- **Linux Fedora / RHEL**: `sudo dnf install ./trackora-2.3.0.rpm`
 - **Build from Source**:
   ```bash
   git clone https://github.com/SamXop123/Trackora.git

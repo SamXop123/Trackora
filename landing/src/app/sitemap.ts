@@ -18,7 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/trackora-2.2.1.rpm`,
+      url: `${baseUrl}/trackora-2.3.0.rpm`,
       lastModified,
       changeFrequency: "weekly",
       priority: 0.8,

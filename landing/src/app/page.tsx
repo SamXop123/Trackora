@@ -203,7 +203,7 @@ export default function Home() {
           <p>Get started with Trackora today — completely free and open source.</p>
           <ul>
             <li><a href="/TrackoraSetup.exe" download>Download Trackora Installer for Windows (Windows 10 / Windows 11 64-bit)</a></li>
-            <li><a href="/trackora-2.2.1.rpm" download>Download Trackora for Linux Fedora / RHEL (RPM Package)</a></li>
+            <li><a href="/trackora-2.3.0.rpm" download>Download Trackora for Linux Fedora / RHEL (RPM Package)</a></li>
             <li><a href="https://github.com/SamXop123/Trackora">View Source Code on GitHub (MIT License)</a></li>
           </ul>
         </article>

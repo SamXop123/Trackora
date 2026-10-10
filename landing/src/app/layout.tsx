@@ -138,10 +138,10 @@ const jsonLd = {
       "url": "https://trackora-tracker.vercel.app",
       "downloadUrl": [
         "https://trackora-tracker.vercel.app/TrackoraSetup.exe",
-        "https://trackora-tracker.vercel.app/trackora-2.2.1.rpm",
+        "https://trackora-tracker.vercel.app/trackora-2.3.0.rpm",
       ],
       "image": "https://trackora-tracker.vercel.app/trackora_logo.png",
-      "softwareVersion": "2.2.1",
+      "softwareVersion": "2.3.0",
       "license": "https://opensource.org/licenses/MIT",
       "featureList": [
         "Automated background screen time and active window focus tracking",
@@ -239,7 +239,7 @@ const jsonLd = {
           "name": "How do I download and install Trackora?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "For Windows, download TrackoraSetup.exe from the official website and run the installer. For Linux Fedora, download the RPM package and install via 'sudo dnf install ./trackora-2.2.1.rpm' or clone the GitHub repository and run ./install.sh.",
+            "text": "For Windows, download TrackoraSetup.exe from the official website and run the installer. For Linux Fedora, download the RPM package and install via 'sudo dnf install ./trackora-2.3.0.rpm' or clone the GitHub repository and run ./install.sh.",
           },
         },
       ],
