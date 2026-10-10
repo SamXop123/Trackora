@@ -4,6 +4,24 @@ All notable changes to the Trackora project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-10-10
+
+This release introduces the **Calendar View** — a dedicated monthly view that visualizes your screen time patterns day by day across the entire month. We’ve also streamlined the sidebar navigation to keep your workspace focused on the analytics that matter most.
+
+### All-New Monthly Calendar
+- **Month-at-a-Glance Intelligence**: Answers the question *"How did I spend my time across the month?"* with a clean, high-density 7-column monthly view (Monday → Sunday).
+- **Subtle Usage Intensity Tiers**: Days indicate your screen time intensity at a glance using Trackora's calm dark visual language (low, normal, and deep focus activity) without noisy or aggressive heatmaps.
+- **Interactive Day Details**: Click any day on the calendar to reveal a deep dive into that day's activity:
+  - Total tracked screen time and count of active apps.
+  - Top application used during that day.
+  - Category breakdown (Browsers, Development, Utilities, Communication, etc.) showing focus distribution.
+  - Major usage ranking with proportional time bars.
+- **Smooth Month Navigation**: Browse historical activity with quick previous/next month controls, or jump straight back to current activity with the **Today** shortcut.
+- **Instant Day Previews**: Fluid, responsive day cell interactions with subtle hover feedback and clear today indicators.
+
+### Navigation & UX Polish
+- **Streamlined Sidebar**: Removed the legacy Goals section to give more room and focus to core analytics (Dashboard, Timeline, Calendar, Applications, Insights, and Reports).
+
 ## [2.2.1] - 2026-09-04
 
 ### Fixed (Linux)
