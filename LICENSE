@@ -1,21 +1,108 @@
-MIT License
+Trackora Proprietary License
+Copyright (c) 2026 SamXop123. All Rights Reserved.
 
-Copyright (c) 2026 SamXop123
+───────────────────────────────────────────────────────────────────────────────
+TRACKORA PROPRIETARY SOURCE LICENSE v1.0
+───────────────────────────────────────────────────────────────────────────────
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software, Trackora, and all associated source code, documentation, assets,
+and related materials (collectively, the "Software") are the exclusive
+intellectual property of SamXop123 ("the Author").
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+────────────────────────
+1. GRANT OF USE
+────────────────────────
+Any person who obtains a copy of the compiled, distributed binaries of this
+Software (e.g. the installer, RPM package, or tarball published in official
+releases) is granted a free, worldwide, non-exclusive, perpetual licence to:
 
+  a) Download, install, and run the Software on any number of personal or
+     work devices.
+
+  b) Use the Software for any lawful purpose, including personal, academic,
+     and commercial productivity use.
+
+  c) Share links to the official download page or release page so others
+     can obtain the Software.
+
+These rights apply solely to the compiled application binaries. They do NOT
+extend to the source code, assets, or any other materials in this repository.
+
+────────────────────────
+2. RESTRICTIONS
+────────────────────────
+Unless you have received explicit prior written permission from the Author,
+you are strictly prohibited from:
+
+  a) Copying, reproducing, or redistributing the source code in whole or in
+     part, in any medium or format, for any purpose.
+
+  b) Modifying, adapting, translating, reverse-engineering, decompiling, or
+     creating derivative works based on the Software or its source code.
+
+  c) Redistributing, sublicensing, selling, renting, leasing, or otherwise
+     transferring the Software or any portion thereof to any third party.
+
+  d) Removing, altering, or obscuring any copyright, trademark, attribution,
+     or proprietary notice contained in the Software.
+
+  e) Publishing, mirroring, or hosting the source code on any public or
+     private repository without the Author's explicit consent.
+
+  f) Using the Software's name, branding, or assets to promote any product,
+     project, or service not directly authorised by the Author.
+
+────────────────────────
+3. CONTRIBUTIONS
+────────────────────────
+Contributions to the official Trackora repository are welcome. By submitting
+a contribution (e.g. a pull request, patch, or suggestion), you:
+
+  a) Irrevocably grant the Author a perpetual, worldwide, royalty-free,
+     exclusive licence to use, incorporate, modify, and distribute your
+     contribution as part of the Software under any terms the Author chooses.
+
+  b) Confirm that you have the legal right to make the contribution, and that
+     it does not infringe any third-party intellectual property rights.
+
+  c) Acknowledge that your contribution does not grant you any ownership,
+     co-authorship, or additional rights over the Software beyond what is
+     described in this licence.
+
+────────────────────────
+4. NO OPEN-SOURCE RIGHTS
+────────────────────────
+The availability of the source code on any public platform does NOT constitute
+a grant of open-source rights. Making the source viewable for transparency and
+community contribution purposes is at the Author's sole discretion and may be
+withdrawn at any time. Viewing the source code does not entitle any person to
+copy, modify, or redistribute it.
+
+────────────────────────
+5. DISCLAIMER OF WARRANTIES
+────────────────────────
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHOR
+BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+────────────────────────
+6. GOVERNING LAW
+────────────────────────
+This licence shall be governed by and construed in accordance with applicable
+law. Any disputes shall be subject to the exclusive jurisdiction of the courts
+competent for the Author's place of residence.
+
+────────────────────────
+7. CONTACT
+────────────────────────
+For permissions beyond the scope of this licence — including commercial use,
+redistribution rights, or partnership enquiries — contact the Author directly
+via the official Trackora repository.
+
+───────────────────────────────────────────────────────────────────────────────
+By using, accessing, or contributing to this Software, you agree to be bound
+by the terms of this licence.
+───────────────────────────────────────────────────────────────────────────────

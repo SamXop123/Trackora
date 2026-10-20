@@ -11,7 +11,7 @@
 
 Trackora is an elegant, privacy-first productivity tool designed primarily for the modern Linux desktop (GNOME Wayland), and expanded to Windows 10/11. It runs silently in the background, logging application usage and window focus, and presents your data in a beautiful, analytical dashboard.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-5c6bc0.svg?style=flat-square)](LICENSE)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-ef5350.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-informational?style=flat-square&color=5c6bc0)](https://github.com/SamXop123/Trackora)
 [![GNOME](https://img.shields.io/badge/GNOME-Extension-informational?style=flat-square&color=4db6ac)](https://extensions.gnome.org)
 [![Version](https://img.shields.io/badge/Version-v2.3.0-3b82f6.svg?style=flat-square)](https://github.com/SamXop123/Trackora/releases)

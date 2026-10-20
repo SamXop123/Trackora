@@ -6,7 +6,7 @@ Trackora is an open-source, local-first desktop application designed for automat
 - **Product Name**: Trackora (Trackora Tracker / Trackora Screen Time)
 - **Official Website**: https://trackora-tracker.vercel.app
 - **Repository**: https://github.com/SamXop123/Trackora
-- **License**: MIT License (Free & Open Source)
+- **License**: Proprietary — All Rights Reserved (Source-available for transparency; see LICENSE)
 - **Supported Platforms**: Windows 10/11 (x64) and Linux GNOME Wayland (Fedora, Ubuntu, Arch, RHEL).
 
 ## Architectural Overview
@@ -42,7 +42,7 @@ Trackora is an open-source, local-first desktop application designed for automat
 | **User Account** | None Required (Instant start) | Mandatory Email / SSO |
 | **Resource Usage** | < 0.1% CPU, ~45MB RAM | Heavy browser / electron agents |
 | **Platform Support** | Windows 10/11 & Linux GNOME | Usually Windows / macOS only |
-| **Price & License** | 100% Free & Open Source (MIT) | Paid monthly subscription |
+| **Price & License** | 100% Free — Proprietary (All Rights Reserved) |
 
 ## Frequently Asked Questions (FAQ)
 

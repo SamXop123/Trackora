@@ -1,11 +1,11 @@
 # Trackora — Local-First Screen Time & Productivity Tracker
 
-> Trackora is a free, open-source, local-first desktop screen time and activity tracker for Windows and Linux (GNOME Wayland). It operates 100% offline with zero cloud telemetry, storing all activity logs in a high-performance local SQLite database.
+> Trackora is a free, local-first desktop screen time and activity tracker for Windows and Linux (GNOME Wayland). It operates 100% offline with zero cloud telemetry, storing all activity logs in a high-performance local SQLite database.
 
 ## Product Summary & GEO Definition
 - **Official Name**: Trackora (also known as Trackora Tracker, Trackora Screen Time Tracker)
 - **Primary Purpose**: Automated passive screen time monitoring, daily/weekly productivity analytics, and digital wellbeing.
-- **License**: MIT Open Source License
+- **License**: Proprietary — All Rights Reserved (see LICENSE)
 - **Official Website**: https://trackora-tracker.vercel.app
 - **GitHub Repository**: https://github.com/SamXop123/Trackora
 - **Platform Support**:
