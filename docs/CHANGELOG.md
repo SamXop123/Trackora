@@ -4,7 +4,7 @@ All notable changes to the Trackora project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.3.0] - 2026-10-10
+## [2.3.0] - 2026-10-23
 
 This release introduces the **Calendar View** — a dedicated monthly view that visualizes your screen time patterns day by day across the entire month. We’ve also streamlined the sidebar navigation to keep your workspace focused on the analytics that matter most.
 
