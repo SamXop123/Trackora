@@ -7,7 +7,7 @@ design language: dark cards, blue glow accents, smooth hover effects.
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from PySide6.QtCore import Qt, QRectF, QSize, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import (
@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from ...models.dashboard import TimelineSession
 from ...utils.grouping import merge_consecutive_sessions
+from ...utils.time import now_utc
 
 from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
@@ -91,6 +92,65 @@ class _ToggleSwitch(AnimatedToggleSwitch):
         super().__init__(checked=False, on_toggled=callback, parent=parent)
 
 
+# ─── Day selector pill button ───────────────────────────────────────────────
+
+class _DayPill(QWidget):
+    """Rounded segmented pill button for timeline day selection (Today / Yesterday)."""
+
+    def __init__(self, label: str, offset: int, callback, parent=None):
+        super().__init__(parent)
+        self._offset = offset
+        self._callback = callback
+        self._active = False
+        self._hovered = False
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedHeight(30)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(14, 0, 14, 0)
+        self._label = QLabel(label)
+        self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self._label)
+        self._apply_style()
+
+    def set_active(self, active: bool):
+        self._active = active
+        self._apply_style()
+
+    def _apply_style(self):
+        if self._active:
+            bg, text_c = _ACCENT_SOFT, _TEXT_PRIMARY
+            border_c = _ACCENT
+            font_weight = "600"
+        elif self._hovered:
+            bg, text_c = _CARD_LIGHTER, _TEXT_PRIMARY
+            border_c = _CARD_BORDER
+            font_weight = "500"
+        else:
+            bg, text_c = _CARD, _TEXT_SECONDARY
+            border_c = _CARD_BORDER
+            font_weight = "500"
+        self.setStyleSheet(
+            f"background: {bg}; border-radius: 8px; border: 1px solid {border_c};"
+        )
+        self._label.setStyleSheet(
+            f"color: {text_c}; font-size: 12px; font-weight: {font_weight}; "
+            f"background: transparent; border: none;"
+        )
+
+    def enterEvent(self, event):
+        self._hovered = True
+        self._apply_style()
+
+    def leaveEvent(self, event):
+        self._hovered = False
+        self._apply_style()
+
+    def mousePressEvent(self, event):
+        self._callback(self._offset)
+
+
 # ─── Summary stat chip ──────────────────────────────────────────────────────
 
 class _SummaryChip(QFrame):
@@ -118,12 +178,12 @@ class _SummaryChip(QFrame):
         )
         top_row.addWidget(icon)
 
-        cap = QLabel(caption)
-        cap.setStyleSheet(
+        self._caption = QLabel(caption)
+        self._caption.setStyleSheet(
             f"color: {_TEXT_MUTED}; font-size: 10px; font-weight: 600; "
             f"letter-spacing: 0.06em; background: transparent; border: none;"
         )
-        top_row.addWidget(cap)
+        top_row.addWidget(self._caption)
         top_row.addStretch(1)
         layout.addLayout(top_row)
 
@@ -133,6 +193,9 @@ class _SummaryChip(QFrame):
             f"background: transparent; border: none;"
         )
         layout.addWidget(self._value)
+
+    def set_caption(self, text: str):
+        self._caption.setText(text)
 
     def set_value(self, text: str):
         self._value.setText(text)
@@ -383,6 +446,7 @@ class TimelinePage(QWidget):
         super().__init__(parent)
         self._repository: DashboardRepository | None = None
         self._entry_widgets: list[QWidget] = []
+        self._selected_day_offset = 0
         self._render_queue: list[tuple[str, Any, Any]] = []
         self._rendered_count = 0
         self._last_sessions_sig: tuple | None = None
@@ -428,7 +492,7 @@ class TimelinePage(QWidget):
         # ── Header ──────────────────────────────────────────────────────
         header_row = QHBoxLayout()
         header_row.setContentsMargins(0, 0, 0, 0)
-        header_row.setSpacing(0)
+        header_row.setSpacing(12)
 
         header_left = QVBoxLayout()
         header_left.setSpacing(4)
@@ -440,15 +504,30 @@ class TimelinePage(QWidget):
         )
         header_left.addWidget(title)
 
-        subtitle = QLabel("Today's activity feed")
-        subtitle.setStyleSheet(
+        self._subtitle = QLabel("Today's activity feed")
+        self._subtitle.setStyleSheet(
             f"color: {_TEXT_SECONDARY}; font-size: 13px; "
             f"background: transparent; border: none;"
         )
-        header_left.addWidget(subtitle)
+        header_left.addWidget(self._subtitle)
         header_row.addLayout(header_left, 1)
 
-        # Toggle Switch on the right side
+        # Right side: Day selector pills & Detailed Sessions toggle
+        controls_layout = QHBoxLayout()
+        controls_layout.setSpacing(16)
+        controls_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+        # Segmented Day Pills
+        day_pills_layout = QHBoxLayout()
+        day_pills_layout.setSpacing(6)
+        self._pill_today = _DayPill("Today", 0, self._on_day_selected)
+        self._pill_yesterday = _DayPill("Yesterday", 1, self._on_day_selected)
+        self._pill_today.set_active(True)
+        day_pills_layout.addWidget(self._pill_today)
+        day_pills_layout.addWidget(self._pill_yesterday)
+        controls_layout.addLayout(day_pills_layout)
+
+        # Detailed Sessions Toggle Switch
         toggle_layout = QHBoxLayout()
         toggle_layout.setSpacing(8)
         toggle_layout.setContentsMargins(0, 0, 0, 0)
@@ -463,8 +542,9 @@ class TimelinePage(QWidget):
 
         self._detailed_toggle = _ToggleSwitch(self._on_toggle_detailed)
         toggle_layout.addWidget(self._detailed_toggle)
+        controls_layout.addLayout(toggle_layout)
 
-        header_row.addLayout(toggle_layout)
+        header_row.addLayout(controls_layout)
         main.addLayout(header_row)
 
         # ── Summary row ─────────────────────────────────────────────────
@@ -550,12 +630,31 @@ class TimelinePage(QWidget):
             self._limit = 50
             self._last_structure_sig = None
 
+    def _on_day_selected(self, offset: int):
+        if self._selected_day_offset == offset:
+            return
+        self._selected_day_offset = offset
+        self._pill_today.set_active(offset == 0)
+        self._pill_yesterday.set_active(offset == 1)
+        if offset == 0:
+            self._subtitle.setText("Today's activity feed")
+            self._chip_sessions.set_caption("SESSIONS TODAY")
+        else:
+            self._subtitle.setText("Yesterday's activity feed")
+            self._chip_sessions.set_caption("SESSIONS YESTERDAY")
+        self._limit = 50
+        self.refresh_data(force=True)
+
     def refresh_data(self, force: bool = False):
         """Reload timeline sessions from the database."""
         if self._repository is None:
             return
 
-        sessions = self._repository.load_timeline_sessions()
+        now = now_utc()
+        local_now = now.astimezone()
+        target_date = local_now.date() - timedelta(days=self._selected_day_offset)
+
+        sessions = self._repository.load_timeline_sessions(target_date)
 
         if not self._detailed_toggle.is_checked():
             sessions = merge_consecutive_sessions(sessions, descending=True)
@@ -563,16 +662,16 @@ class TimelinePage(QWidget):
         total_sessions = len(sessions)
         displayed_sessions = sessions[:self._limit]
 
-        # Structural signature: app_name, window_title, start_time, and limit
+        # Structural signature: app_name, window_title, start_time, limit, and selected day offset
         structure_sig = tuple(
             (s.app_name, s.window_title, s.start_time)
             for s in displayed_sessions
-        ) + (self._limit,)
+        ) + (self._limit, self._selected_day_offset)
 
         # If structure is unchanged during polling tick, update active top session in-place with zero lag!
         if not force and getattr(self, "_last_structure_sig", None) == structure_sig:
             self._update_summary(sessions)
-            if displayed_sessions and getattr(self, "_first_session_row", None):
+            if self._selected_day_offset == 0 and displayed_sessions and getattr(self, "_first_session_row", None):
                 active_s = displayed_sessions[0]
                 self._first_session_row.update_session_time(
                     active_s.duration_seconds,
