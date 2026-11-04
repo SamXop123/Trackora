@@ -350,16 +350,16 @@ class DashboardRepository:
 
         return self._active_app_status(active_row, now)
 
-    def load_timeline_sessions(self) -> list[TimelineSession]:
-        """Load today's sessions for the timeline page, newest first."""
+    def load_timeline_sessions(self, target_date: date | None = None) -> list[TimelineSession]:
+        """Load sessions for the target date (defaults to today) for the timeline page, newest first."""
         if not self._database_path.exists():
             return []
 
         now = now_utc()
         now_epoch = now.timestamp()
         local_now = now.astimezone()
-        today_local = local_now.date()
-        day_start_utc, day_end_utc = self._local_day_bounds(today_local, local_now)
+        target_local = target_date if target_date is not None else local_now.date()
+        day_start_utc, day_end_utc = self._local_day_bounds(target_local, local_now)
         day_start_epoch = day_start_utc.timestamp()
         day_end_epoch = day_end_utc.timestamp()
 
