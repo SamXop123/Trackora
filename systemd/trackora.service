@@ -6,7 +6,7 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/trackora-daemon
+ExecStart=/usr/bin/python3 -m trackora
 Restart=on-failure
 RestartSec=5
 SuccessExitStatus=3
