@@ -2,6 +2,7 @@
 
 import React, { ReactNode } from "react";
 import { motion } from "framer-motion";
+import ThemeToggle from "./ThemeToggle";
 
 interface AppFrameProps {
   children: ReactNode;
@@ -22,7 +23,7 @@ export default function AppFrame({ children, activeView }: AppFrameProps) {
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        boxShadow: "0 30px 60px rgba(0, 0, 0, 0.6), 0 0 100px rgba(59, 130, 246, 0.05)",
+        boxShadow: "var(--color-frame-shadow)",
         zIndex: 10,
         position: "relative",
       }}
@@ -32,25 +33,29 @@ export default function AppFrame({ children, activeView }: AppFrameProps) {
         style={{
           height: "44px",
           borderBottom: "1px solid var(--color-border)",
-          background: "rgba(10, 15, 24, 0.9)",
+          background: "var(--color-frame-header)",
           display: "flex",
           alignItems: "center",
+          justifyContent: "space-between",
           padding: "0 18px",
           position: "relative",
           zIndex: 11,
+          transition: "background 0.3s ease, border-color 0.3s ease",
         }}
       >
         {/* Linux GNOME / macOS style circles */}
-        <div style={{ display: "flex", gap: "8px", position: "absolute", left: "18px" }}>
-          <div style={{ width: "11px", height: "11px", borderRadius: "50%", background: "var(--color-accent-red)", opacity: 0.8 }} />
-          <div style={{ width: "11px", height: "11px", borderRadius: "50%", background: "#fbbf24", opacity: 0.8 }} />
-          <div style={{ width: "11px", height: "11px", borderRadius: "50%", background: "var(--color-accent-green)", opacity: 0.8 }} />
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div style={{ width: "11px", height: "11px", borderRadius: "50%", background: "var(--color-accent-red)", opacity: 0.85 }} />
+          <div style={{ width: "11px", height: "11px", borderRadius: "50%", background: "#fbbf24", opacity: 0.85 }} />
+          <div style={{ width: "11px", height: "11px", borderRadius: "50%", background: "var(--color-accent-green)", opacity: 0.85 }} />
         </div>
 
-        {/* Title status */}
+        {/* Title status - centered */}
         <div
           style={{
-            margin: "0 auto",
+            position: "absolute",
+            left: "50%",
+            transform: "translateX(-50%)",
             fontSize: "11px",
             fontWeight: 500,
             color: "var(--color-text-secondary)",
@@ -60,6 +65,7 @@ export default function AppFrame({ children, activeView }: AppFrameProps) {
             display: "flex",
             alignItems: "center",
             gap: "8px",
+            pointerEvents: "none",
           }}
         >
           <img
@@ -75,6 +81,11 @@ export default function AppFrame({ children, activeView }: AppFrameProps) {
           <span style={{ fontWeight: 800 }}>TRACKORA</span>
           <span style={{ color: "var(--color-text-muted)" }}>•</span>
           <span style={{ color: "var(--color-accent-blue)" }}>{activeView}</span>
+        </div>
+
+        {/* Right side window controls: Theme Toggle */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <ThemeToggle size="sm" />
         </div>
       </div>
 

@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheck, ArrowRight, ShieldAlert, CheckCircle, Database } from "lucide-react";
+import { motion } from "framer-motion";
+import { ShieldCheck, ArrowRight, CheckCircle, Database } from "lucide-react";
 
 interface PrivacyViewProps {
   onComplete: () => void;
@@ -55,7 +55,7 @@ export default function PrivacyView({ onComplete }: PrivacyViewProps) {
         gap: "40px",
         alignItems: "center",
         justifyContent: "space-between",
-        background: "rgba(10, 15, 24, 0.2)",
+        background: "var(--color-view-bg)",
         overflow: "hidden",
       }}
     >
@@ -111,9 +111,9 @@ export default function PrivacyView({ onComplete }: PrivacyViewProps) {
           <button
             onClick={onComplete}
             style={{
-              background: "rgba(255, 255, 255, 0.03)",
+              background: "var(--color-surface-hover)",
               border: "1px solid var(--color-border)",
-              color: "#ffffff",
+              color: "var(--color-text-primary)",
               padding: "10px 20px",
               borderRadius: "8px",
               cursor: "pointer",
@@ -151,7 +151,7 @@ export default function PrivacyView({ onComplete }: PrivacyViewProps) {
             width: "280px",
             height: "280px",
             borderRadius: "50%",
-            border: "1px dashed rgba(16, 185, 129, 0.06)",
+            border: "1px dashed rgba(var(--color-accent-green-rgb), 0.15)",
             pointerEvents: "none",
           }}
         />
@@ -165,8 +165,8 @@ export default function PrivacyView({ onComplete }: PrivacyViewProps) {
             width: "120px",
             height: "120px",
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, rgba(10, 15, 24, 0) 70%)",
-            border: "2px solid rgba(16, 185, 129, 0.3)",
+            background: "radial-gradient(circle, rgba(var(--color-accent-green-rgb), 0.15) 0%, transparent 70%)",
+            border: "2px solid rgba(var(--color-accent-green-rgb), 0.3)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -174,7 +174,7 @@ export default function PrivacyView({ onComplete }: PrivacyViewProps) {
             gap: "8px",
             cursor: "pointer",
             outline: "none",
-            boxShadow: "0 0 40px rgba(16, 185, 129, 0.1)",
+            boxShadow: "0 0 40px rgba(var(--color-accent-green-rgb), 0.12)",
           }}
         >
           <Database size={28} style={{ color: "var(--color-accent-green)" }} />
@@ -195,7 +195,8 @@ export default function PrivacyView({ onComplete }: PrivacyViewProps) {
             flexDirection: "column",
             justifyContent: "flex-end",
             overflow: "hidden",
-            background: "rgba(10, 15, 24, 0.8)",
+            background: "var(--color-code-bg)",
+            border: "1px solid var(--color-border)",
           }}
         >
           {logs.length > 0 ? (
@@ -214,7 +215,7 @@ export default function PrivacyView({ onComplete }: PrivacyViewProps) {
                 <div
                   key={idx}
                   style={{
-                    color: log.includes("SUCCESS")
+                    color: log.includes("SUCCESS") || log.includes("Clean") || log.includes("clean")
                       ? "var(--color-accent-green)"
                       : log.includes("WARNING") || log.includes("INFO")
                         ? "var(--color-accent-blue)"

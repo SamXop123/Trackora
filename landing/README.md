@@ -46,15 +46,18 @@ The interface utilizes Next.js App Router, Framer Motion, and HSL custom color t
 landing/
 ├── src/
 │   ├── app/
-│   │   ├── globals.css         # Styling system, theme HSL variables, animations
-│   │   ├── layout.tsx          # Font loads (Outfit & JetBrains Mono)
+│   │   ├── globals.css         # Styling system, dark & light theme HSL variables, animations
+│   │   ├── layout.tsx          # Font loads (Outfit & JetBrains Mono), ThemeProvider & script
 │   │   ├── page.tsx            # View coordinator & scroll-wheel listeners
 │   │   └── icon.png            # Web favicon (Trackora official logo)
+│   ├── context/
+│   │   └── ThemeContext.tsx    # Theme state provider (dark & light modes, localStorage persistence)
 │   └── components/
-│       ├── Starfield.tsx       # Canvas backdrop with warp speed props
-│       ├── AppFrame.tsx        # Desktop client window layout wrapper
-│       ├── Sidebar.tsx         # Sidebar navigator with direct download link CTAs
-│       ├── CommandPalette.tsx  # Keyboard shortcut command menu (Ctrl + K)
+│       ├── Starfield.tsx       # Dynamic theme-aware canvas backdrop with warp speed props
+│       ├── AppFrame.tsx        # Desktop client window layout wrapper with theme toggle
+│       ├── Sidebar.tsx         # Sidebar navigator with direct download CTAs & theme toggle
+│       ├── ThemeToggle.tsx     # Animated Sun/Moon theme switcher
+│       ├── CommandPalette.tsx  # Keyboard shortcut command menu (Ctrl + K, 'T' for theme)
 │       └── views/
 │           ├── IntroView.tsx   # Intro landing: "where did today go? trackora knows."
 │           ├── ReplayView.tsx  # Immersive chronological workday timeline with conclusion
@@ -71,4 +74,5 @@ landing/
 *   **Continuous Narrative**: Navigation is driven by a debounced scroll listener (`page.tsx`) that transitions the visitor smoothly between scenes.
 *   **Replay Conclusion**: After stepping through the workday timeline, the interface transitions into a slow-fading conclusion sequence highlighting the core value proposition: *"Today is already fading into a vague memory... Trackora remembers."*
 *   **Interactive Toggles**: Inside **Inside Trackora** (`PipelineView.tsx`), low-level technical specifics are hidden behind a **For Developers** toggle to preserve a clean, human-benefit narrative for everyday users.
+*   **Dual Light & Dark Theme**: Toggle seamlessly between Trackora's signature Dark Theme and a crisp Light Theme via the OS window header, sidebar, or keyboard command palette (`Ctrl + K` -> `T`). Preferences persist across sessions via local storage with zero flash on initial load.
 *   **Website Icon & Official Logo**: The official `trackora_logo.png` is integrated next to branding titles and used as the site's favicon.

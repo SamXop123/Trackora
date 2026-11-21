@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sliders, Clock, BarChart3, AppWindow, ArrowRight } from "lucide-react";
+import { Clock, BarChart3, AppWindow, ArrowRight } from "lucide-react";
 
 interface DashboardViewProps {
   onComplete: () => void;
@@ -12,7 +12,7 @@ const APPS_METRICS = [
   { name: "Brave", duration: "2h 18m", pct: 42, color: "#f97316", detail: "Researching reference APIs and design assets." },
   { name: "Minecraft", duration: "1h 30m", pct: 27, color: "#10b981", detail: "Playing Minecraft. Creative sandbox session." },
   { name: "VS Code", duration: "56m", pct: 17, color: "#3b82f6", detail: "Writing code. Refining database sync logic." },
-  { name: "YouTube", duration: "46m", pct: 14, color: "#ff0000", detail: "Watching design showcases and keynotes in browser." },
+  { name: "YouTube", duration: "46m", pct: 14, color: "#ef4444", detail: "Watching design showcases and keynotes in browser." },
 ];
 
 export default function DashboardView({ onComplete }: DashboardViewProps) {
@@ -50,7 +50,7 @@ export default function DashboardView({ onComplete }: DashboardViewProps) {
         flexDirection: "column",
         padding: "30px",
         gap: "24px",
-        background: "rgba(10, 15, 24, 0.2)",
+        background: "var(--color-view-bg)",
         overflow: "hidden",
         position: "relative",
       }}
@@ -118,7 +118,7 @@ export default function DashboardView({ onComplete }: DashboardViewProps) {
                 width: "160px",
                 height: "160px",
                 borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0) 70%)",
+                background: "radial-gradient(circle, rgba(var(--color-accent-blue-rgb), 0.12) 0%, transparent 70%)",
                 pointerEvents: "none",
               }}
             />
@@ -189,8 +189,9 @@ export default function DashboardView({ onComplete }: DashboardViewProps) {
                     style={{
                       width: "100%",
                       borderRadius: "2px",
-                      background: idx === 7 ? "var(--color-accent-blue)" : "rgba(255, 255, 255, 0.06)",
-                      boxShadow: idx === 7 ? "0 0 10px rgba(59, 130, 246, 0.4)" : "none",
+                      background: idx === 7 ? "var(--color-accent-blue)" : "var(--color-surface-hover)",
+                      border: idx === 7 ? "none" : "1px solid var(--color-border)",
+                      boxShadow: idx === 7 ? "0 0 10px rgba(var(--color-accent-blue-rgb), 0.4)" : "none",
                     }}
                   />
                 </div>
@@ -232,7 +233,7 @@ export default function DashboardView({ onComplete }: DashboardViewProps) {
                     cursor: "pointer",
                     padding: "6px",
                     borderRadius: "8px",
-                    background: isHovered ? "rgba(255, 255, 255, 0.02)" : "transparent",
+                    background: isHovered ? "var(--color-surface-hover)" : "transparent",
                     transition: "background 0.2s ease",
                   }}
                 >
@@ -256,7 +257,7 @@ export default function DashboardView({ onComplete }: DashboardViewProps) {
                   </div>
 
                   {/* Progress Bar Container */}
-                  <div style={{ width: "100%", height: "4px", background: "rgba(255, 255, 255, 0.04)", borderRadius: "2px", overflow: "hidden" }}>
+                  <div style={{ width: "100%", height: "4px", background: "var(--color-surface-active)", borderRadius: "2px", overflow: "hidden" }}>
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${app.pct}%` }}

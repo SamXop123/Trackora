@@ -20,7 +20,7 @@ export default function IntroView({ onStartReplay, onNavigateDownload }: IntroVi
         justifyContent: "center",
         alignItems: "center",
         padding: "40px",
-        background: "radial-gradient(circle at center, rgba(16, 24, 48, 0.2) 0%, rgba(5, 7, 10, 0) 70%)",
+        background: "radial-gradient(circle at center, rgba(var(--color-accent-blue-rgb), 0.08) 0%, transparent 70%)",
         position: "relative",
       }}
     >
@@ -76,7 +76,7 @@ export default function IntroView({ onStartReplay, onNavigateDownload }: IntroVi
             whileTap={{ scale: 0.98 }}
             style={{
               background: "var(--color-accent-blue)",
-              border: "1px solid rgba(59, 130, 246, 0.3)",
+              border: "1px solid rgba(var(--color-accent-blue-rgb), 0.3)",
               color: "#ffffff",
               padding: "12px 28px",
               borderRadius: "30px",
@@ -87,7 +87,7 @@ export default function IntroView({ onStartReplay, onNavigateDownload }: IntroVi
               display: "flex",
               alignItems: "center",
               gap: "10px",
-              boxShadow: "0 4px 20px rgba(59, 130, 246, 0.25)",
+              boxShadow: "0 4px 20px rgba(var(--color-accent-blue-rgb), 0.25)",
               outline: "none",
               transition: "background 0.2s ease, box-shadow 0.2s ease",
             }}
@@ -111,7 +111,7 @@ export default function IntroView({ onStartReplay, onNavigateDownload }: IntroVi
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.98 }}
             style={{
-              background: "rgba(255, 255, 255, 0.03)",
+              background: "var(--color-surface-hover)",
               border: "1px solid var(--color-border)",
               color: "var(--color-text-primary)",
               padding: "12px 24px",
@@ -123,17 +123,17 @@ export default function IntroView({ onStartReplay, onNavigateDownload }: IntroVi
               display: "flex",
               alignItems: "center",
               gap: "10px",
-              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.2)",
+              boxShadow: "0 4px 20px var(--color-surface-hover)",
               outline: "none",
               transition: "border-color 0.2s ease, background 0.2s ease",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = "var(--color-accent-blue)";
-              e.currentTarget.style.background = "rgba(59, 130, 246, 0.05)";
+              e.currentTarget.style.background = "rgba(var(--color-accent-blue-rgb), 0.08)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.borderColor = "var(--color-border)";
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+              e.currentTarget.style.background = "var(--color-surface-hover)";
             }}
           >
             <span>REPLAY YOUR DAY</span>

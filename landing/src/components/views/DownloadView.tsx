@@ -28,7 +28,7 @@ export default function DownloadView() {
         padding: "32px",
         gap: "24px",
         justifyContent: "center",
-        background: "rgba(10, 15, 24, 0.4)",
+        background: "var(--color-view-bg)",
         overflow: "hidden",
       }}
     >
@@ -69,9 +69,9 @@ export default function DownloadView() {
             display: "flex",
             flexDirection: "column",
             gap: "14px",
-            border: "1px solid rgba(59, 130, 246, 0.2)",
-            background: "rgba(10, 15, 24, 0.8)",
-            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
+            border: "1px solid var(--color-border-accent)",
+            background: "var(--color-card-bg)",
+            boxShadow: "var(--color-frame-shadow)",
             textAlign: "left",
           }}
         >
@@ -96,7 +96,7 @@ export default function DownloadView() {
               justifyContent: "center",
               gap: "8px",
               background: "var(--color-accent-blue)",
-              border: "1px solid rgba(59, 130, 246, 0.3)",
+              border: "1px solid rgba(var(--color-accent-blue-rgb), 0.3)",
               color: "#ffffff",
               padding: "10px 18px",
               borderRadius: "8px",
@@ -104,7 +104,7 @@ export default function DownloadView() {
               fontSize: "12px",
               fontWeight: 700,
               letterSpacing: "0.03em",
-              boxShadow: "0 4px 16px rgba(59, 130, 246, 0.2)",
+              boxShadow: "0 4px 16px rgba(var(--color-accent-blue-rgb), 0.2)",
               outline: "none",
               textDecoration: "none",
               transition: "background 0.2s ease",
@@ -127,7 +127,8 @@ export default function DownloadView() {
             </div>
             <div
               style={{
-                background: "rgba(5, 7, 10, 0.6)",
+                background: "var(--color-code-bg)",
+                border: "1px solid var(--color-border)",
                 borderRadius: "6px",
                 padding: "8px 10px",
                 display: "flex",
@@ -161,7 +162,8 @@ export default function DownloadView() {
             </div>
             <div
               style={{
-                background: "rgba(5, 7, 10, 0.6)",
+                background: "var(--color-code-bg)",
+                border: "1px solid var(--color-border)",
                 borderRadius: "6px",
                 padding: "8px 10px",
                 display: "flex",
@@ -221,9 +223,9 @@ export default function DownloadView() {
             display: "flex",
             flexDirection: "column",
             gap: "14px",
-            border: "1px solid rgba(59, 130, 246, 0.2)",
-            background: "rgba(10, 15, 24, 0.8)",
-            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
+            border: "1px solid var(--color-border-accent)",
+            background: "var(--color-card-bg)",
+            boxShadow: "var(--color-frame-shadow)",
             textAlign: "left",
           }}
         >
@@ -248,7 +250,7 @@ export default function DownloadView() {
               justifyContent: "center",
               gap: "8px",
               background: "var(--color-accent-blue)",
-              border: "1px solid rgba(59, 130, 246, 0.3)",
+              border: "1px solid rgba(var(--color-accent-blue-rgb), 0.3)",
               color: "#ffffff",
               padding: "10px 18px",
               borderRadius: "8px",
@@ -256,7 +258,7 @@ export default function DownloadView() {
               fontSize: "12px",
               fontWeight: 700,
               letterSpacing: "0.03em",
-              boxShadow: "0 4px 16px rgba(59, 130, 246, 0.2)",
+              boxShadow: "0 4px 16px rgba(var(--color-accent-blue-rgb), 0.2)",
               outline: "none",
               textDecoration: "none",
               transition: "background 0.2s ease",
@@ -275,7 +277,8 @@ export default function DownloadView() {
           {/* Windows Features List */}
           <div
             style={{
-              background: "rgba(5, 7, 10, 0.6)",
+              background: "var(--color-code-bg)",
+              border: "1px solid var(--color-border)",
               borderRadius: "6px",
               padding: "10px 12px",
               display: "flex",

@@ -92,7 +92,7 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
               gap: "40px",
               alignItems: "center",
               justifyContent: "space-between",
-              background: "rgba(10, 15, 24, 0.4)",
+              background: "var(--color-view-bg)",
               overflow: "hidden",
             }}
           >
@@ -156,7 +156,7 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
                   style={{
                     padding: "6px 12px",
                     borderRadius: "20px",
-                    background: `rgba(${currentStep.color === "#3b82f6" ? "59, 130, 246" : "156, 163, 175"}, 0.1)`,
+                    background: `rgba(${currentStep.color === "#3b82f6" ? "var(--color-accent-blue-rgb)" : "156, 163, 175"}, 0.12)`,
                     border: `1px solid ${currentStep.color}33`,
                     color: currentStep.color,
                     fontSize: "11px",
@@ -210,10 +210,10 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   style={{
-                    background: stepIndex === REPLAY_STEPS.length - 1 ? "var(--color-accent-blue)" : "rgba(255, 255, 255, 0.03)",
+                    background: stepIndex === REPLAY_STEPS.length - 1 ? "var(--color-accent-blue)" : "var(--color-surface-hover)",
                     border: "1px solid var(--color-border)",
-                    borderColor: stepIndex === REPLAY_STEPS.length - 1 ? "rgba(59, 130, 246, 0.4)" : "var(--color-border)",
-                    color: "#ffffff",
+                    borderColor: stepIndex === REPLAY_STEPS.length - 1 ? "rgba(var(--color-accent-blue-rgb), 0.4)" : "var(--color-border)",
+                    color: stepIndex === REPLAY_STEPS.length - 1 ? "#ffffff" : "var(--color-text-primary)",
                     padding: "10px 20px",
                     borderRadius: "8px",
                     cursor: "pointer",
@@ -251,7 +251,7 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
                   top: "10%",
                   bottom: "10%",
                   width: "2px",
-                  background: "rgba(255, 255, 255, 0.03)",
+                  background: "var(--color-border)",
                   transform: "translateX(-50%)",
                   zIndex: 1,
                 }}
@@ -266,8 +266,8 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
                   left: "50%",
                   top: "10%",
                   width: "2px",
-                  background: "linear-gradient(to bottom, #1d4ed8, #3b82f6)",
-                  boxShadow: "0 0 10px rgba(59, 130, 246, 0.5)",
+                  background: "linear-gradient(to bottom, #1d4ed8, var(--color-accent-blue))",
+                  boxShadow: "0 0 10px rgba(var(--color-accent-blue-rgb), 0.5)",
                   transform: "translateX(-50%)",
                   zIndex: 2,
                   transformOrigin: "top",
@@ -308,8 +308,8 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
                           backgroundColor: isCurrent 
                             ? step.color 
                             : isPassed 
-                              ? "rgba(59, 130, 246, 0.15)" 
-                              : "#0a0f18",
+                              ? "rgba(var(--color-accent-blue-rgb), 0.15)" 
+                              : "var(--color-surface)",
                           borderColor: isCurrent 
                             ? "#ffffff" 
                             : isPassed 
@@ -369,7 +369,7 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
               flexDirection: "column",
               justifyContent: "center",
               alignItems: "center",
-              background: "rgba(5, 7, 10, 0.95)",
+              background: "var(--color-view-bg)",
               padding: "40px",
               textAlign: "center",
               gap: "32px",
@@ -402,7 +402,7 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
                   fontWeight: 400,
                 }}
               >
-                You won't remember every tab opened, or every focused moment.
+                You won&apos;t remember every tab opened, or every focused moment.
               </motion.p>
 
               <motion.p
@@ -430,7 +430,7 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
                 onClick={onComplete}
                 style={{
                   background: "var(--color-accent-blue)",
-                  border: "1px solid rgba(59, 130, 246, 0.3)",
+                  border: "1px solid rgba(var(--color-accent-blue-rgb), 0.3)",
                   color: "#ffffff",
                   padding: "12px 28px",
                   borderRadius: "30px",
@@ -441,7 +441,7 @@ export default function ReplayView({ onComplete }: ReplayViewProps) {
                   display: "flex",
                   alignItems: "center",
                   gap: "10px",
-                  boxShadow: "0 4px 20px rgba(59, 130, 246, 0.25)",
+                  boxShadow: "0 4px 20px rgba(var(--color-accent-blue-rgb), 0.25)",
                   outline: "none",
                   transition: "background 0.2s ease",
                   marginTop: "16px",

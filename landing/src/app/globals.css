@@ -1,18 +1,75 @@
-/* Trackora Premium Dark Mode Theme Variables */
-:root {
+/* Trackora Premium Dark Mode & Light Mode Theme Variables */
+:root,
+[data-theme="dark"] {
   --color-canvas: #05070a;
+  --color-canvas-rgb: 5, 7, 10;
   --color-surface: #0a0f18;
+  --color-surface-rgb: 10, 15, 24;
   --color-surface-lighter: #121824;
-  --color-border: rgba(255, 255, 255, 0.05);
-  --color-border-hover: rgba(255, 255, 255, 0.12);
-  --color-border-accent: rgba(59, 130, 246, 0.2);
+  --color-surface-lighter-rgb: 18, 24, 36;
+  --color-surface-hover: rgba(255, 255, 255, 0.04);
+  --color-surface-active: rgba(255, 255, 255, 0.08);
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-hover: rgba(255, 255, 255, 0.14);
+  --color-border-accent: rgba(59, 130, 246, 0.25);
   --color-text-primary: #f8fafc;
   --color-text-secondary: #94a3b8;
   --color-text-muted: #475569;
   --color-accent-blue: #3b82f6;
   --color-accent-blue-rgb: 59, 130, 246;
   --color-accent-green: #10b981;
+  --color-accent-green-rgb: 16, 185, 129;
   --color-accent-red: #ef4444;
+
+  --color-glass-bg: rgba(10, 15, 24, 0.72);
+  --color-frame-header: rgba(10, 15, 24, 0.92);
+  --color-sidebar-bg: rgba(10, 14, 22, 0.95);
+  --color-card-bg: rgba(10, 15, 24, 0.85);
+  --color-code-bg: rgba(5, 7, 10, 0.65);
+  --color-view-bg: rgba(10, 15, 24, 0.35);
+  --color-frame-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 100px rgba(59, 130, 246, 0.05);
+  --color-grid-line: rgba(255, 255, 255, 0.015);
+  --color-palette-overlay: rgba(3, 5, 8, 0.65);
+  --color-modal-shadow: 0 40px 80px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --color-star-fill: rgba(248, 250, 252, 1);
+  --color-star-bg-start: #080c14;
+  --color-star-bg-end: #04060a;
+}
+
+[data-theme="light"] {
+  --color-canvas: #f8fafc;
+  --color-canvas-rgb: 248, 250, 252;
+  --color-surface: #ffffff;
+  --color-surface-rgb: 255, 255, 255;
+  --color-surface-lighter: #f1f5f9;
+  --color-surface-lighter-rgb: 241, 245, 249;
+  --color-surface-hover: rgba(0, 0, 0, 0.04);
+  --color-surface-active: rgba(0, 0, 0, 0.08);
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-hover: rgba(0, 0, 0, 0.16);
+  --color-border-accent: rgba(37, 99, 235, 0.25);
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+  --color-accent-blue: #2563eb;
+  --color-accent-blue-rgb: 37, 99, 235;
+  --color-accent-green: #059669;
+  --color-accent-green-rgb: 5, 150, 105;
+  --color-accent-red: #dc2626;
+
+  --color-glass-bg: rgba(255, 255, 255, 0.85);
+  --color-frame-header: rgba(248, 250, 252, 0.95);
+  --color-sidebar-bg: rgba(248, 250, 252, 0.95);
+  --color-card-bg: rgba(255, 255, 255, 0.92);
+  --color-code-bg: rgba(241, 245, 249, 0.95);
+  --color-view-bg: rgba(248, 250, 252, 0.45);
+  --color-frame-shadow: 0 20px 50px rgba(0, 0, 0, 0.08), 0 0 60px rgba(37, 99, 235, 0.06);
+  --color-grid-line: rgba(0, 0, 0, 0.035);
+  --color-palette-overlay: rgba(15, 23, 42, 0.4);
+  --color-modal-shadow: 0 30px 60px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  --color-star-fill: rgba(71, 85, 105, 0.7);
+  --color-star-bg-start: #f1f5f9;
+  --color-star-bg-end: #e2e8f0;
 }
 
 * {
@@ -29,6 +86,7 @@ html, body {
   overflow-x: hidden;
   height: 100%;
   scrollbar-width: none; /* Hide default scrollbar */
+  transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 body::-webkit-scrollbar {
@@ -49,16 +107,17 @@ code, pre, .mono {
 
 /* Custom selection */
 ::selection {
-  background: rgba(59, 130, 246, 0.3);
+  background: rgba(var(--color-accent-blue-rgb), 0.25);
   color: var(--color-text-primary);
 }
 
 /* Glassmorphism helpers */
 .glass {
-  background: rgba(10, 15, 24, 0.7);
+  background: var(--color-glass-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--color-border);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 /* Animations */
@@ -76,12 +135,12 @@ code, pre, .mono {
 
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 15px rgba(59, 130, 246, 0.15);
-    border-color: rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 15px rgba(var(--color-accent-blue-rgb), 0.15);
+    border-color: rgba(var(--color-accent-blue-rgb), 0.2);
   }
   50% {
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
-    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 30px rgba(var(--color-accent-blue-rgb), 0.3);
+    border-color: rgba(var(--color-accent-blue-rgb), 0.4);
   }
 }
 
@@ -93,8 +152,8 @@ code, pre, .mono {
 .grid-bg {
   background-size: 40px 40px;
   background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+    linear-gradient(to right, var(--color-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-grid-line) 1px, transparent 1px);
 }
 
 /* Screen reader and search engine bot semantic accessible utility */
