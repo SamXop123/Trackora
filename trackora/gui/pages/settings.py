@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 import sys
 import platform
 import time
@@ -13,6 +14,7 @@ from typing import Callable, Any
 from PySide6.QtCore import Qt, QTimer, QUrl, QSize, QVariantAnimation, QRectF, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QPixmap, QPainter, QBrush, QPen
 from PySide6.QtWidgets import (
+    QFileDialog,
     QFrame,
     QGraphicsDropShadowEffect,
     QGraphicsOpacityEffect,
@@ -1214,9 +1216,9 @@ class SettingsPage(QWidget):
         # Actions Layout
         act_lo = QHBoxLayout()
         act_lo.setSpacing(16)
-        act_lo.addWidget(_ActionCard("Backup Database", "📥"))
-        act_lo.addWidget(_ActionCard("Export JSON", "📤"))
-        act_lo.addWidget(_ActionCard("Import JSON", "🔄"))
+        act_lo.addWidget(_ActionCard("Backup Database", "📥", on_click=self._on_backup_database))
+        act_lo.addWidget(_ActionCard("Export JSON", "📤", on_click=self._on_export_json))
+        act_lo.addWidget(_ActionCard("Import JSON", "🔄", on_click=self._on_import_json))
         
         open_folder = _ActionCard("Open Data Folder", "📂", on_click=lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(default_database_path().parent))))
         act_lo.addWidget(open_folder)
@@ -1291,6 +1293,52 @@ class SettingsPage(QWidget):
         lo.addLayout(d_lo)
         lo.addStretch(1)
         return w
+
+    def _on_backup_database(self) -> None:
+        if not self._repository: return
+        default_name = f"trackora_backup_{datetime.now():%Y%m%d_%H%M%S}.db"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Backup Database", default_name, "SQLite database (*.db)"
+        )
+        if not path: return
+        try:
+            self._repository.backup_database(Path(path))
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            QMessageBox.warning(self, "Backup Failed", f"Could not back up the database:\n{exc}")
+            return
+        QMessageBox.information(self, "Backup Complete", f"Database backed up to:\n{path}")
+
+    def _on_export_json(self) -> None:
+        if not self._repository: return
+        default_name = f"trackora_sessions_{datetime.now():%Y%m%d}.json"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export Sessions", default_name, "JSON (*.json)"
+        )
+        if not path: return
+        try:
+            count = self._repository.export_sessions_json(Path(path))
+        except (OSError, sqlite3.Error) as exc:
+            QMessageBox.warning(self, "Export Failed", f"Could not export sessions:\n{exc}")
+            return
+        QMessageBox.information(self, "Export Complete", f"Exported {count:,} sessions to:\n{path}")
+
+    def _on_import_json(self) -> None:
+        if not self._repository: return
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Import Sessions", "", "JSON (*.json)"
+        )
+        if not path: return
+        try:
+            imported, skipped = self._repository.import_sessions_json(Path(path))
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            QMessageBox.warning(self, "Import Failed", f"Could not import sessions:\n{exc}")
+            return
+        self._refresh_data_tab()
+        self.data_reset_requested.emit()
+        QMessageBox.information(
+            self, "Import Complete",
+            f"Imported {imported:,} sessions.\nSkipped {skipped:,} (duplicates or invalid)."
+        )
 
     def _on_reset_today(self) -> None:
         if not self._repository: return
