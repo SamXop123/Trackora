@@ -163,6 +163,9 @@ Your day at a glance. Shows today's accumulated screen time, weekly usage trends
 ### 🕒 Timeline
 Scroll back through your day chronologically. View exactly when you opened which app, how long you stayed, and when you switched. Focus sessions can be consolidated to group fragmented app usage.
 
+### 🗓️ Calendar
+A dedicated monthly view that visualizes your screen time patterns day by day across the entire month. Click any day on the calendar to reveal a deep dive into that day's activity.
+
 ### 📱 Application Analytics
 A ranked ledger of all applications used, sorted by total duration. Includes metrics like session counts, average session length, and frequency.
 
