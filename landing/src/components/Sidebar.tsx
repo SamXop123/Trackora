@@ -8,10 +8,9 @@ import {
   LayoutDashboard, 
   Network, 
   ShieldAlert, 
-  Download, 
-  Info,
-  Sliders
+  Download,
 } from "lucide-react";
+import ThemeToggle from "./ThemeToggle";
 
 interface SidebarProps {
   activeView: string;
@@ -33,7 +32,7 @@ export default function Sidebar({ activeView, onNavigate }: SidebarProps) {
       style={{
         width: "210px",
         height: "100%",
-        background: "rgba(10, 14, 22, 0.95)",
+        background: "var(--color-sidebar-bg)",
         borderRight: "1px solid var(--color-border)",
         display: "flex",
         flexDirection: "column",
@@ -41,6 +40,7 @@ export default function Sidebar({ activeView, onNavigate }: SidebarProps) {
         padding: "20px 12px 14px 12px",
         flexShrink: 0,
         zIndex: 11,
+        transition: "background 0.3s ease, border-color 0.3s ease",
       }}
     >
       {/* Branding and Nav Stack */}
@@ -99,8 +99,8 @@ export default function Sidebar({ activeView, onNavigate }: SidebarProps) {
                       width: "100%",
                       height: "100%",
                       borderRadius: "8px",
-                      background: "rgba(59, 130, 246, 0.08)",
-                      border: "1px solid rgba(59, 130, 246, 0.15)",
+                      background: "rgba(var(--color-accent-blue-rgb), 0.08)",
+                      border: "1px solid rgba(var(--color-accent-blue-rgb), 0.2)",
                       zIndex: -1,
                     }}
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
@@ -117,15 +117,15 @@ export default function Sidebar({ activeView, onNavigate }: SidebarProps) {
         </div>
       </div>
 
-      {/* Diagnostics / Tech stats widget */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+      {/* Diagnostics / Tech stats & Controls widget */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
         {/* Download CTA Button */}
         <button
           onClick={() => onNavigate("download")}
           style={{
             width: "100%",
             background: "var(--color-accent-blue)",
-            border: "1px solid rgba(59, 130, 246, 0.3)",
+            border: "1px solid rgba(var(--color-accent-blue-rgb), 0.3)",
             color: "#ffffff",
             padding: "10px 12px",
             borderRadius: "8px",
@@ -136,7 +136,7 @@ export default function Sidebar({ activeView, onNavigate }: SidebarProps) {
             alignItems: "center",
             justifyContent: "center",
             gap: "8px",
-            boxShadow: "0 4px 12px rgba(59, 130, 246, 0.15)",
+            boxShadow: "0 4px 12px rgba(var(--color-accent-blue-rgb), 0.2)",
             outline: "none",
             transition: "background 0.2s ease",
           }}
@@ -150,6 +150,11 @@ export default function Sidebar({ activeView, onNavigate }: SidebarProps) {
           <Download size={12} />
           <span>DOWNLOAD NOW</span>
         </button>
+
+        {/* Theme switcher pill */}
+        <div style={{ width: "100%" }}>
+          <ThemeToggle showLabel size="sm" />
+        </div>
 
         {/* Command shortcut guide */}
         <div
@@ -165,7 +170,7 @@ export default function Sidebar({ activeView, onNavigate }: SidebarProps) {
           <span>Press</span>
           <kbd
             style={{
-              background: "rgba(255, 255, 255, 0.05)",
+              background: "var(--color-surface-hover)",
               border: "1px solid var(--color-border)",
               borderRadius: "3px",
               padding: "0 4px",

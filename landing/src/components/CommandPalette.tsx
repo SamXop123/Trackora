@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Terminal, CornerDownLeft, Sparkles } from "lucide-react";
+import { Terminal, CornerDownLeft, Sparkles, Sun, Moon } from "lucide-react";
+import { useTheme } from "../context/ThemeContext";
 
 interface CommandPaletteProps {
   onNavigate: (view: string) => void;
@@ -13,17 +14,24 @@ const COMMANDS = [
   { id: "intro", label: "Jump to Start (Intro)", shortcut: "1" },
   { id: "replay", label: "Replay Day", shortcut: "2" },
   { id: "dashboard", label: "View Habits Dashboard", shortcut: "3" },
-  { id: "pipeline", label: "Inspect Inside Trackora", shortcut: "4" },
+  { id: "pipeline", label: "Inside Trackora", shortcut: "4" },
   { id: "privacy", label: "Inspect Privacy Controls", shortcut: "5" },
   { id: "download", label: "Jump to Get Started", shortcut: "6" },
+  { id: "theme", label: "Toggle Theme (Light / Dark)", shortcut: "T" },
   { id: "warp", label: "Toggle Cosmic Warp Effect", shortcut: "W" },
 ];
 
 export default function CommandPalette({ onNavigate, onToggleWarp }: CommandPaletteProps) {
+  const { theme, toggleTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const filteredCommands = useMemo(
+    () => COMMANDS.filter((cmd) => cmd.label.toLowerCase().includes(search.toLowerCase())),
+    [search]
+  );
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -47,6 +55,12 @@ export default function CommandPalette({ onNavigate, onToggleWarp }: CommandPale
           setIsOpen(false);
         }
 
+        if (e.key.toLowerCase() === "t") {
+          e.preventDefault();
+          toggleTheme();
+          setIsOpen(false);
+        }
+
         if (e.key.toLowerCase() === "w" && onToggleWarp) {
           e.preventDefault();
           onToggleWarp();
@@ -56,17 +70,19 @@ export default function CommandPalette({ onNavigate, onToggleWarp }: CommandPale
         // Navigation
         if (e.key === "ArrowDown") {
           e.preventDefault();
-          setSelectedIndex((prev) => (prev + 1) % filteredCommands.length);
+          setSelectedIndex((prev) => (filteredCommands.length > 0 ? (prev + 1) % filteredCommands.length : 0));
         }
         if (e.key === "ArrowUp") {
           e.preventDefault();
-          setSelectedIndex((prev) => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+          setSelectedIndex((prev) => (filteredCommands.length > 0 ? (prev - 1 + filteredCommands.length) % filteredCommands.length : 0));
         }
         if (e.key === "Enter") {
           e.preventDefault();
           const cmd = filteredCommands[selectedIndex];
           if (cmd) {
-            if (cmd.id === "warp" && onToggleWarp) {
+            if (cmd.id === "theme") {
+              toggleTheme();
+            } else if (cmd.id === "warp" && onToggleWarp) {
               onToggleWarp();
             } else {
               onNavigate(cmd.id);
@@ -79,7 +95,7 @@ export default function CommandPalette({ onNavigate, onToggleWarp }: CommandPale
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, selectedIndex, onNavigate, onToggleWarp]);
+  }, [isOpen, selectedIndex, onNavigate, onToggleWarp, toggleTheme, filteredCommands]);
 
   // Click outside to close
   useEffect(() => {
@@ -93,10 +109,6 @@ export default function CommandPalette({ onNavigate, onToggleWarp }: CommandPale
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
-
-  const filteredCommands = COMMANDS.filter((cmd) =>
-    cmd.label.toLowerCase().includes(search.toLowerCase())
-  );
 
   return (
     <AnimatePresence>
@@ -113,8 +125,9 @@ export default function CommandPalette({ onNavigate, onToggleWarp }: CommandPale
             width: "100vw",
             height: "100vh",
             zIndex: 99999,
-            background: "rgba(3, 5, 8, 0.6)",
+            background: "var(--color-palette-overlay)",
             backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
             display: "flex",
             justifyContent: "center",
             alignItems: "flex-start",
@@ -132,7 +145,7 @@ export default function CommandPalette({ onNavigate, onToggleWarp }: CommandPale
               width: "100%",
               maxWidth: "500px",
               borderRadius: "14px",
-              boxShadow: "0 40px 80px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05)",
+              boxShadow: "var(--color-modal-shadow)",
               overflow: "hidden",
             }}
           >
@@ -178,7 +191,7 @@ export default function CommandPalette({ onNavigate, onToggleWarp }: CommandPale
             </div>
 
             {/* Commands list */}
-            <div style={{ maxHeight: "280px", overflowY: "auto", padding: "8px" }}>
+            <div style={{ maxHeight: "300px", overflowY: "auto", padding: "8px" }}>
               {filteredCommands.length > 0 ? (
                 filteredCommands.map((cmd, idx) => {
                   const isSelected = idx === selectedIndex;
@@ -186,7 +199,9 @@ export default function CommandPalette({ onNavigate, onToggleWarp }: CommandPale
                     <div
                       key={cmd.id}
                       onClick={() => {
-                        if (cmd.id === "warp" && onToggleWarp) {
+                        if (cmd.id === "theme") {
+                          toggleTheme();
+                        } else if (cmd.id === "warp" && onToggleWarp) {
                           onToggleWarp();
                         } else {
                           onNavigate(cmd.id);
@@ -197,7 +212,7 @@ export default function CommandPalette({ onNavigate, onToggleWarp }: CommandPale
                       style={{
                         padding: "12px 16px",
                         borderRadius: "8px",
-                        background: isSelected ? "rgba(255, 255, 255, 0.03)" : "transparent",
+                        background: isSelected ? "var(--color-surface-hover)" : "transparent",
                         border: isSelected ? "1px solid var(--color-border)" : "1px solid transparent",
                         display: "flex",
                         justifyContent: "space-between",
@@ -209,6 +224,12 @@ export default function CommandPalette({ onNavigate, onToggleWarp }: CommandPale
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         {cmd.id === "warp" ? (
                           <Sparkles size={14} style={{ color: "var(--color-accent-green)" }} />
+                        ) : cmd.id === "theme" ? (
+                          theme === "dark" ? (
+                            <Sun size={14} style={{ color: "#fbbf24" }} />
+                          ) : (
+                            <Moon size={14} style={{ color: "var(--color-accent-blue)" }} />
+                          )
                         ) : (
                           <Terminal size={14} style={{ color: "var(--color-text-secondary)" }} />
                         )}
@@ -223,8 +244,8 @@ export default function CommandPalette({ onNavigate, onToggleWarp }: CommandPale
                           style={{
                             fontSize: "9px",
                             fontFamily: "var(--font-jetbrains-mono), monospace",
-                            background: isSelected ? "rgba(59, 130, 246, 0.15)" : "rgba(255, 255, 255, 0.05)",
-                            border: isSelected ? "1px solid rgba(59, 130, 246, 0.3)" : "1px solid var(--color-border)",
+                            background: isSelected ? "rgba(var(--color-accent-blue-rgb), 0.15)" : "var(--color-surface-hover)",
+                            border: isSelected ? "1px solid rgba(var(--color-accent-blue-rgb), 0.3)" : "1px solid var(--color-border)",
                             color: isSelected ? "var(--color-accent-blue)" : "var(--color-text-muted)",
                             borderRadius: "4px",
                             padding: "2px 6px",
@@ -239,7 +260,7 @@ export default function CommandPalette({ onNavigate, onToggleWarp }: CommandPale
                 })
               ) : (
                 <div style={{ padding: "20px", textAlign: "center", fontSize: "12px", color: "var(--color-text-muted)" }}>
-                  No commands found matching "{search}"
+                  No commands found matching &quot;{search}&quot;
                 </div>
               )}
             </div>

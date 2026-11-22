@@ -69,7 +69,8 @@ export default function Home() {
         alignItems: "center",
         overflow: "hidden",
         position: "relative",
-        background: "#05070a",
+        background: "var(--color-canvas)",
+        transition: "background-color 0.3s ease",
         padding: "40px",
       }}
     >

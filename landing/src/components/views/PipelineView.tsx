@@ -60,8 +60,8 @@ const LAYERS = [
     desc: "An elegant desktop dashboard organizes your raw session metrics into visual habit trends on demand.",
     icon: AppWindow,
     color: "#3b82f6",
-    benefit: "A premium desktop view built with dark, HSL color tokens and custom micro-animations that refresh dynamically to help you understand your day.",
-    technical: "MainWindow drives QStackedWidget pages. QTimer triggers refresh increments while paintEvents animate HSL themes.",
+    benefit: "A premium desktop view built with responsive color tokens and custom micro-animations that refresh dynamically to help you understand your day.",
+    technical: "MainWindow drives QStackedWidget pages. QTimer triggers refresh increments while paintEvents animate theme palettes.",
   },
 ];
 
@@ -82,7 +82,7 @@ export default function PipelineView({ onComplete }: PipelineViewProps) {
         gap: "40px",
         alignItems: "center",
         justifyContent: "space-between",
-        background: "rgba(10, 15, 24, 0.4)",
+        background: "var(--color-view-bg)",
         overflow: "hidden",
       }}
     >
@@ -133,7 +133,7 @@ export default function PipelineView({ onComplete }: PipelineViewProps) {
           style={{
             padding: "16px",
             borderRadius: "10px",
-            background: "rgba(255, 255, 255, 0.01)",
+            background: "var(--color-surface-hover)",
             borderLeft: `3px solid ${currentLayer.color}`,
           }}
         >
@@ -166,9 +166,9 @@ export default function PipelineView({ onComplete }: PipelineViewProps) {
           <button
             onClick={onComplete}
             style={{
-              background: "rgba(255, 255, 255, 0.03)",
+              background: "var(--color-surface-hover)",
               border: "1px solid var(--color-border)",
-              color: "#ffffff",
+              color: "var(--color-text-primary)",
               padding: "10px 20px",
               borderRadius: "8px",
               cursor: "pointer",
@@ -219,9 +219,9 @@ export default function PipelineView({ onComplete }: PipelineViewProps) {
                 animate={{
                   translateZ: isActive ? 30 : 0,
                   boxShadow: isActive 
-                    ? `0 10px 30px rgba(59, 130, 246, 0.25), 0 0 0 1px ${layer.color}`
-                    : "0 5px 15px rgba(0, 0, 0, 0.2)",
-                  backgroundColor: isActive ? "rgba(18, 24, 38, 0.85)" : "rgba(10, 15, 24, 0.6)",
+                    ? `0 10px 30px rgba(var(--color-accent-blue-rgb), 0.25), 0 0 0 1px ${layer.color}`
+                    : "0 5px 15px var(--color-surface-hover)",
+                  backgroundColor: isActive ? "var(--color-surface-lighter)" : "var(--color-surface)",
                   borderColor: isActive ? layer.color : "var(--color-border)",
                 }}
                 transition={{ duration: 0.3 }}
@@ -237,6 +237,7 @@ export default function PipelineView({ onComplete }: PipelineViewProps) {
                   cursor: "pointer",
                   position: "relative",
                   transformStyle: "preserve-3d",
+                  transition: "background-color 0.3s ease, border-color 0.3s ease",
                 }}
               >
                 {/* Layer icon */}

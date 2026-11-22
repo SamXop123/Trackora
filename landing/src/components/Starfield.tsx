@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
+import { useTheme } from "../context/ThemeContext";
 
 interface Star {
   x: number;
@@ -17,6 +18,14 @@ interface StarfieldProps {
 }
 
 export default function Starfield({ warpActive = false }: StarfieldProps) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const isDarkRef = useRef(isDark);
+
+  useEffect(() => {
+    isDarkRef.current = isDark;
+  }, [isDark]);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: 0, y: 0, active: false });
 
@@ -54,7 +63,8 @@ export default function Starfield({ warpActive = false }: StarfieldProps) {
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#ffffff";
+
+      const dark = isDarkRef.current;
 
       stars.forEach((star) => {
         // Drift movement
@@ -87,10 +97,12 @@ export default function Starfield({ warpActive = false }: StarfieldProps) {
           }
         }
 
-        // Draw star
+        // Draw star with theme-aware color
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(248, 250, 252, ${star.opacity})`;
+        ctx.fillStyle = dark
+          ? `rgba(248, 250, 252, ${star.opacity})`
+          : `rgba(71, 85, 105, ${star.opacity * 0.6})`;
         ctx.fill();
       });
 
@@ -120,7 +132,7 @@ export default function Starfield({ warpActive = false }: StarfieldProps) {
       document.removeEventListener("mouseleave", handleMouseLeave);
       cancelAnimationFrame(animationFrameId);
     };
-  }, []);
+  }, [warpActive]);
 
   return (
     <canvas
@@ -133,7 +145,10 @@ export default function Starfield({ warpActive = false }: StarfieldProps) {
         height: "100vh",
         zIndex: 0,
         pointerEvents: "none",
-        background: "radial-gradient(circle at 50% 50%, #080c14 0%, #04060a 100%)",
+        background: isDark
+          ? "radial-gradient(circle at 50% 50%, #080c14 0%, #04060a 100%)"
+          : "radial-gradient(circle at 50% 50%, #f8fafc 0%, #e2e8f0 100%)",
+        transition: "background 0.5s ease",
       }}
     />
   );
