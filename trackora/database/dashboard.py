@@ -6,6 +6,7 @@ and zero-stat exclusions for instant sub-millisecond query performance.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
@@ -1166,3 +1167,127 @@ class DashboardRepository:
             self._query_cache.clear()
         except sqlite3.Error:
             pass
+
+    # ------------------------------------------------------------------
+    # Backup / export / import
+    # ------------------------------------------------------------------
+
+    _EXPORT_FORMAT = "trackora-sessions"
+    _EXPORT_VERSION = 1
+
+    def backup_database(self, destination: Path) -> None:
+        """Write a consistent copy of the database to ``destination``.
+
+        Uses SQLite's online backup API, so it is safe while the tracking
+        daemon is writing.
+        """
+        destination = destination.expanduser()
+        if not self._database_path.exists():
+            raise FileNotFoundError(f"Database not found: {self._database_path}")
+        if destination.resolve() == self._database_path.resolve():
+            raise ValueError("Backup destination must differ from the live database.")
+        src = sqlite3.connect(self._database_path, timeout=5.0)
+        try:
+            dst = sqlite3.connect(destination)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+        finally:
+            src.close()
+
+    def export_sessions_json(self, destination: Path) -> int:
+        """Export every recorded session to a JSON file. Returns the row count."""
+        if not self._database_path.exists():
+            raise FileNotFoundError(f"Database not found: {self._database_path}")
+        conn = sqlite3.connect(self._database_path, timeout=5.0)
+        try:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT app_name, window_title, start_time, end_time,
+                       duration_seconds, last_heartbeat_time
+                FROM app_sessions
+                ORDER BY start_time
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+        payload = {
+            "format": self._EXPORT_FORMAT,
+            "version": self._EXPORT_VERSION,
+            "exported_at": now_utc().isoformat(),
+            "sessions": [dict(row) for row in rows],
+        }
+        with open(destination.expanduser(), "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2, ensure_ascii=False)
+        return len(rows)
+
+    def import_sessions_json(self, source: Path) -> tuple[int, int]:
+        """Import sessions from a JSON file made by ``export_sessions_json``.
+
+        Returns ``(imported, skipped)``. Sessions that already exist, that are
+        malformed, or that are still open (no ``end_time``) are skipped.
+        """
+        if not self._database_path.exists():
+            raise FileNotFoundError(f"Database not found: {self._database_path}")
+        with open(source.expanduser(), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        if (
+            not isinstance(data, dict)
+            or data.get("format") != self._EXPORT_FORMAT
+            or not isinstance(data.get("sessions"), list)
+        ):
+            raise ValueError("Not a valid Trackora sessions export file.")
+
+        imported = 0
+        skipped = 0
+        conn = sqlite3.connect(self._database_path, timeout=5.0)
+        try:
+            with conn:
+                for item in data["sessions"]:
+                    if not isinstance(item, dict):
+                        skipped += 1
+                        continue
+                    app_name = item.get("app_name")
+                    start_time = item.get("start_time")
+                    end_time = item.get("end_time")
+                    duration = item.get("duration_seconds")
+                    if (
+                        not isinstance(app_name, str)
+                        or not app_name
+                        or not isinstance(start_time, str)
+                        or not isinstance(end_time, str)
+                        or (duration is not None and (not isinstance(duration, int) or duration < 0))
+                    ):
+                        skipped += 1
+                        continue
+                    exists = conn.execute(
+                        "SELECT 1 FROM app_sessions "
+                        "WHERE app_name = ? AND start_time = ? AND end_time = ? LIMIT 1",
+                        (app_name, start_time, end_time),
+                    ).fetchone()
+                    if exists:
+                        skipped += 1
+                        continue
+                    conn.execute(
+                        """
+                        INSERT INTO app_sessions
+                            (app_name, window_title, start_time, end_time,
+                             duration_seconds, last_heartbeat_time)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            app_name,
+                            item.get("window_title"),
+                            start_time,
+                            end_time,
+                            duration,
+                            item.get("last_heartbeat_time"),
+                        ),
+                    )
+                    imported += 1
+        finally:
+            conn.close()
+        self._query_cache.clear()
+        return imported, skipped
